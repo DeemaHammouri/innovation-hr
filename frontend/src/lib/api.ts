@@ -237,6 +237,7 @@ export type LeadPermissions = {
   can_restore: boolean;
   can_request_quotation: boolean;
   can_skip_quotation: boolean;
+  can_request_contract: boolean;
 };
 export type Lead = {
   id: number;
@@ -271,6 +272,7 @@ export type Lead = {
   first_contact_overdue: boolean;
   permissions: LeadPermissions;
   quotation: { id: number; ref: string; status: QuotationStatus } | null;
+  contract: { id: number; ref: string; status: ContractStatus } | null;
   skipped_quotation_at: string | null;
 };
 export type Interaction = {
@@ -385,3 +387,44 @@ export type Quotation = {
   versions?: QuotationVersion[];
 };
 export type ServiceItem = { id: number; name_en: string; name_ar: string; default_unit_price: string | null; currency: string; is_active: boolean };
+
+export type ContractStatus = "requested" | "drafting" | "with_commercial" | "meeting_logged" | "ceo_review" | "returned" | "signed" | "handed_over" | "cancelled";
+export type ContractPermissions = {
+  can_start: boolean;
+  can_send: boolean;
+  can_log_meeting: boolean;
+  can_submit: boolean;
+  can_review: boolean;
+  can_handover: boolean;
+  can_cancel: boolean;
+};
+export type Contract = {
+  id: number;
+  ref: string;
+  lead: number;
+  lead_ref: string;
+  lead_company: string;
+  lead_contact: string;
+  assigned_to_name: string | null;
+  quotation: number | null;
+  quotation_ref: string | null;
+  client: number | null;
+  status: ContractStatus;
+  requested_by_name: string;
+  request_note: string;
+  drafted_by_name: string | null;
+  meeting_date: string | null;
+  meeting_notes: string;
+  meeting_by_name: string | null;
+  submitted_to_ceo_at: string | null;
+  ceo_comment: string;
+  signed_by_name: string | null;
+  signed_at: string | null;
+  handed_over_by_name: string | null;
+  handed_over_at: string | null;
+  cancel_reason: string;
+  created_at: string;
+  permissions: ContractPermissions;
+  attachable: string[];
+  versions?: { id: number; number: number; note: string; created_by_name: string; created_at: string }[];
+};

@@ -16,6 +16,7 @@ class LeadSerializer(serializers.ModelSerializer):
     first_contact_overdue = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
     quotation = serializers.SerializerMethodField()
+    contract = serializers.SerializerMethodField()
 
     class Meta:
         model = Lead
@@ -24,7 +25,7 @@ class LeadSerializer(serializers.ModelSerializer):
             "assigned_to", "assigned_to_name", "assigned_at", "batch", "batch_ref", "created_by", "created_by_name", "created_at",
             "next_follow_up", "rejection_reason", "rejection_reason_en", "rejection_reason_ar", "rejection_note",
             "first_contacted_at", "last_contacted_at", "qualified_at", "rejected_at", "archived_at", "archive_reason",
-            "follow_up_overdue", "first_contact_overdue", "permissions", "quotation", "skipped_quotation_at",
+            "follow_up_overdue", "first_contact_overdue", "permissions", "quotation", "contract", "skipped_quotation_at",
         ]
         read_only_fields = fields
 
@@ -51,6 +52,14 @@ class LeadSerializer(serializers.ModelSerializer):
             return None
         q = max(items, key=lambda x: x.pk)
         return {"id": q.pk, "ref": q.ref, "status": q.status}
+
+
+    def get_contract(self, lead):
+        items = list(lead.contracts.all())
+        if not items:
+            return None
+        c = max(items, key=lambda x: x.pk)
+        return {"id": c.pk, "ref": c.ref, "status": c.status}
 
 
 class InteractionSerializer(serializers.ModelSerializer):

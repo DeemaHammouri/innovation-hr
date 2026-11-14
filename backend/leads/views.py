@@ -64,7 +64,7 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
         return (
             Lead.objects.filter(access.visible_q(self.request.user))
             .select_related("assigned_to", "created_by", "batch", "rejection_reason")
-            .prefetch_related("quotations")
+            .prefetch_related("quotations", "contracts")
         )
 
     def get_object(self):

@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "lookups",
     "leads",
     "quotations",
+    "contracts",
 ]
 
 MIDDLEWARE = [

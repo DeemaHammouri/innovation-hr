@@ -747,4 +747,4 @@ class ListBoardAndRegistryTests(LeadCase):
         self.as_role("commercial_head")
         with CaptureQueriesContext(connection) as ctx:
             self.client.get("/api/leads/board/")
-        self.assertLessEqual(len(ctx), 20)  # a fixed number: five stages, each with its cards and their quotations
+        self.assertLessEqual(len(ctx), 24)  # a fixed number: five stages, each with its cards, their quotations and contracts

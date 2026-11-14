@@ -112,6 +112,7 @@ All under `/api/`. Everything needs sign-in and a finished forced password chang
 | `clients/…` (list, create, read, edit; no delete) | CEO, Operation head |
 | `quotations/…` (list, read, create, `start`, `draft` (PUT), `submit`, `request-changes`, `sign`, `send`, `outcome`, `cancel`) | CEO read; Commercial head/assigned member request, send, record outcome; HR prepare; head signs/cancels |
 | `POST leads/<id>/skip-quotation/` | Commercial head or assigned member |
+| `contracts/…` (list, read, create, `start`, `send`, `meeting`, `submit`, `approve`, `return`, `handover`, `cancel`) | CEO read, approve, return; Commercial head/assigned member request, meeting, submit; HR draft, send, handover; Commercial head cancels; Operation reads handed-over contracts |
 | `GET my-work/` | signed in |
 | `GET notifications/` (`?unread=1`), `GET notifications/unread-count/`, `POST notifications/<id>/read/`, `POST notifications/read-all/` | own only |
 | `GET activity/?target=` | parent record's view rule; read-only |
@@ -152,3 +153,12 @@ screenshots go to `/frontend/.design-review/`.
 - **Lead integration:** a qualified lead can request a quotation or be marked "skipped" (recorded in the audit trail); both unlock the Contracts step in Phase 4.
 - **PDF:** the signed version is shown as an A4 print view in English or Arabic; the browser's "Save as PDF" lays out RTL and Arabic shaping correctly with no external service.
 - **Reminders:** `quotation_reminders` daily job notifies the owner of overdue Waiting follow-ups (idempotent per date).
+
+
+## 9. Contracts (Phase 4)
+
+- **States:** requested -> drafting -> with_commercial -> meeting_logged -> ceo_review -> signed -> handed_over; the CEO may return (ceo_review -> returned, comment required), after which HR redrafts or Commercial updates the documents and resubmits; cancelled (reason, Commercial head) from any open state. One open contract per lead is a database constraint.
+- **Gate:** a contract can start only when the lead's quotation is confirmed or the quotation was skipped.
+- **Documents:** the files live in the shared attachments store with a category. `draft` (HR, needed to send a version), `visit_report` and `client_signed_copy` (Commercial, both needed to reach the CEO), `final_signed` (HR, needed to hand over). Archived files do not count. The contract payload lists which slots the caller may upload to (`attachable`).
+- **Visibility:** CEO, Commercial head and HR see every contract; a Commercial member only their own leads; Operation only handed-over contracts; Marketing none.
+- **Client record:** the contract has a nullable `client` link, filled by Operation's onboarding in Phase 5.

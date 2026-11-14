@@ -72,6 +72,15 @@ def quotation_ready(user, lead):
     return not any(q.status in OPEN_QUOTATION for q in lead.quotations.all())
 
 
+def contract_ready(user, lead):
+    """Quotation confirmed or skipped, and no contract in progress, for the head or the assigned member."""
+    if not can_pipeline_write(user, lead) or lead.archived_at or lead.status != "qualified":
+        return False
+    cleared = lead.skipped_quotation_at or any(q.status == "confirmed" for q in lead.quotations.all())
+    return bool(cleared) and not any(c.status in OPEN_CONTRACT for c in lead.contracts.all())
+
+
+OPEN_CONTRACT = ("requested", "drafting", "with_commercial", "meeting_logged", "ceo_review", "returned", "signed")
 OPEN_QUOTATION = ("requested", "in_preparation", "in_review", "changes_requested", "signed", "sent", "waiting")
 
 
@@ -86,4 +95,5 @@ def flags(user, lead):
         "can_restore": is_head(user) and bool(lead.archived_at),
         "can_request_quotation": quotation_ready(user, lead),
         "can_skip_quotation": quotation_ready(user, lead),
+        "can_request_contract": contract_ready(user, lead),
     }

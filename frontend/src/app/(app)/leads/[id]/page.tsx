@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArchiveSheet, AssignSheet, ContactSheet, ReopenSheet } from "@/components/leads/LeadSheets";
 import { FollowUpChip, LeadStatusPill, LeadStepper, useReasonName } from "@/components/leads/leadUi";
+import { RequestContractSheet } from "@/components/contracts/ContractSheets";
+import { ContractStatusPill } from "@/components/contracts/contractUi";
 import { RequestQuotationSheet, SkipQuotationSheet } from "@/components/quotations/QuotationSheets";
 import { QuoteStatusPill } from "@/components/quotations/quoteUi";
 import { RecordTabs } from "@/components/records/RecordTabs";
@@ -22,7 +24,7 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useFetch } from "@/lib/useFetch";
 
-type Sheet = "contact" | "outcome" | "assign" | "reopen" | "archive" | "quote" | "skip" | null;
+type Sheet = "contact" | "outcome" | "assign" | "reopen" | "archive" | "quote" | "skip" | "contract" | null;
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -65,6 +67,7 @@ export default function LeadDetailPage() {
     else if (p.can_log && data.status === "new") primary = { label: t("lead.next.contact"), text: t("lead.nextText.contact"), run: () => setSheet("contact") };
     else if (p.can_log && data.status === "contacted") primary = { label: t("lead.next.outcome"), text: t("lead.nextText.outcome"), run: () => setSheet("outcome") };
     else if (p.can_log && data.status === "waiting") primary = { label: t("lead.next.waiting"), text: t("lead.nextText.waiting"), run: () => setSheet("contact") };
+    else if (p.can_request_contract) primary = { label: t("ct.request.title"), text: t("ct.nextText.request"), run: () => setSheet("contract") };
     else if (p.can_request_quotation) primary = { label: t("qt.request.title"), text: t("qt.nextText.request"), run: () => setSheet("quote") };
     else if (p.can_reopen && data.status === "rejected") primary = { label: t("lead.next.reopen"), text: t("lead.nextText.rejected"), run: () => setSheet("reopen") };
   }
@@ -186,6 +189,16 @@ export default function LeadDetailPage() {
                 {data.skipped_quotation_at ? <InsetRow label={t("qt.skippedLabel")}>{formatDateTime(data.skipped_quotation_at)}</InsetRow> : null}
               </InsetList>
             ) : null}
+            {data.contract ? (
+              <InsetList title={t("ct.title")}>
+                <InsetRow label={data.contract.ref}>
+                  <span className="flex items-center justify-end gap-2">
+                    <ContractStatusPill status={data.contract.status} />
+                    <Link href={`/contracts/${data.contract.id}`} className="text-primary-strong hover:underline">{t("qt.open")}</Link>
+                  </span>
+                </InsetRow>
+              </InsetList>
+            ) : null}
             <Card as="section" aria-labelledby="interactions" className="overflow-hidden">
               <div className="flex items-center justify-between gap-3 p-4 pb-3">
                 <h2 id="interactions" className="text-section text-ink">{t("lead.interactions")}</h2>
@@ -231,6 +244,7 @@ export default function LeadDetailPage() {
       {sheet === "assign" ? <AssignSheet lead={data} onClose={() => setSheet(null)} onDone={refresh} /> : null}
       {sheet === "reopen" ? <ReopenSheet lead={data} onClose={() => setSheet(null)} onDone={refresh} /> : null}
       {sheet === "quote" ? <RequestQuotationSheet lead={data} onClose={() => setSheet(null)} onDone={(q) => { setSheet(null); router.push(`/quotations/${q.id}`); }} /> : null}
+      {sheet === "contract" ? <RequestContractSheet lead={data} onClose={() => setSheet(null)} onDone={(c) => { setSheet(null); router.push(`/contracts/${c.id}`); }} /> : null}
       {sheet === "skip" ? <SkipQuotationSheet lead={data} onClose={() => setSheet(null)} onDone={refresh} /> : null}
       {sheet === "archive" ? <ArchiveSheet lead={data} onClose={() => setSheet(null)} onDone={refresh} /> : null}
     </>

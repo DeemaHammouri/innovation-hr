@@ -51,6 +51,7 @@ class Command(BaseCommand):
         users = self.people()
         self.leads(users)
         self.quotations(users)
+        self.contracts(users)
         self.stdout.write(self.style.SUCCESS(f"Demo data ready. Sign in as <name>@demo.test with the password {PASSWORD}"))
         for key, *_ in PEOPLE:
             self.stdout.write(f"  {key}@demo.test")
@@ -133,3 +134,21 @@ class Command(BaseCommand):
             q = services.sign(head, q)
             services.mark_sent(lead.assigned_to or head, q)
         self.stdout.write(f"Quotations: {len(qualified)} added.")
+
+    def contracts(self, users):
+        """One demo contract requested on a lead whose quotation is signed and sent (confirmed here), waiting for HR."""
+        from django.utils import timezone
+
+        from contracts import services
+        from contracts.models import Contract
+        from quotations.models import Quotation
+
+        if Contract.objects.exists():
+            self.stdout.write("Contracts: already there.")
+            return
+        q = Quotation.objects.filter(status="sent").select_related("lead").first()
+        if q is None:
+            return
+        Quotation.objects.filter(pk=q.pk).update(status="confirmed", outcome_at=timezone.now())
+        services.request_contract(q.lead.assigned_to or users["commercial.head"], q.lead, "Demo: standard 12 month terms")
+        self.stdout.write("Contracts: 1 added.")

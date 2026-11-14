@@ -32,6 +32,14 @@ CATALOG = {
         "en": ("{ref} was signed", "{name}"),
         "ar": ("تم توقيع {ref}", "{name}"),
     },
+    "contract_review": {
+        "en": ("Contract waiting for your review: {ref}", "{name}"),
+        "ar": ("عقد بانتظار مراجعتك: {ref}", "{name}"),
+    },
+    "contract_handover": {
+        "en": ("New contract handed over: {ref}", "{name}"),
+        "ar": ("عقد جديد تم تسليمه: {ref}", "{name}"),
+    },
     "overdue": {
         "en": ("{ref} is overdue", "{name}"),
         "ar": ("{ref} متأخر عن موعده", "{name}"),
