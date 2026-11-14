@@ -87,9 +87,22 @@ class AccessTests(OCase):
         self.as_role("commercial_member")
         self.assertEqual({r["id"] for r in self.client.get("/api/operations/clients/").data["results"]}, {mine.pk})
         self.assertEqual(self.client.get(f"/api/operations/clients/{theirs.pk}/").status_code, 404)
-        for key in ("ceo", "commercial_head", "operation_head", "operation_member"):
+        for key in ("ceo", "operation_head", "operation_member"):
             self.as_role(key)
             self.assertEqual(self.client.get("/api/operations/clients/").data["count"], 3, key)
+        # The Commercial head is no different from a member: only clients from their own deals, never all of them.
+        self.as_role("commercial_head")
+        self.assertEqual(self.client.get("/api/operations/clients/").data["count"], 0)
+        headmine = self.mkclient(owner=self.chead)
+        self.assertEqual({r["id"] for r in self.client.get("/api/operations/clients/").data["results"]}, {headmine.pk})
+        self.assertEqual(self.client.get(f"/api/operations/clients/{mine.pk}/").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/operations/clients/{headmine.pk}/").status_code, 200)
+        self.assertEqual(self.client.get(f"/api/operations/tasks/?client={mine.pk}").data["count"], 0)
+        self.assertEqual(self.client.get(f"/api/comments/?target=client:{mine.pk}").status_code, 404)
+        # A contract the head requested counts as theirs even when the lead is assigned to a member.
+        Contract.objects.filter(client=mine).update(requested_by=self.chead)
+        self.assertEqual(self.client.get(f"/api/operations/clients/{mine.pk}/").status_code, 200)
+        self.assertEqual(self.client.post(f"/api/operations/clients/{mine.pk}/cadence/", {"qa_cadence_days": 14}, format="json").status_code, 403)  # still read-only
 
     def test_write_rules(self):
         c = self.mkclient()

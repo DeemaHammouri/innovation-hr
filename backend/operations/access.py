@@ -18,21 +18,26 @@ def has_access(user):
     return role_key(user) in (CEO, COMMERCIAL_HEAD, COMMERCIAL_MEMBER, *OP)
 
 
+def own_deal_q(user):
+    """A Commercial person's own deals: contracts on leads assigned to them, or that they requested."""
+    return Q(contracts__lead__assigned_to=user) | Q(contracts__requested_by=user)
+
+
 def visible_clients_q(user):
     role = role_key(user)
-    if role in (CEO, COMMERCIAL_HEAD, *OP):
+    if role in (CEO, *OP):
         return Q()
-    if role == COMMERCIAL_MEMBER:
-        return Q(contracts__lead__assigned_to=user)
+    if role in (COMMERCIAL_HEAD, COMMERCIAL_MEMBER):
+        return own_deal_q(user)
     return Q(pk__in=[])
 
 
 def can_view_client(user, client):
     role = role_key(user)
-    if role in (CEO, COMMERCIAL_HEAD, *OP):
+    if role in (CEO, *OP):
         return True
-    if role == COMMERCIAL_MEMBER:
-        return client.contracts.filter(lead__assigned_to=user).exists()
+    if role in (COMMERCIAL_HEAD, COMMERCIAL_MEMBER):
+        return client.contracts.filter(Q(lead__assigned_to=user) | Q(requested_by=user)).exists()
     return False
 
 
