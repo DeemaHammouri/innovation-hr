@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "leads",
     "quotations",
     "contracts",
+    "operations",
 ]
 
 MIDDLEWARE = [

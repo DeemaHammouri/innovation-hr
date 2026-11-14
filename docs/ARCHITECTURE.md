@@ -18,7 +18,7 @@ Design language: `/frontend/DESIGN.md`. This file is updated at the end of every
 | `leads` | Leads, import batches (CSV), interactions, board + list, SLA flags, daily reminders | Phase 2 (done) |
 | `quotations` | Quotations, versions, lines, PDF | Phase 3 |
 | `contracts` | Contracts, versions, meetings, visit report | Phase 4 |
-| `onboarding` | KYC / legal checklist, client activation, recurring tasks, follow-up meetings | Phase 5 |
+| `operations` | KYC / legal checklist, client activation, recurring tasks, QA meetings | Phase 5 |
 | `payments` | Schedules, instalments, payments (reversals) | Phase 6 |
 | `hr` | Attendance, leave, payroll | Phase 6 |
 | `reports` | Funnel, revenue, operations, HR, forecast | Phase 7 |
@@ -162,3 +162,13 @@ screenshots go to `/frontend/.design-review/`.
 - **Documents:** the files live in the shared attachments store with a category. `draft` (HR, needed to send a version), `visit_report` and `client_signed_copy` (Commercial, both needed to reach the CEO), `final_signed` (HR, needed to hand over). Archived files do not count. The contract payload lists which slots the caller may upload to (`attachable`).
 - **Visibility:** CEO, Commercial head and HR see every contract; a Commercial member only their own leads; Operation only handed-over contracts; Marketing none.
 - **Client record:** the contract has a nullable `client` link, filled by Operation's onboarding in Phase 5.
+
+## 10. Operation (Phase 5)
+
+- **Client status:** `onboarding` -> `active` (-> `inactive`, reserved). Existing clients default to `active`. Created or linked in `operations.services.onboard`, called by contract hand-over; the match is case-insensitive on company name.
+- **Checklist:** copied from the active `ChecklistTemplateItem`s per client (name EN/AR, required, position), so later template changes do not touch existing clients. Item states: pending -> uploaded (automatically when a file is attached, via the registry's `after_attach` hook) -> verified (needs a live file; records verifier and time); not applicable needs a reason (database check); reset returns an item to pending. Removing an item archives it.
+- **Activation rule:** `recompute_status` runs after every change. Active exactly when every non-archived required item is verified or not applicable; it flips back to onboarding if that stops being true. A client with no checklist items (legacy) is never changed.
+- **Recurring tasks:** frequency daily/weekly/biweekly/monthly/yearly/custom (1-365 days). Due dates are counted from the start date (month ends clamp, e.g. 31 Jan -> 28 Feb -> 31 Mar). `generate_due` creates instances idempotently (unique recurring+due date), catching up at most 12 missed instances per task per run; the first instance appears at creation when it starts today. Complete takes an optional note; skip needs a reason; only the assignee or the Operation head can close one.
+- **QA meetings:** per client cadence (7-365 days, default 30); logging needs a date not in the future and notes, and suggests next date = held date + cadence. Overdue meetings and tasks are reminded once per day per item.
+- **Access:** CEO, Commercial and Operation can open Operation; Commercial members only for clients of their own leads, read-only. Operation staff work items, tasks and meetings; the Operation head customises checklists, recurring tasks and cadence. The generic activity, comments and files endpoints follow the same rules via the `client` and `checklist_item` registry targets.
+- **Scheduling:** `python manage.py generate_recurring_tasks` (idempotent) once a day; it also runs on the first request of each day.

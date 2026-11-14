@@ -52,6 +52,7 @@ class Command(BaseCommand):
         self.leads(users)
         self.quotations(users)
         self.contracts(users)
+        self.operation(users)
         self.stdout.write(self.style.SUCCESS(f"Demo data ready. Sign in as <name>@demo.test with the password {PASSWORD}"))
         for key, *_ in PEOPLE:
             self.stdout.write(f"  {key}@demo.test")
@@ -152,3 +153,21 @@ class Command(BaseCommand):
         Quotation.objects.filter(pk=q.pk).update(status="confirmed", outcome_at=timezone.now())
         services.request_contract(q.lead.assigned_to or users["commercial.head"], q.lead, "Demo: standard 12 month terms")
         self.stdout.write("Contracts: 1 added.")
+
+    def operation(self, users):
+        """One demo client mid-onboarding (two of its documents verified) with a weekly task. Skipped if one exists."""
+        from clients.models import Client
+        from lookups.models import ChecklistTemplateItem
+        from operations import services
+        from operations.models import ChecklistItem
+
+        name = "Demo Onboarding Co"
+        if Client.objects.filter(company_name=name).exists():
+            self.stdout.write("Operation: already there.")
+            return
+        head = users["operation.head"]
+        client = Client.objects.create(company_name=name, contact_person="Demo Contact", phone="0790002001", status="onboarding", created_by=head, notes="Demo client for the Operation screens.")
+        for pos, t in enumerate(ChecklistTemplateItem.objects.filter(is_active=True)):
+            ChecklistItem.objects.create(client=client, template_item=t, name_en=t.name_en, name_ar=t.name_ar, required=t.required, position=pos)
+        services.create_recurring(head, client, {"title": "Weekly bank reconciliation", "frequency": "weekly", "start_date": timezone.localdate().isoformat(), "assignee": users["operation.member"].pk})
+        self.stdout.write("Operation: 1 client added.")

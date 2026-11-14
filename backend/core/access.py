@@ -22,6 +22,7 @@ class Target:
     can_comment: Optional[Callable] = None  # (user, obj) -> bool; defaults to can_view
     label: Optional[Callable] = None  # obj -> short human title, for notifications and search
     link: Optional[Callable] = None  # obj -> frontend path
+    after_attach: Optional[Callable] = None  # (user, obj, attachment) -> None, runs once the file is stored
 
     def may_attach(self, user, obj, category=""):
         return (self.can_attach or (lambda u, o, c: self.can_write(u, o)))(user, obj, category)

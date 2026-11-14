@@ -9,6 +9,10 @@ class Client(models.Model):
     email = models.EmailField(blank=True)
     address = models.TextField(blank=True)
     notes = models.TextField(blank=True)
+    # Phase 5. Clients that existed before onboarding was built stay "active"; a handover creates them as "onboarding".
+    status = models.CharField(max_length=12, choices=[("onboarding", "Onboarding"), ("active", "Active"), ("inactive", "Inactive")], default="active", db_index=True)
+    activated_at = models.DateTimeField(null=True, blank=True)
+    qa_cadence_days = models.PositiveSmallIntegerField(default=30)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="clients_created")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

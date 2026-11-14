@@ -40,6 +40,18 @@ CATALOG = {
         "en": ("New contract handed over: {ref}", "{name}"),
         "ar": ("عقد جديد تم تسليمه: {ref}", "{name}"),
     },
+    "task_due": {
+        "en": ("Task due: {ref}", "{name}"),
+        "ar": ("مهمة مستحقة: {ref}", "{name}"),
+    },
+    "client_active": {
+        "en": ("Client is now active: {ref}", "{name}"),
+        "ar": ("أصبح العميل نشطًا: {ref}", "{name}"),
+    },
+    "qa_overdue": {
+        "en": ("QA meeting overdue: {ref}", "{name}"),
+        "ar": ("اجتماع المتابعة متأخر: {ref}", "{name}"),
+    },
     "overdue": {
         "en": ("{ref} is overdue", "{name}"),
         "ar": ("{ref} متأخر عن موعده", "{name}"),

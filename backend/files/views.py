@@ -85,6 +85,8 @@ class AttachmentListCreateView(ListAPIView):
             content_type=access.content_type_for(obj), object_id=obj.pk,
         )
         record(request.user, obj, "file_added", to_value=att.original_name)
+        if target.after_attach:
+            target.after_attach(request.user, obj, att)
         return Response(AttachmentSerializer(att).data, status=status.HTTP_201_CREATED)
 
 

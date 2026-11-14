@@ -60,7 +60,7 @@ class AuditTests(RoleCase):
 
     def test_activity_endpoint_follows_the_record_permissions(self):
         record(self.users["ceo"], self.c, "created")
-        self.assert_matrix("get", f"/api/activity/?target=client:{self.c.pk}", {"ceo": 200, "operation_head": 200, "*": 404})
+        self.assert_matrix("get", f"/api/activity/?target=client:{self.c.pk}", {"ceo": 200, "operation_head": 200, "operation_member": 200, "commercial_head": 200, "*": 404})  # Phase 5: Operation works on clients, Commercial reads
 
     def test_activity_has_no_write_endpoint(self):
         self.as_role("ceo")
@@ -139,9 +139,10 @@ class CommentTests(RoleCase):
         self.url = f"/api/comments/?target=client:{self.c.pk}"
 
     def test_only_people_who_can_open_the_record_can_read_or_write(self):
-        allowed = {"ceo": 200, "operation_head": 200, "*": 404}
+        allowed = {"ceo": 200, "operation_head": 200, "operation_member": 200, "commercial_head": 200, "*": 404}
         self.assert_matrix("get", self.url, allowed)
-        self.assert_matrix("post", self.url, {"ceo": 201, "operation_head": 201, "*": 404}, data={"body": "Hello"})
+        # Commercial can read a client but not comment (read-only); a Commercial member only sees clients of their own leads.
+        self.assert_matrix("post", self.url, {"ceo": 201, "operation_head": 201, "operation_member": 201, "commercial_head": 403, "*": 404}, data={"body": "Hello"})
 
     def test_empty_comment_is_refused(self):
         self.as_role("ceo")
@@ -162,7 +163,7 @@ class CommentTests(RoleCase):
     def test_mentionable_lists_only_people_with_access_and_not_yourself(self):
         self.as_role("ceo")
         ids = {p["id"] for p in self.client.get(f"/api/mentionable/?target=client:{self.c.pk}").data}
-        self.assertEqual(ids, {self.users["operation_head"].pk})
+        self.assertEqual(ids, {self.users[k].pk for k in ("operation_head", "operation_member", "commercial_head")})
 
     def test_comment_is_recorded_in_the_activity_trail(self):
         self.as_role("ceo")
@@ -200,11 +201,12 @@ class FileTests(RoleCase):
 
     def test_access_follows_the_parent_record(self):
         att_id = self.upload().data["id"]
-        self.assert_matrix("get", f"/api/files/{att_id}/download/", {"ceo": 200, "operation_head": 200, "*": 404})
-        self.assert_matrix("get", self.url, {"ceo": 200, "operation_head": 200, "*": 404})
+        readers = {"ceo": 200, "operation_head": 200, "operation_member": 200, "commercial_head": 200, "*": 404}  # Phase 5: Operation works on clients, Commercial reads
+        self.assert_matrix("get", f"/api/files/{att_id}/download/", readers)
+        self.assert_matrix("get", self.url, readers)
 
     def test_who_may_upload(self):
-        for role, code in (("hr_head", 404), ("commercial_head", 404), ("ceo", 201)):
+        for role, code in (("hr_head", 404), ("commercial_head", 403), ("operation_member", 201), ("ceo", 201)):
             self.assertEqual(self.upload(role=role).status_code, code, role)
 
     def test_type_allow_list_and_real_content_check(self):

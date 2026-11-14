@@ -186,6 +186,9 @@ def hand_over(actor, c):
         c.save(update_fields=["status", "handed_over_by", "handed_over_at", "updated_at"])
         record(actor, c, "handed_over")
         record(actor, c.lead, "contract_handed_over", to_value=c.ref)
+        from operations import services as ops
+
+        ops.onboard(actor, c)
     ops = User.objects.filter(is_active=True, department__name="Operation")
     notify_many(ops, "contract_handover", exclude=actor, link=link(c), ref=c.ref, name=c.lead.company_name)
     return c
