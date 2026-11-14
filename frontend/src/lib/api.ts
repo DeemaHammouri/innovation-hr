@@ -607,3 +607,17 @@ export type PayrollRun = {
 };
 export type SalaryRow = { user: number; user_name: string; department: string; base_salary: string | null; currency: string | null };
 export type Payslip = { id: number; month: string; currency: string; paid_at: string | null; user_name: string; department: string; base_salary: string; allowances: string; deductions: string; net: string; note: string };
+
+export type ReportPoint = { key: string; value: number | null; n: number | null; label_en?: string; label_ar?: string };
+export type ReportSeries = { key: string; unit: "count" | "hours" | "percent" | "money"; kind: "bar" | "line" | "funnel"; currency?: string; points: ReportPoint[] };
+export type Report = {
+  section: string;
+  records: number;
+  period: { from: string; to: string };
+  series: ReportSeries[];
+  kpis?: Record<string, { overdue_total: number; overdue_instalments: number }>;
+  refused?: boolean;
+  unpaid_records?: number;
+  method?: { window_from: string; window_to: string; decided: number; left_early: number; min_sample: number; p_sent?: number; p_confirmed?: number; open_quotations?: number };
+};
+export type SearchHit = { kind: "lead" | "quotation" | "contract" | "client"; id: number; title: string; subtitle: string; href: string };

@@ -18,5 +18,6 @@ urlpatterns = [
     path("api/", include("operations.urls")),
     path("api/", include("payments.urls")),
     path("api/", include("hr.urls")),
+    path("api/", include("reports.urls")),
     path("api/my-work/", MyWorkView.as_view()),
 ]

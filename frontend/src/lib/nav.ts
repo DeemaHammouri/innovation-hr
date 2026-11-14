@@ -3,7 +3,7 @@
 import { useAuth } from "./auth";
 
 /** Add a key here, then its icon in navIcons.tsx and its label (nav.<key>) in both locale files. */
-export type NavKey = "home" | "users" | "clients" | "leads" | "pipeline" | "quotations" | "contracts" | "approvals" | "operation" | "payments" | "attendance" | "leave" | "payroll" | "settings";
+export type NavKey = "home" | "users" | "clients" | "leads" | "pipeline" | "quotations" | "contracts" | "approvals" | "operation" | "payments" | "attendance" | "leave" | "payroll" | "reports" | "settings";
 export type NavItem = { key: NavKey; href: string };
 
 /**
@@ -26,6 +26,7 @@ export function useNavItems(): NavItem[] {
   if (role) items.push({ key: "attendance", href: "/attendance" });
   if (role) items.push({ key: "leave", href: "/leave" });
   if (role) items.push({ key: "payroll", href: "/payroll" });
+  if (role === "ceo" || role === "commercial_head" || role === "marketing" || role === "operation_head" || role === "hr_head") items.push({ key: "reports", href: "/reports" });
   if (role === "ceo") items.push({ key: "approvals", href: "/approvals" });
   if (user?.role_key === "ceo") items.push({ key: "settings", href: "/admin/lookups" });
   return items;

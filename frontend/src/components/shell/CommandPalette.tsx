@@ -20,7 +20,7 @@ import { useDialog } from "@/components/ui/useDialog";
 import { usePresence } from "@/components/ui/usePresence";
 import { Ltr } from "@/components/ui/Ltr";
 import { Skeleton, useDelayed } from "@/components/ui/States";
-import { api, type Client, type User } from "@/lib/api";
+import { api, type Client, type SearchHit, type User } from "@/lib/api";
 import { useAuth, useChangeLanguage, useSignOut } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { getRecents, pushRecent } from "@/lib/recent";
@@ -65,7 +65,7 @@ function PaletteDialog({ closing, onClose }: { closing: boolean; onClose: () => 
   const changeLanguage = useChangeLanguage();
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [found, setFound] = useState<{ q: string; users: User[]; clients: Client[] } | null>(null);
+  const [found, setFound] = useState<{ q: string; users: User[]; clients: Client[]; records: SearchHit[] } | null>(null);
   const [active, setActive] = useState(0);
   const panel = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -87,8 +87,9 @@ function PaletteDialog({ closing, onClose }: { closing: boolean; onClose: () => 
     Promise.all([
       canUsers ? api<User[]>(`/users/?search=${enc}`).catch(() => []) : Promise.resolve([] as User[]),
       canClients ? api<Client[]>(`/clients/?search=${enc}`).catch(() => []) : Promise.resolve([] as Client[]),
-    ]).then(([users, clients]) => {
-      if (!cancelled) setFound({ q: debounced, users: users.slice(0, 5), clients: clients.slice(0, 5) });
+      api<{ results: SearchHit[] }>(`/search/?q=${enc}`).then((r) => r.results).catch(() => [] as SearchHit[]),
+    ]).then(([users, clients, records]) => {
+      if (!cancelled) setFound({ q: debounced, users: users.slice(0, 5), clients: clients.slice(0, 5), records });
     });
     return () => {
       cancelled = true;
@@ -152,6 +153,18 @@ function PaletteDialog({ closing, onClose }: { closing: boolean; onClose: () => 
           run: () => {
             pushRecent(user.id, { kind: "user", id: u.id, title: u.full_name, subtitle: `${dept(u.department_name)} · ${role(u.role)}`, href: `/users/${u.id}` });
             router.push(`/users/${u.id}`);
+          },
+        })),
+        ...found.records.filter((r) => r.kind !== "client" || !found.clients.some((c) => c.id === r.id)).map<Entry>((r) => ({
+          id: `${r.kind}-${r.id}`,
+          group: `search.${r.kind}`,
+          title: r.title,
+          subtitle: r.subtitle,
+          ltrSubtitle: r.kind !== "client",
+          icon: <Buildings size={20} aria-hidden />,
+          run: () => {
+            pushRecent(user.id, { kind: r.kind, id: r.id, title: r.title, subtitle: r.subtitle, href: r.href });
+            router.push(r.href);
           },
         })),
         ...found.clients.map<Entry>((c) => ({

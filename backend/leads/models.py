@@ -73,7 +73,7 @@ class Lead(TimeStamped, Archivable):
 
     class Meta:
         ordering = ["-created_at", "-id"]
-        indexes = [models.Index(fields=["status", "next_follow_up"]), models.Index(fields=["assigned_to", "status"])]
+        indexes = [models.Index(fields=["created_at"], name="lead_created_idx"), models.Index(fields=["status", "next_follow_up"]), models.Index(fields=["assigned_to", "status"])]
 
     def __str__(self):
         return f"{self.ref} {self.company_name}"

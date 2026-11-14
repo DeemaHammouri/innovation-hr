@@ -1,5 +1,5 @@
 /** The last few things a person opened, kept in this browser only and per account. */
-export type RecentItem = { kind: "user" | "client"; id: number; title: string; subtitle: string; href: string };
+export type RecentItem = { kind: "user" | "client" | "lead" | "quotation" | "contract"; id: number; title: string; subtitle: string; href: string };
 
 const key = (userId: number) => `innovation.recent.${userId}`;
 

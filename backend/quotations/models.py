@@ -41,6 +41,7 @@ class Quotation(TimeStamped):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["created_at"], name="quotation_created_idx")]
         constraints = [
             # A lead has at most one quotation in progress. A rejected or cancelled one frees the lead for a new request.
             models.UniqueConstraint(fields=["lead"], condition=Q(status__in=OPEN), name="quotations_one_open_per_lead"),

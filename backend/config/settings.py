@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "operations",
     "payments",
     "hr",
+    "reports",
 ]
 
 MIDDLEWARE = [

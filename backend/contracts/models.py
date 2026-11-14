@@ -40,6 +40,7 @@ class Contract(TimeStamped):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["created_at"], name="contract_created_idx")]
         constraints = [
             models.UniqueConstraint(fields=["lead"], condition=Q(status__in=OPEN), name="contracts_one_open_per_lead"),
         ]

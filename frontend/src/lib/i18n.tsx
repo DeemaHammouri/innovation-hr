@@ -93,6 +93,8 @@ const API_MESSAGES: Record<string, string> = {
   "You can't log contacts on this lead.": "err.leadNoLog",
   "You can't archive this lead.": "err.leadNoArchive",
   "Only the person who imported this batch can undo it.": "err.leadNoUndo",
+  "Choose a period of up to 2 years.": "p7.api.1",
+  "You don't have access to this report.": "p7.api.2",
   "Add at least one instalment.": "p6.api.0",
   "A schedule can have up to 36 instalments.": "p6.api.1",
   "Choose a valid due date.": "p6.api.2",
