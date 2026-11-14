@@ -51,7 +51,7 @@ If the API is somewhere else, copy `.env.example` to `.env.local` and set `NEXT_
 
 ```bash
 cd backend
-python manage.py test        # 151 tests: Task 1 rules, Phase 1 foundation and Phase 2 leads, pipeline and CSV import
+python manage.py test        # 201 tests: Task 1 rules, Phase 1 foundation, Phase 2 leads, Phase 3 quotations
 ```
 
 ## Try the full flow
@@ -136,6 +136,7 @@ indexed on `(user, timestamp)` and `(action, timestamp)`. Failed logins are not 
 
 The full lead-to-cash workflow is being added phase by phase. See `docs/ARCHITECTURE.md` for the modules, state machines, permission matrix and API list.
 
+- **Phase 3 (done):** Quotations. Commercial requests a quotation from a qualified lead (or the head skips it); HR prepares versioned line items; the Commercial head signs or asks for changes (comment required, new version); then Sent → Confirmed / Waiting (follow-up date) / Rejected (reason). Version history with side-by-side compare, and a bilingual printable view (EN/AR, RTL) that is saved as PDF from the browser's print dialog.
 - **Phase 2 (done):** Leads and Pipeline. Marketing adds leads by hand or imports a CSV (template, preview with row errors, duplicate detection, undo while untouched). The Commercial head assigns; members work their own leads on a board or list, log contacts, and record Waiting / Rejected / Initial acceptance. Overdue follow-ups are flagged and reminded.
 - **Phase 1 (done):** activity trail, in-app notifications (bell), private file uploads, comments with @mentions, CEO Settings (rejection reasons, services, legal checklist, work hours, follow-up rules), My Work on Home with sidebar badges, role-aware navigation with a More sheet on phones, and the eight-role permission test harness.
 
@@ -147,6 +148,10 @@ python manage.py seed_demo_data     # refuses to run when DEBUG is off or DJANGO
 ```
 
 Creates one demo user per role (`ceo@demo.test`, `marketing@demo.test`, `commercial.head@demo.test`, … password `Demo-12345`) and sample leads in every state. Seats that are already taken (the CEO, Marketing's one person, a department head) keep their real person.
+
+### Phase 3 setup on an existing database
+
+No new packages. Run `python manage.py migrate`; the migrations only add tables and two nullable lead columns.
 
 ### Phase 2 setup on an existing database
 

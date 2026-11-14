@@ -64,6 +64,7 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
         return (
             Lead.objects.filter(access.visible_q(self.request.user))
             .select_related("assigned_to", "created_by", "batch", "rejection_reason")
+            .prefetch_related("quotations")
         )
 
     def get_object(self):
@@ -155,6 +156,14 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
     def reopen(self, request, pk=None):
         require_head(request.user)
         return self.out(services.reopen(request.user, self.get_object(), request.data.get("note")))
+
+    # ---- after Qualified: skip the quotation ----
+    @action(detail=True, methods=["post"], url_path="skip-quotation")
+    def skip_quotation(self, request, pk=None):
+        lead = self.get_object()
+        if not access.can_pipeline_write(request.user, lead):
+            raise PermissionDenied(MSG_NO_LOG)
+        return self.out(services.skip_quotation(request.user, lead, request.data.get("note")))
 
     # ---- archive instead of delete ----
     @action(detail=True, methods=["post"])

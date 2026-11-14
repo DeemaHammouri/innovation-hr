@@ -67,6 +67,8 @@ class Lead(TimeStamped, Archivable):
     last_contacted_at = models.DateTimeField(null=True, blank=True)
     qualified_at = models.DateTimeField(null=True, blank=True)
     rejected_at = models.DateTimeField(null=True, blank=True)
+    skipped_quotation_at = models.DateTimeField(null=True, blank=True)
+    skipped_quotation_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+", null=True, blank=True)
     archive_reason = models.TextField(blank=True)
 
     class Meta:

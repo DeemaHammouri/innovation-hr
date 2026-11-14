@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "comments",
     "lookups",
     "leads",
+    "quotations",
 ]
 
 MIDDLEWARE = [

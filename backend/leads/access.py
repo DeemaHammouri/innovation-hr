@@ -65,6 +65,16 @@ def can_archive(user, lead):
     )
 
 
+def quotation_ready(user, lead):
+    """A qualified lead with no quotation in progress and no skip recorded, for the head or the assigned member."""
+    if not can_pipeline_write(user, lead) or lead.status != "qualified" or lead.skipped_quotation_at:
+        return False
+    return not any(q.status in OPEN_QUOTATION for q in lead.quotations.all())
+
+
+OPEN_QUOTATION = ("requested", "in_preparation", "in_review", "changes_requested", "signed", "sent", "waiting")
+
+
 def flags(user, lead):
     """What the screen may offer. The server checks each of these again on the action itself."""
     return {
@@ -74,4 +84,6 @@ def flags(user, lead):
         "can_reopen": is_head(user) and not lead.archived_at and lead.status == "rejected",
         "can_archive": can_archive(user, lead),
         "can_restore": is_head(user) and bool(lead.archived_at),
+        "can_request_quotation": quotation_ready(user, lead),
+        "can_skip_quotation": quotation_ready(user, lead),
     }

@@ -15,6 +15,7 @@ class LeadSerializer(serializers.ModelSerializer):
     follow_up_overdue = serializers.SerializerMethodField()
     first_contact_overdue = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
+    quotation = serializers.SerializerMethodField()
 
     class Meta:
         model = Lead
@@ -23,7 +24,7 @@ class LeadSerializer(serializers.ModelSerializer):
             "assigned_to", "assigned_to_name", "assigned_at", "batch", "batch_ref", "created_by", "created_by_name", "created_at",
             "next_follow_up", "rejection_reason", "rejection_reason_en", "rejection_reason_ar", "rejection_note",
             "first_contacted_at", "last_contacted_at", "qualified_at", "rejected_at", "archived_at", "archive_reason",
-            "follow_up_overdue", "first_contact_overdue", "permissions",
+            "follow_up_overdue", "first_contact_overdue", "permissions", "quotation", "skipped_quotation_at",
         ]
         read_only_fields = fields
 
@@ -42,6 +43,14 @@ class LeadSerializer(serializers.ModelSerializer):
 
     def get_permissions(self, lead):
         return access.flags(self.context["request"].user, lead)
+
+    def get_quotation(self, lead):
+        """The lead's newest quotation (from the prefetched list), so the lead page can link to it."""
+        items = list(lead.quotations.all())
+        if not items:
+            return None
+        q = max(items, key=lambda x: x.pk)
+        return {"id": q.pk, "ref": q.ref, "status": q.status}
 
 
 class InteractionSerializer(serializers.ModelSerializer):

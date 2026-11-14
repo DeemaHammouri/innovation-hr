@@ -50,6 +50,7 @@ class Command(BaseCommand):
             Department.objects.get_or_create(name=name)
         users = self.people()
         self.leads(users)
+        self.quotations(users)
         self.stdout.write(self.style.SUCCESS(f"Demo data ready. Sign in as <name>@demo.test with the password {PASSWORD}"))
         for key, *_ in PEOPLE:
             self.stdout.write(f"  {key}@demo.test")
@@ -106,3 +107,29 @@ class Command(BaseCommand):
                 services.log_interaction(member, lead, type="call", notes="Not interested right now.", outcome="rejected", reason_id=reason.pk if reason else None, note="Already works with another provider.")
             made += 1
         self.stdout.write(f"Leads: {made} added.")
+
+    def quotations(self, users):
+        """Two demo quotations on qualified leads: one waiting for HR, one signed and sent. Skipped if any already exist."""
+        from datetime import date, timedelta
+
+        from leads.models import Lead
+        from quotations import services
+        from quotations.models import Quotation
+
+        if Quotation.objects.exists():
+            self.stdout.write("Quotations: already there.")
+            return
+        qualified = list(Lead.objects.filter(status="qualified", archived_at=None, skipped_quotation_at=None)[:2])
+        head, hr = users["commercial.head"], users["hr.head"]
+        for i, lead in enumerate(qualified):
+            q = services.request_quotation(lead.assigned_to or head, lead, "Demo: monthly accounting plan")
+            if i == 0:
+                continue
+            q = services.start_preparing(hr, q)
+            services.save_draft(hr, q, {"currency": "JOD", "valid_until": (date.today() + timedelta(days=30)).isoformat(), "notes": "Demo quotation", "lines": [
+                {"description": "Monthly bookkeeping", "quantity": "1", "unit_price": "250", "discount_percent": "0", "tax_percent": "16"},
+                {"description": "Payroll processing", "quantity": "1", "unit_price": "120", "discount_percent": "10", "tax_percent": "16"}]})
+            q = services.submit(hr, q)
+            q = services.sign(head, q)
+            services.mark_sent(lead.assigned_to or head, q)
+        self.stdout.write(f"Quotations: {len(qualified)} added.")

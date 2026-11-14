@@ -2,10 +2,12 @@
 
 import { Archive, ArrowCounterClockwise, DotsThreeVertical, Pencil, UserSwitch } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArchiveSheet, AssignSheet, ContactSheet, ReopenSheet } from "@/components/leads/LeadSheets";
 import { FollowUpChip, LeadStatusPill, LeadStepper, useReasonName } from "@/components/leads/leadUi";
+import { RequestQuotationSheet, SkipQuotationSheet } from "@/components/quotations/QuotationSheets";
+import { QuoteStatusPill } from "@/components/quotations/quoteUi";
 import { RecordTabs } from "@/components/records/RecordTabs";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -20,10 +22,11 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useFetch } from "@/lib/useFetch";
 
-type Sheet = "contact" | "outcome" | "assign" | "reopen" | "archive" | null;
+type Sheet = "contact" | "outcome" | "assign" | "reopen" | "archive" | "quote" | "skip" | null;
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { user } = useAuth();
   const { t, formatDateTime, formatDate } = useI18n();
   const toast = useToast();
@@ -62,11 +65,12 @@ export default function LeadDetailPage() {
     else if (p.can_log && data.status === "new") primary = { label: t("lead.next.contact"), text: t("lead.nextText.contact"), run: () => setSheet("contact") };
     else if (p.can_log && data.status === "contacted") primary = { label: t("lead.next.outcome"), text: t("lead.nextText.outcome"), run: () => setSheet("outcome") };
     else if (p.can_log && data.status === "waiting") primary = { label: t("lead.next.waiting"), text: t("lead.nextText.waiting"), run: () => setSheet("contact") };
+    else if (p.can_request_quotation) primary = { label: t("qt.request.title"), text: t("qt.nextText.request"), run: () => setSheet("quote") };
     else if (p.can_reopen && data.status === "rejected") primary = { label: t("lead.next.reopen"), text: t("lead.nextText.rejected"), run: () => setSheet("reopen") };
   }
   const note = primary ? primary.text : data.status === "qualified" ? t("lead.nextText.qualified") : data.status === "rejected" ? t("lead.nextText.rejected") : data.status === "waiting" ? t("lead.nextText.waitingOwner") : "";
 
-  const hasMenu = p.can_edit || (p.can_assign && !!data.assigned_to) || p.can_archive || p.can_restore || (p.can_log && data.status === "waiting" && !archived);
+  const hasMenu = p.can_skip_quotation || p.can_edit || (p.can_assign && !!data.assigned_to) || p.can_archive || p.can_restore || (p.can_log && data.status === "waiting" && !archived);
   const menu = hasMenu ? (
     <Menu
       label={t("common.actions")}
@@ -84,6 +88,7 @@ export default function LeadDetailPage() {
               {t("lead.edit")}
             </Link>
           ) : null}
+          {p.can_skip_quotation ? <MenuItem onSelect={() => { close(); setSheet("skip"); }}>{t("qt.skip.title")}</MenuItem> : null}
           {p.can_assign && data.assigned_to ? <MenuItem icon={<UserSwitch size={20} aria-hidden />} onSelect={() => { close(); setSheet("assign"); }}>{t("lead.assign.reassign")}</MenuItem> : null}
           {p.can_log && data.status === "waiting" && !archived ? <MenuItem onSelect={() => { close(); setSheet("outcome"); }}>{t("lead.next.outcome")}</MenuItem> : null}
           {p.can_archive ? <MenuItem danger icon={<Archive size={20} aria-hidden />} onSelect={() => { close(); setSheet("archive"); }}>{t("lead.archive")}</MenuItem> : null}
@@ -168,6 +173,19 @@ export default function LeadDetailPage() {
               <InsetRow label={t("common.email")} ltr={!!data.email}>{data.email || empty}</InsetRow>
               <InsetRow label={t("lead.notes")}>{data.notes ? <span className="whitespace-pre-line">{data.notes}</span> : empty}</InsetRow>
             </InsetList>
+            {data.quotation || data.skipped_quotation_at ? (
+              <InsetList title={t("qt.title")}>
+                {data.quotation ? (
+                  <InsetRow label={data.quotation.ref}>
+                    <span className="flex items-center justify-end gap-2">
+                      <QuoteStatusPill status={data.quotation.status} />
+                      <Link href={`/quotations/${data.quotation.id}`} className="text-primary-strong hover:underline">{t("qt.open")}</Link>
+                    </span>
+                  </InsetRow>
+                ) : null}
+                {data.skipped_quotation_at ? <InsetRow label={t("qt.skippedLabel")}>{formatDateTime(data.skipped_quotation_at)}</InsetRow> : null}
+              </InsetList>
+            ) : null}
             <Card as="section" aria-labelledby="interactions" className="overflow-hidden">
               <div className="flex items-center justify-between gap-3 p-4 pb-3">
                 <h2 id="interactions" className="text-section text-ink">{t("lead.interactions")}</h2>
@@ -212,6 +230,8 @@ export default function LeadDetailPage() {
       {sheet === "outcome" ? <ContactSheet lead={data} mode="outcome" onClose={() => setSheet(null)} onDone={refresh} /> : null}
       {sheet === "assign" ? <AssignSheet lead={data} onClose={() => setSheet(null)} onDone={refresh} /> : null}
       {sheet === "reopen" ? <ReopenSheet lead={data} onClose={() => setSheet(null)} onDone={refresh} /> : null}
+      {sheet === "quote" ? <RequestQuotationSheet lead={data} onClose={() => setSheet(null)} onDone={(q) => { setSheet(null); router.push(`/quotations/${q.id}`); }} /> : null}
+      {sheet === "skip" ? <SkipQuotationSheet lead={data} onClose={() => setSheet(null)} onDone={refresh} /> : null}
       {sheet === "archive" ? <ArchiveSheet lead={data} onClose={() => setSheet(null)} onDone={refresh} /> : null}
     </>
   );

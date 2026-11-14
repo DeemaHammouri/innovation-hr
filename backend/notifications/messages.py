@@ -64,6 +64,18 @@ CATALOG = {
         "en": ("{ref} has no one assigned", "{name}"),
         "ar": ("{ref} بلا مسؤول عنه", "{name}"),
     },
+    "quotation_review": {
+        "en": ("{ref} is ready for your review", "{name}"),
+        "ar": ("{ref} جاهز لمراجعتك", "{name}"),
+    },
+    "quotation_confirmed": {
+        "en": ("{actor} confirmed {ref}", "{name}"),
+        "ar": ("قام {actor} بتأكيد {ref}", "{name}"),
+    },
+    "quotation_rejected": {
+        "en": ("{actor} marked {ref} as rejected", "{name}"),
+        "ar": ("قام {actor} برفض {ref}", "{name}"),
+    },
     "payment_overdue": {
         "en": ("Payment overdue: {ref}", "{name}"),
         "ar": ("دفعة متأخرة: {ref}", "{name}"),

@@ -274,3 +274,11 @@ input[type="search"]::-webkit-search-cancel-button {
     animation: pop-out var(--dur-slow) var(--ease-in) both;
   }
 }
+
+/* Printing a quotation: only the document, on white paper. */
+@media print {
+  aside, nav, header.sticky, [data-print-hide] { display: none !important; }
+  body { background: #fff !important; }
+  main { max-width: none !important; padding: 0 !important; }
+  @page { size: A4; margin: 14mm; }
+}

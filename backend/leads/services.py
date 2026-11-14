@@ -247,3 +247,28 @@ def restore(actor, lead):
         lead.save()
         record(actor, lead, "restored")
     return lead
+
+
+MSG_SKIP_STATE = "Only a qualified lead can skip the quotation."
+MSG_SKIP_OPEN = "This lead already has a quotation in progress."
+MSG_SKIP_DONE = "The quotation was already skipped for this lead."
+
+
+def skip_quotation(actor, lead, note=""):
+    """Qualified -> straight to the contract step. Recorded, so the trail shows the quotation was a decision, not an omission."""
+    note = (note or "").strip()[:300]
+    with transaction.atomic():
+        lead = Lead.objects.select_for_update().get(pk=lead.pk)
+        if lead.archived_at:
+            raise ValidationError({"detail": MSG_ARCHIVED})
+        if lead.status != L.QUALIFIED:
+            raise ValidationError({"detail": MSG_SKIP_STATE})
+        if lead.skipped_quotation_at:
+            raise ValidationError({"detail": MSG_SKIP_DONE})
+        if lead.quotations.filter(status__in=["requested", "in_preparation", "in_review", "changes_requested", "signed", "sent", "waiting"]).exists():
+            raise ValidationError({"detail": MSG_SKIP_OPEN})
+        lead.skipped_quotation_at = timezone.now()
+        lead.skipped_quotation_by = actor
+        lead.save()
+        record(actor, lead, "quotation_skipped", comment=note)
+    return lead

@@ -13,7 +13,7 @@ type Errors = Record<string, string>;
 type Done = (lead: Lead) => void;
 
 /** Runs one request, keeps the sheet open on a problem, and puts server messages beside the right field. */
-function useAction(fields: string[]) {
+export function useAction(fields: string[]) {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [formError, setFormError] = useState("");
@@ -42,7 +42,7 @@ function useAction(fields: string[]) {
   return { saving, setSaving, errors, setErrors, formError, run };
 }
 
-function FormError({ message }: { message: string }) {
+export function FormError({ message }: { message: string }) {
   const { msg } = useI18n();
   if (!message) return null;
   return (
@@ -238,12 +238,11 @@ export function AssignSheet({ lead, onClose, onDone }: { lead: Lead; onClose: ()
   );
 }
 
-/** A sheet that asks for one written reason, then posts it. Reopen and archive are both this. */
-function ReasonSheet({
-  lead,
+/** A sheet that asks for one written reason, then posts it to `path`. Reopen, archive, request changes and cancel are all this. */
+export function ReasonSheet<T>({
+  path,
   onClose,
   onDone,
-  endpoint,
   field,
   title,
   question,
@@ -253,11 +252,10 @@ function ReasonSheet({
   danger,
   emptyKey,
 }: {
-  lead: Lead;
+  path: string;
   onClose: () => void;
-  onDone: Done;
-  endpoint: string;
-  field: "note" | "reason";
+  onDone: (result: T) => void;
+  field: string;
   title: string;
   question: string;
   confirm: string;
@@ -271,6 +269,7 @@ function ReasonSheet({
   const [text, setText] = useState("");
   const [local, setLocal] = useState("");
   const action = useAction([field]);
+  const formId = `reason-form-${field}`;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -279,7 +278,7 @@ function ReasonSheet({
       document.getElementById(`field-${field}`)?.focus();
       return;
     }
-    const saved = await action.run(() => api<Lead>(`/leads/${lead.id}/${endpoint}/`, { method: "POST", body: { [field]: text.trim() } }));
+    const saved = await action.run(() => api<T>(path, { method: "POST", body: { [field]: text.trim() } }));
     if (saved) {
       toast.success(done);
       onDone(saved);
@@ -295,11 +294,11 @@ function ReasonSheet({
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>{t("common.cancel")}</Button>
-          <Button variant={danger ? "danger" : "primary"} type="submit" form={`${endpoint}-form`} loading={action.saving}>{confirm}</Button>
+          <Button variant={danger ? "danger" : "primary"} type="submit" form={formId} loading={action.saving}>{confirm}</Button>
         </>
       }
     >
-      <form id={`${endpoint}-form`} onSubmit={submit} noValidate className="space-y-4">
+      <form id={formId} onSubmit={submit} noValidate className="space-y-4">
         <FormError message={action.formError} />
         {intro ? <p className="text-body text-ink-2">{intro}</p> : null}
         <Textarea name={field} label={question} required rows={3} value={text} onChange={(e) => { setText(e.target.value); setLocal(""); }} error={local || action.errors[field]} />
@@ -310,12 +309,12 @@ function ReasonSheet({
 
 export function ReopenSheet({ lead, onClose, onDone }: { lead: Lead; onClose: () => void; onDone: Done }) {
   const { t } = useI18n();
-  return <ReasonSheet lead={lead} onClose={onClose} onDone={onDone} endpoint="reopen" field="note" title={t("lead.reopen.title")} question={t("lead.reopen.note")} confirm={t("lead.reopen.save")} done={t("lead.reopened")} emptyKey="lead.err.15" />;
+  return <ReasonSheet<Lead> path={`/leads/${lead.id}/reopen/`} onClose={onClose} onDone={onDone} field="note" title={t("lead.reopen.title")} question={t("lead.reopen.note")} confirm={t("lead.reopen.save")} done={t("lead.reopened")} emptyKey="lead.err.15" />;
 }
 
 export function ArchiveSheet({ lead, onClose, onDone }: { lead: Lead; onClose: () => void; onDone: Done }) {
   const { t } = useI18n();
   return (
-    <ReasonSheet lead={lead} onClose={onClose} onDone={onDone} endpoint="archive" field="reason" title={t("lead.archive.title")} intro={t("lead.archive.text", { name: lead.company_name })} question={t("lead.archive.reason")} confirm={t("lead.archive.save")} done={t("lead.archived")} danger emptyKey="lead.err.17" />
+    <ReasonSheet<Lead> path={`/leads/${lead.id}/archive/`} onClose={onClose} onDone={onDone} field="reason" title={t("lead.archive.title")} intro={t("lead.archive.text", { name: lead.company_name })} question={t("lead.archive.reason")} confirm={t("lead.archive.save")} done={t("lead.archived")} danger emptyKey="lead.err.17" />
   );
 }

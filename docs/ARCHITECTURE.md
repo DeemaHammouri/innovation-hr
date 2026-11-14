@@ -110,6 +110,8 @@ All under `/api/`. Everything needs sign-in and a finished forced password chang
 | `GET dashboard/summary/` | signed in, content by role |
 | `GET departments/`, `users/…` (create, edit, activate, deactivate, reset-password) | CEO |
 | `clients/…` (list, create, read, edit; no delete) | CEO, Operation head |
+| `quotations/…` (list, read, create, `start`, `draft` (PUT), `submit`, `request-changes`, `sign`, `send`, `outcome`, `cancel`) | CEO read; Commercial head/assigned member request, send, record outcome; HR prepare; head signs/cancels |
+| `POST leads/<id>/skip-quotation/` | Commercial head or assigned member |
 | `GET my-work/` | signed in |
 | `GET notifications/` (`?unread=1`), `GET notifications/unread-count/`, `POST notifications/<id>/read/`, `POST notifications/read-all/` | own only |
 | `GET activity/?target=` | parent record's view rule; read-only |
@@ -141,3 +143,12 @@ Leads: `components/leads/` holds the browser (list + board, filters in the addre
 `core.testing.RoleCase` creates one user per role. `assert_matrix(method, url, {role: status, "*": default})` calls the endpoint **as all eight roles**
 and fails if any role is left out, so a forgotten role cannot slip through. Browser journeys live outside the repo during development and
 screenshots go to `/frontend/.design-review/`.
+
+
+## 8. Quotations (Phase 3)
+
+- **States:** requested → in_preparation → in_review → (changes_requested → in_preparation …) → signed → sent → waiting ⇄ confirmed | rejected; cancelled from any open state by the Commercial head. One open quotation per lead is a database constraint.
+- **Versions:** each submit freezes the version; changes create version N+1 as a copy. Totals are computed server-side (half-up rounding) and the signed version, signer and time are stored. The CEO reads; only the Commercial head signs.
+- **Lead integration:** a qualified lead can request a quotation or be marked "skipped" (recorded in the audit trail); both unlock the Contracts step in Phase 4.
+- **PDF:** the signed version is shown as an A4 print view in English or Arabic; the browser's "Save as PDF" lays out RTL and Arabic shaping correctly with no external service.
+- **Reminders:** `quotation_reminders` daily job notifies the owner of overdue Waiting follow-ups (idempotent per date).

@@ -235,6 +235,8 @@ export type LeadPermissions = {
   can_reopen: boolean;
   can_archive: boolean;
   can_restore: boolean;
+  can_request_quotation: boolean;
+  can_skip_quotation: boolean;
 };
 export type Lead = {
   id: number;
@@ -268,6 +270,8 @@ export type Lead = {
   follow_up_overdue: boolean;
   first_contact_overdue: boolean;
   permissions: LeadPermissions;
+  quotation: { id: number; ref: string; status: QuotationStatus } | null;
+  skipped_quotation_at: string | null;
 };
 export type Interaction = {
   id: number;
@@ -311,3 +315,73 @@ export type PreviewRow = {
 export type PreviewResult = { file_name: string; rows: PreviewRow[]; summary: { total: number; ok: number; errors: number; duplicates: number } };
 export type BoardColumn = { status: LeadStatus; count: number; results: Lead[] };
 export type Assignee = { id: number; full_name: string; role: string; open_leads: number };
+
+export type QuotationStatus = "requested" | "in_preparation" | "in_review" | "changes_requested" | "signed" | "sent" | "waiting" | "confirmed" | "rejected" | "cancelled";
+export type QuotationPermissions = {
+  can_start: boolean;
+  can_edit: boolean;
+  can_review: boolean;
+  can_send: boolean;
+  can_outcome: boolean;
+  can_cancel: boolean;
+  can_print: boolean;
+};
+export type QuotationLine = {
+  id?: number;
+  position?: number;
+  service: number | null;
+  description: string;
+  quantity: string;
+  unit_price: string;
+  discount_percent: string;
+  tax_percent: string;
+  line_total?: string;
+};
+export type QuotationVersion = {
+  id: number;
+  number: number;
+  currency: string;
+  valid_until: string | null;
+  notes: string;
+  created_by_name: string;
+  created_at: string;
+  submitted_at: string | null;
+  is_draft: boolean;
+  subtotal: string;
+  discount_total: string;
+  tax_total: string;
+  total: string;
+  lines: QuotationLine[];
+};
+export type Quotation = {
+  id: number;
+  ref: string;
+  lead: number;
+  lead_ref: string;
+  lead_company: string;
+  lead_contact: string;
+  assigned_to_name: string | null;
+  status: QuotationStatus;
+  requested_by: number;
+  requested_by_name: string;
+  request_note: string;
+  prepared_by_name: string | null;
+  review_comment: string;
+  signed_by_name: string | null;
+  signed_at: string | null;
+  signed_version: number | null;
+  sent_at: string | null;
+  next_follow_up: string | null;
+  rejection_reason: number | null;
+  rejection_reason_en: string | null;
+  rejection_reason_ar: string | null;
+  rejection_note: string;
+  outcome_at: string | null;
+  cancel_reason: string;
+  created_at: string;
+  latest: { number: number; is_draft: boolean; currency: string; total: string; valid_until: string | null; count: number } | null;
+  follow_up_overdue: boolean;
+  permissions: QuotationPermissions;
+  versions?: QuotationVersion[];
+};
+export type ServiceItem = { id: number; name_en: string; name_ar: string; default_unit_price: string | null; currency: string; is_active: boolean };
