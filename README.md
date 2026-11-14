@@ -136,6 +136,7 @@ indexed on `(user, timestamp)` and `(action, timestamp)`. Failed logins are not 
 
 The full lead-to-cash workflow is being added phase by phase. See `docs/ARCHITECTURE.md` for the modules, state machines, permission matrix and API list.
 
+- **Phase 6 (done):** Payments (Commercial head writes, CEO reads: instalment schedules, an append-only payment ledger with receipts and reversal entries, statuses worked out automatically, client statement and CSV) and HR (attendance from sign-in history with late flags and CSV, leave with balances, approval and a calendar, and monthly payroll Draft -> CEO approved -> Paid with payslips; salary data is visible only to the CEO, the HR head and the employee).
 - **Phase 5 (done):** Operation. A handover creates (or links, by company name) the client in Onboarding and copies the CEO's document checklist. Operation uploads, verifies or marks items not applicable (with a reason); the client becomes Active only when every required item is verified or not applicable. The Operation head can customise a client's checklist and sets up recurring tasks (daily, weekly, every 2 weeks, monthly, yearly or every N days) whose instances are generated automatically, completed with a note or skipped with a reason. QA meetings are logged per client with a cadence and a suggested next date. Commercial sees their own clients read-only.
 - **Phase 4 (done):** Contracts. Starts once a quotation is confirmed or skipped. HR drafts (draft file required, versions kept) and sends to Commercial; Commercial logs the offline meeting and uploads the visit report and the client-signed copy; the CEO signs or returns with a comment (CEO Approvals inbox); HR uploads the final signed contract and hands it over to Operation. A stepper shows progress on every contract page.
 - **Phase 3 (done):** Quotations. Commercial requests a quotation from a qualified lead (or the head skips it); HR prepares versioned line items; the Commercial head signs or asks for changes (comment required, new version); then Sent → Confirmed / Waiting (follow-up date) / Rejected (reason). Version history with side-by-side compare, and a bilingual printable view (EN/AR, RTL) that is saved as PDF from the browser's print dialog.
@@ -150,6 +151,12 @@ python manage.py seed_demo_data     # refuses to run when DEBUG is off or DJANGO
 ```
 
 Creates one demo user per role (`ceo@demo.test`, `marketing@demo.test`, `commercial.head@demo.test`, … password `Demo-12345`) and sample leads in every state. Seats that are already taken (the CEO, Marketing's one person, a department head) keep their real person.
+
+### Phase 6 setup on an existing database
+
+No new packages. Run `python manage.py migrate`; it adds the payments and HR tables and three default leave types (Annual 21 days, Sick 14, Unpaid). Nothing existing changes.
+
+Overdue instalment reminders come from `python manage.py check_overdue_payments`. It is safe to run any number of times; schedule it once a day next to `generate_recurring_tasks`. Without it, the same check runs on the first request each day. Attendance is worked out from sign-in and sign-out history, so it starts the day you deploy.
 
 ### Phase 5 setup on an existing database
 

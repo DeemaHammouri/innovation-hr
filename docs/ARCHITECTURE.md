@@ -172,3 +172,20 @@ screenshots go to `/frontend/.design-review/`.
 - **QA meetings:** per client cadence (7-365 days, default 30); logging needs a date not in the future and notes, and suggests next date = held date + cadence. Overdue meetings and tasks are reminded once per day per item.
 - **Access:** CEO, Commercial and Operation can open Operation; Commercial head and members only for clients from their own deals (leads assigned to them or contracts they requested), read-only. Operation staff work items, tasks and meetings; the Operation head customises checklists, recurring tasks and cadence. The generic activity, comments and files endpoints follow the same rules via the `client` and `checklist_item` registry targets.
 - **Scheduling:** `python manage.py generate_recurring_tasks` (idempotent) once a day; it also runs on the first request of each day.
+
+## 11. Payments (Phase 6)
+
+- **Who:** the Commercial head writes; the CEO reads. Nobody else, including the Commercial members, can open any payments endpoint (403).
+- **Model:** `Instalment` (client, number, due date, amount, currency; one currency per client) and `Payment`, an append-only ledger. A payment row is either `payment` or `reversal`; rows can never be updated or deleted (queryset and model both raise `LedgerError`). A reversal needs a reason, points at the payment it undoes (one reversal per payment, no reversal of a reversal) and counts negatively.
+- **Status** is computed, never stored: cancelled, paid (net paid >= amount), overdue (due date passed and balance left, which wins over partially paid), partially paid, expected. Amounts over the remaining balance and future received dates are refused. An instalment with any payment rows cannot be edited; cancelling needs a reason and is blocked while money is held.
+- **Receipts** are attachments (`payment` registry target, category `receipt`); the UI offers the upload straight after recording and flags payments without one.
+- **Reminders:** `python manage.py check_overdue_payments` notifies the Commercial head and the CEO once per overdue instalment (no amounts in the text). It also runs on the first request of the day. CSV statement export goes through `core.csvout` (formula-injection safe, UTF-8 BOM).
+
+## 12. HR (Phase 6)
+
+- **Attendance** is derived from the audit `ActionLog`: first sign-in and last sign-out of each local day, hours between them, late when the first sign-in is after the CEO-configured `WorkHours.work_start` plus grace (to the minute). Days with no sign-in have no row; a day with no sign-out shows "still open" and no hours. Everyone sees their own; HR and the CEO see the report (range up to 93 days) and CSV. Weekend is Friday and Saturday (`WEEKEND_DAYS`); there is no public-holiday calendar.
+- **Leave:** types are managed by the HR head (Annual 21 days, Sick 14 and Unpaid unlimited are seeded). Requests count working days only, stay inside one calendar year, may not overlap another pending or approved request and may not exceed the remaining allowance. The HR head decides everyone's request; the CEO decides the HR head's; the CEO does not request leave. Rejecting needs a note; cancelling is for the owner before the leave starts. The calendar shows approved and pending leave for the month.
+- **Payroll:** `EmployeeSalary` (HR head sets; the CEO reads). A monthly `PayrollRun` is Draft -> CEO approved -> Paid. The HR head creates it (one entry per salaried person), edits allowances and deductions while Draft, the CEO approves (or sends it back to Draft with a reason), the HR head marks it paid. Net = base + allowances - deductions and can't be negative (database check). Each employee reads only their own payslips of paid runs, in English or Arabic, printable.
+- **Salary privacy:** salary figures appear only in the payroll endpoints for the CEO and the HR head (and a person's own payslip). Audit rows, notifications and logs never contain amounts, and global search never indexes them; a test scans all of these.
+- **Scheduling:** `python manage.py check_overdue_payments` once a day, together with `generate_recurring_tasks`.
+

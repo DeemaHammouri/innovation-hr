@@ -53,6 +53,7 @@ class Command(BaseCommand):
         self.quotations(users)
         self.contracts(users)
         self.operation(users)
+        self.payments_and_hr(users)
         self.stdout.write(self.style.SUCCESS(f"Demo data ready. Sign in as <name>@demo.test with the password {PASSWORD}"))
         for key, *_ in PEOPLE:
             self.stdout.write(f"  {key}@demo.test")
@@ -171,3 +172,32 @@ class Command(BaseCommand):
             ChecklistItem.objects.create(client=client, template_item=t, name_en=t.name_en, name_ar=t.name_ar, required=t.required, position=pos)
         services.create_recurring(head, client, {"title": "Weekly bank reconciliation", "frequency": "weekly", "start_date": timezone.localdate().isoformat(), "assignee": users["operation.member"].pk})
         self.stdout.write("Operation: 1 client added.")
+
+    def payments_and_hr(self, users):
+        """A demo payment schedule with one payment, two leave requests and demo salaries. Each part is skipped if it exists."""
+        from clients.models import Client
+        from hr import leave, payroll
+        from hr.models import EmployeeSalary, LeaveRequest, LeaveType
+        from payments import services as pay
+        from payments.models import Instalment
+
+        today = timezone.localdate()
+        client = Client.objects.filter(company_name="Demo Onboarding Co").first()
+        if client and not Instalment.objects.filter(client=client).exists():
+            rows = [{"due_date": (today - timedelta(days=15)).isoformat(), "amount": "400.00"}, {"due_date": (today + timedelta(days=15)).isoformat(), "amount": "400.00"}]
+            pay.create_schedule(users["commercial.head"], client, {"currency": "JOD", "instalments": rows})
+            first = Instalment.objects.filter(client=client).order_by("number").first()
+            pay.record_payment(users["commercial.head"], first, {"amount": "150.00", "received_on": today.isoformat(), "method": "bank_transfer", "reference": "DEMO-001"})
+            self.stdout.write("Payments: 1 schedule added.")
+        annual = LeaveType.objects.filter(is_active=True).order_by("sort_order", "id").first()
+        member = users["hr.member"]
+        if annual and not LeaveRequest.objects.filter(user=member).exists():
+            start = today + timedelta(days=7)
+            while start.weekday() in (4, 5):
+                start += timedelta(days=1)
+            req = leave.request_leave(member, {"leave_type": annual.pk, "start_date": start.isoformat(), "end_date": start.isoformat(), "reason": "Demo request"})
+            self.stdout.write("Leave: 1 request added (waiting for the HR head).")
+        for key, amount in (("hr.head", "1500.00"), ("hr.member", "800.00"), ("operation.head", "1400.00"), ("operation.member", "700.00")):
+            if not EmployeeSalary.objects.filter(user=users[key]).exists():
+                payroll.set_salary(users["hr.head"], users[key], {"base_salary": amount, "currency": "JOD"})
+        self.stdout.write("Salaries: demo values set (visible only to the CEO and the HR head).")

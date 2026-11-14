@@ -498,3 +498,112 @@ export type OpClient = {
   contracts?: { id: number; ref: string }[];
 };
 export type OpAssignee = { id: number; full_name: string; is_head: boolean };
+
+export type InstalmentStatus = "expected" | "partially_paid" | "paid" | "overdue" | "cancelled";
+export type Instalment = {
+  id: number;
+  client: number;
+  contract: number | null;
+  contract_ref: string | null;
+  number: number;
+  due_date: string;
+  amount: string;
+  currency: string;
+  note: string;
+  status: InstalmentStatus;
+  paid: string;
+  balance: string;
+  cancelled_at: string | null;
+  cancel_reason: string;
+  can_edit: boolean;
+};
+export type PaymentRow = {
+  id: number;
+  instalment: number;
+  instalment_number: number;
+  kind: "payment" | "reversal";
+  amount: string;
+  currency: string;
+  received_on: string;
+  method: "cash" | "bank_transfer" | "cheque" | "card" | "other";
+  reference: string;
+  note: string;
+  reverses: number | null;
+  reason: string;
+  recorded_by_name: string;
+  created_at: string;
+  reversed: boolean;
+  has_receipt: boolean;
+  can_reverse: boolean;
+};
+export type PayTotals = { total: string; paid: string; balance: string; overdue_amount: string; overdue_count: number; next_due: string | null };
+export type Statement = {
+  client: { id: number; company_name: string };
+  currency: string;
+  totals: PayTotals;
+  instalments: Instalment[];
+  payments: PaymentRow[];
+  permissions: { can_write: boolean };
+  recorded?: number | null;
+};
+export type PayOverviewRow = PayTotals & { client: number; company_name: string; currency: string; instalments: number };
+
+export type AttendanceRow = {
+  user: number;
+  user_name: string;
+  department: string;
+  date: string;
+  first_in: string;
+  last_out: string | null;
+  hours: number | null;
+  late: boolean;
+  minutes_late: number;
+  open: boolean;
+};
+export type AttendanceSummary = { days: number; late_days: number; hours: number; open_days: number };
+export type AttendanceMine = { month: string; rows: AttendanceRow[]; summary: AttendanceSummary; work_hours: WorkHours };
+
+export type LeaveType = { id: number; name_en: string; name_ar: string; paid: boolean; annual_days: number | null; is_active: boolean; sort_order: number };
+export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type LeaveRequest = {
+  id: number;
+  user: number;
+  user_name: string;
+  department: string;
+  leave_type: number;
+  type_en: string;
+  type_ar: string;
+  paid: boolean;
+  start_date: string;
+  end_date: string;
+  days: number;
+  reason: string;
+  status: LeaveStatus;
+  decided_by_name: string | null;
+  decided_at: string | null;
+  decision_note: string;
+  created_at: string;
+  can_decide: boolean;
+  can_cancel: boolean;
+};
+export type LeaveBalance = { leave_type: number; name_en: string; name_ar: string; paid: boolean; allowance: number | null; used: number; pending: number; remaining: number | null };
+
+export type PayrollStatus = "draft" | "ceo_approved" | "paid";
+export type PayrollEntry = { id: number; user: number; user_name: string; department: string; base_salary: string; allowances: string; deductions: string; net: string; note: string };
+export type PayrollRun = {
+  id: number;
+  month: string;
+  currency: string;
+  status: PayrollStatus;
+  approved_by_name: string | null;
+  approved_at: string | null;
+  paid_by_name: string | null;
+  paid_at: string | null;
+  people: number;
+  total_net: string;
+  permissions: { can_edit: boolean; can_approve: boolean; can_reopen: boolean; can_pay: boolean };
+  created_at: string;
+  entries?: PayrollEntry[];
+};
+export type SalaryRow = { user: number; user_name: string; department: string; base_salary: string | null; currency: string | null };
+export type Payslip = { id: number; month: string; currency: string; paid_at: string | null; user_name: string; department: string; base_salary: string; allowances: string; deductions: string; net: string; note: string };

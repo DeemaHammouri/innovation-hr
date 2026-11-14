@@ -1,7 +1,7 @@
-import { Buildings, GearSix, House, Kanban, Megaphone, ListChecks, Receipt, SealCheck, Signature, Users } from "@phosphor-icons/react";
+import { Buildings, GearSix, House, Kanban, Megaphone, CalendarBlank, Clock, CurrencyCircleDollar, ListChecks, Receipt, SealCheck, Signature, Users, Wallet } from "@phosphor-icons/react";
 import type { NavItem } from "@/lib/nav";
 
-const ICONS = { home: House, users: Users, clients: Buildings, settings: GearSix, leads: Megaphone, pipeline: Kanban, quotations: Receipt, contracts: Signature, approvals: SealCheck, operation: ListChecks };
+const ICONS = { home: House, users: Users, clients: Buildings, settings: GearSix, leads: Megaphone, pipeline: Kanban, quotations: Receipt, contracts: Signature, approvals: SealCheck, operation: ListChecks, payments: CurrencyCircleDollar, attendance: Clock, leave: CalendarBlank, payroll: Wallet };
 
 /** Regular when idle, fill when active (the SF Symbols behaviour). */
 export function NavIcon({ item, active, size = 20 }: { item: NavItem["key"]; active: boolean; size?: number }) {
