@@ -16,6 +16,27 @@ class Sequence(models.Model):
             return f"{prefix}-{seq.last:04d}"
 
 
+    @classmethod
+    def reserve(cls, prefix, count):
+        """Hand out `count` consecutive references in one step (used by imports)."""
+        with transaction.atomic():
+            seq, _ = cls.objects.select_for_update().get_or_create(prefix=prefix)
+            first = seq.last + 1
+            seq.last += count
+            seq.save(update_fields=["last"])
+            return [f"{prefix}-{n:04d}" for n in range(first, first + count)]
+
+
+class DailyRun(models.Model):
+    """Marks that a named daily job already ran for a local date, so it never runs twice in a day."""
+
+    name = models.CharField(max_length=60)
+    day = models.DateField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["name", "day"], name="core_dailyrun_once_per_day")]
+
+
 class TimeStamped(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)

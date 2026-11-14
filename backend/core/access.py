@@ -75,7 +75,8 @@ def resolve(user, raw):
 
 
 def content_type_for(obj):
-    return ContentType.objects.get_for_model(obj.__class__)
+    """Takes a record or a model class."""
+    return ContentType.objects.get_for_model(obj if isinstance(obj, type) else obj.__class__)
 
 
 def can_view_obj(user, obj):

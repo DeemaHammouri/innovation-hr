@@ -25,3 +25,21 @@ def collect(user):
 
 def badges(items):
     return dict(Counter(i["section"] for i in items if i.get("section")))
+
+
+_DAILY = []
+
+
+def daily_job(name):
+    """Register a function that should run once per day (reminders). It runs on the first My Work request of the day,
+    and any management command can call it too: it must be idempotent."""
+
+    def wrap(fn):
+        _DAILY.append((name, fn))
+        return fn
+
+    return wrap
+
+
+def daily_jobs():
+    return list(_DAILY)

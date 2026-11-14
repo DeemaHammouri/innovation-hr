@@ -36,6 +36,34 @@ CATALOG = {
         "en": ("{ref} is overdue", "{name}"),
         "ar": ("{ref} متأخر عن موعده", "{name}"),
     },
+    "leads_new": {
+        "en": ("New leads to assign: {count}", "{name}"),
+        "ar": ("عملاء محتملون جدد للإسناد: {count}", "{name}"),
+    },
+    "lead_qualified": {
+        "en": ("{actor} qualified {ref}", "{name}"),
+        "ar": ("قام {actor} بتأهيل {ref}", "{name}"),
+    },
+    "lead_rejected": {
+        "en": ("{actor} marked {ref} as rejected", "{name}"),
+        "ar": ("قام {actor} برفض {ref}", "{name}"),
+    },
+    "lead_reopened": {
+        "en": ("{actor} reopened {ref}", "{name}"),
+        "ar": ("أعاد {actor} فتح {ref}", "{name}"),
+    },
+    "followup_overdue": {
+        "en": ("Follow-up overdue: {ref}", "{name}"),
+        "ar": ("متابعة متأخرة: {ref}", "{name}"),
+    },
+    "first_contact_overdue": {
+        "en": ("{ref} still needs its first contact", "{name}"),
+        "ar": ("{ref} ما زال بانتظار أول تواصل", "{name}"),
+    },
+    "assign_needed": {
+        "en": ("{ref} has no one assigned", "{name}"),
+        "ar": ("{ref} بلا مسؤول عنه", "{name}"),
+    },
     "payment_overdue": {
         "en": ("Payment overdue: {ref}", "{name}"),
         "ar": ("دفعة متأخرة: {ref}", "{name}"),
