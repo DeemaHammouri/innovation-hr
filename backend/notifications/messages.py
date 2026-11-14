@@ -96,6 +96,30 @@ CATALOG = {
         "en": ("{actor} marked {ref} as rejected", "{name}"),
         "ar": ("قام {actor} برفض {ref}", "{name}"),
     },
+    "leave_requested": {
+        "en": ("{actor} requested leave", "{ref} · {name}"),
+        "ar": ("طلب {actor} إجازة", "{ref} · {name}"),
+    },
+    "leave_approved": {
+        "en": ("Your leave was approved", "{ref} · {name}"),
+        "ar": ("تمت الموافقة على إجازتك", "{ref} · {name}"),
+    },
+    "leave_rejected": {
+        "en": ("Your leave request was declined", "{ref}: {name}"),
+        "ar": ("تم رفض طلب إجازتك", "{ref}: {name}"),
+    },
+    "payroll_approved": {
+        "en": ("Payroll {ref} was approved", "You can mark it as paid."),
+        "ar": ("تمت الموافقة على رواتب {ref}", "يمكنك تحديدها كمدفوعة."),
+    },
+    "payroll_reopened": {
+        "en": ("Payroll {ref} was sent back to draft", "{name}"),
+        "ar": ("أُعيدت رواتب {ref} إلى المسودة", "{name}"),
+    },
+    "payslip_ready": {
+        "en": ("Your payslip for {ref} is ready", "Open Payroll to see it."),
+        "ar": ("قسيمة راتبك لشهر {ref} جاهزة", "افتح الرواتب لعرضها."),
+    },
     "payment_overdue": {
         "en": ("Payment overdue: {ref}", "{name}"),
         "ar": ("دفعة متأخرة: {ref}", "{name}"),

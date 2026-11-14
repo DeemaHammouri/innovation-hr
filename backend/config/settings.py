@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     "quotations",
     "contracts",
     "operations",
+    "payments",
+    "hr",
 ]
 
 MIDDLEWARE = [
@@ -121,3 +123,6 @@ if "test" in sys.argv:
     import tempfile
 
     PRIVATE_MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="innovation-test-media-"))
+
+# Days that are not working days when counting leave (Monday = 0). Friday and Saturday by default.
+WEEKEND_DAYS = (4, 5)

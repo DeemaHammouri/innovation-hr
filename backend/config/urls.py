@@ -16,5 +16,7 @@ urlpatterns = [
     path("api/", include("quotations.urls")),
     path("api/", include("contracts.urls")),
     path("api/", include("operations.urls")),
+    path("api/", include("payments.urls")),
+    path("api/", include("hr.urls")),
     path("api/my-work/", MyWorkView.as_view()),
 ]
