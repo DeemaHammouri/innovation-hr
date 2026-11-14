@@ -1,0 +1,39 @@
+# Databases and uploaded business files: never committed
+db.sqlite3
+*.sqlite3
+*.sqlite3-journal
+media/
+private_media/
+innovation-test-media-*/
+
+# Secrets (names only live in .env.example)
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Review screenshots stay out of git
+frontend/.design-review/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*.log

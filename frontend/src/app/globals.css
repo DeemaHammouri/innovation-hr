@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+/* Tokens. See /frontend/DESIGN.md. Components use these classes, never raw values. */
+@theme {
+  --color-primary: #007aff;
+  --color-primary-strong: #0a6be0;
+  --color-primary-hover: #0958bd;
+  --color-primary-press: #084a9e;
+  --color-primary-tint: #e8f1ff;
+  --color-primary-line: #cfe2ff;
+
+  --color-navy: #0b1f44;
+  --color-navy-2: #12295a;
+  --color-on-navy: #e6ecf7;
+  --color-on-navy-muted: #9fb0cc;
+
+  --color-canvas: #f4f6fa;
+  --color-surface: #ffffff;
+  --color-line: #e3e8f0;
+
+  --color-ink: #0f1b33;
+  --color-ink-2: #5b6b85;
+  --color-ink-3: #8a97ad;
+
+  --color-success: #1f9d55;
+  --color-success-bg: #e6f6ec;
+  --color-success-ink: #17753f;
+  --color-warning: #b7791f;
+  --color-warning-bg: #fff4db;
+  --color-warning-ink: #8f5b0f;
+  --color-danger: #d92d20;
+  --color-danger-bg: #fdecea;
+  --color-danger-ink: #b42318;
+  --color-neutral: #5b6b85;
+  --color-neutral-bg: #eef1f6;
+
+  /* Avatar tints: the blue / navy / teal-gray family only. Picked from the name. */
+  --color-avatar-1-bg: #dcebff;
+  --color-avatar-1-ink: #0a4fa8;
+  --color-avatar-2-bg: #e1e6f2;
+  --color-avatar-2-ink: #12295a;
+  --color-avatar-3-bg: #ddebea;
+  --color-avatar-3-ink: #1f4f52;
+  --color-avatar-4-bg: #e6ebf5;
+  --color-avatar-4-ink: #2b3f6b;
+  --color-avatar-5-bg: #e3eef0;
+  --color-avatar-5-ink: #2f5560;
+  --color-avatar-6-bg: #eaf1fb;
+  --color-avatar-6-ink: #2c5aa0;
+
+  --container-page: 1200px;
+
+  --radius-control: 12px;
+  --radius-card: 16px;
+  --radius-sheet: 20px;
+
+  --shadow-float: 0 1px 2px rgba(15, 27, 51, 0.06), 0 8px 24px rgba(15, 27, 51, 0.06);
+
+  --text-large-title: 32px;
+  --text-large-title--line-height: 40px;
+  --text-large-title--font-weight: 700;
+  --text-title: 24px;
+  --text-title--line-height: 32px;
+  --text-title--font-weight: 700;
+  --text-section: 18px;
+  --text-section--line-height: 26px;
+  --text-section--font-weight: 600;
+  --text-body: 15px;
+  --text-body--line-height: 24px;
+  --text-label: 13px;
+  --text-label--line-height: 20px;
+  --text-label--font-weight: 600;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-caption--font-weight: 500;
+
+  --font-sans: var(--font-latin), system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
+
+  --animate-rise: rise var(--dur-slow) var(--ease-out) both;
+  --animate-sheet-in: sheet-in var(--dur-slow) var(--ease-spring) both;
+  --animate-fade-in: fade-in var(--dur-base) var(--ease-out) both;
+  --animate-pop: pop var(--dur-fast) var(--ease-out) both;
+}
+
+:root {
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 240ms;
+  --sidebar-w: 256px;
+  --rail-w: 72px;
+  --topbar-h: 64px;
+  color-scheme: light;
+}
+
+/* Arabic is set a little larger and looser than Latin. */
+html[lang="ar"] {
+  --text-large-title: 33px;
+  --text-large-title--line-height: 46px;
+  --text-title: 25px;
+  --text-title--line-height: 38px;
+  --text-section: 19px;
+  --text-section--line-height: 32px;
+  --text-body: 16px;
+  --text-body--line-height: 27px;
+  --text-label: 14px;
+  --text-label--line-height: 24px;
+  --text-caption: 13px;
+  --text-caption--line-height: 20px;
+  --font-sans: var(--font-arabic), var(--font-latin), system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  /* Hidden tooltips must never create sideways scrolling. clip (not hidden) keeps position: sticky working. */
+  overflow-x: clip;
+}
+
+html {
+  scroll-padding-top: calc(var(--topbar-h) + 16px);
+}
+
+h1, h2, h3, h4 {
+  font-weight: 600;
+}
+
+html {
+  --dir-sign: 1;
+}
+html[dir="rtl"] {
+  --dir-sign: -1;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* In the base layer so a component can still adjust its own ring (inputs sit flush, palette has none). */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+::selection {
+  background: var(--color-primary-line);
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes skeleton-pulse {
+  50% { opacity: 0.55; }
+}
+
+.skeleton {
+  background: var(--color-line);
+  border-radius: 8px;
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+/* Rows fade in one after another: at most 8, 20ms apart. */
+.stagger > * {
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+.stagger > *:nth-child(2) { animation-delay: 20ms; }
+.stagger > *:nth-child(3) { animation-delay: 40ms; }
+.stagger > *:nth-child(4) { animation-delay: 60ms; }
+.stagger > *:nth-child(5) { animation-delay: 80ms; }
+.stagger > *:nth-child(6) { animation-delay: 100ms; }
+.stagger > *:nth-child(7) { animation-delay: 120ms; }
+.stagger > *:nth-child(n + 8) { animation-delay: 140ms; }
+
+/* Language swap: the sidebar glides across, the content cross-fades. */
+::view-transition-group(app-sidebar) {
+  animation-duration: var(--dur-slow);
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-group(root) {
+  animation-duration: var(--dur-slow);
+}
+
+/* Subtle grid on the navy panel (very low contrast). */
+.grid-texture {
+  background-image:
+    linear-gradient(to right, rgba(230, 236, 247, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(230, 236, 247, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* iOS style: no scroll chaining behind sheets, hidden native number spinners */
+input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* Sheets and their backdrop (entry ease-out with a hint of overshoot, exit ease-in) */
+@keyframes sheet-down {
+  from { transform: none; }
+  to { transform: translateY(100%); }
+}
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes pop-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(0.97); }
+}
+.sheet-backdrop {
+  animation: fade-in var(--dur-slow) var(--ease-out) both;
+}
+.sheet-backdrop[data-closing] {
+  animation: fade-out var(--dur-slow) var(--ease-in) both;
+}
+.sheet-panel {
+  animation: sheet-up var(--dur-slow) var(--ease-spring) both;
+}
+.sheet-panel[data-closing] {
+  animation: sheet-down var(--dur-slow) var(--ease-in) both;
+}
+@media (min-width: 768px) {
+  .sheet-panel {
+    animation: pop var(--dur-slow) var(--ease-out) both;
+  }
+  .sheet-panel[data-closing] {
+    animation: pop-out var(--dur-slow) var(--ease-in) both;
+  }
+}
