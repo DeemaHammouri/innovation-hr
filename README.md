@@ -171,7 +171,7 @@ No new packages. Run `python manage.py migrate`; the migrations only add tables 
 
 ```bash
 cd backend
-.venvScriptsctivate          # Windows; on macOS/Linux: source .venv/bin/activate
+.venv\Scripts\activate          # Windows; on macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
 ```
