@@ -15,7 +15,7 @@ Design language: `/frontend/DESIGN.md`. This file is updated at the end of every
 | `files` | Private uploads, authenticated download, archive | Phase 1 |
 | `comments` | Internal comments with permission-limited @mentions | Phase 1 |
 | `lookups` | Rejection reasons, services, legal checklist template, work hours, SLA | Phase 1 |
-| `leads`, `pipeline` | Leads, import batches, interactions | Phase 2 |
+| `leads` | Leads, import batches (CSV), interactions, board + list, SLA flags, daily reminders | Phase 2 (done) |
 | `quotations` | Quotations, versions, lines, PDF | Phase 3 |
 | `contracts` | Contracts, versions, meetings, visit report | Phase 4 |
 | `onboarding` | KYC / legal checklist, client activation, recurring tasks, follow-up meetings | Phase 5 |
@@ -61,8 +61,9 @@ Existing endpoints stay unpaginated so their behaviour is unchanged.
 
 ## 3. State machines (planned; invalid transitions are rejected on the server)
 
-**Lead:** New → Contacted → {Waiting (next follow-up date required) | Rejected (reason required; reopenable by the Commercial head with a note) | Qualified}.
-Qualified → Quotation requested, or "Skip quotation" → Contract requested.
+**Lead (built, Phase 2):** New → Contacted → {Waiting (next follow-up date required) | Rejected (reason required; reopenable by the Commercial head with a note) | Qualified}.
+Qualified → Quotation requested, or "Skip quotation" → Contract requested (both arrive with Phase 3 and 4).
+Only the Commercial head and the assigned member write to the pipeline; the first contact is logged together with its outcome or on its own; a Waiting lead leaves Waiting only through a new outcome; Rejected and Qualified accept nothing except the head's reopen of a Rejected lead.
 
 **Quotation:** Requested → In preparation (HR) → Prepared (HR submits a version) → In review (Commercial head) →
 {Signed (head, signer + time stored) | Changes requested (comment required) → new version} → Sent to client →
@@ -116,6 +117,15 @@ All under `/api/`. Everything needs sign-in and a finished forced password chang
 | `GET/POST files/?target=` (multipart), `GET files/<id>/download/`, `POST files/<id>/archive/` | parent record's rules |
 | `GET/POST/PATCH lookups/rejection-reasons/`, `services/`, `checklist-template/` (no delete: `is_active=false`) | read: all, write: CEO |
 | `GET/PATCH lookups/work-hours/`, `lookups/sla/` | read: all, write: CEO |
+| `GET leads/` (filters: `status`, `assigned_to` (id or `none`), `overdue=1`, `archived=1|only`, `batch`, `search`, `ordering`; 25 per page) | CEO, Marketing (own), Commercial head (all), member (assigned) |
+| `POST leads/` (`allow_duplicate`), `PATCH leads/<id>/`, `GET leads/board/`, `GET leads/<id>/` | create: Marketing; edit: owner while New, head, assigned member |
+| `GET leads/assignees/`, `POST leads/<id>/assign/` | Commercial head |
+| `GET/POST leads/<id>/interactions/`, `POST leads/<id>/outcome/` | Commercial head, assigned member |
+| `POST leads/<id>/reopen/`, `archive/`, `restore/` | reopen, restore: head; archive: head, or Marketing for an untouched own lead |
+| `GET leads/import/template/`, `POST leads/import/preview/`, `POST leads/import/confirm/` (multipart `file`, `duplicates=skip|import`) | Marketing |
+| `GET import-batches/`, `POST import-batches/<id>/undo/` | list: Marketing (own), CEO, head; undo: the importer, while no lead was contacted |
+
+**Reminders.** `python manage.py lead_reminders` (overdue follow-ups, leads waiting for a first contact, leads with no assignee) is safe to run any number of times a day: notifications are de-duplicated. The same job also runs once per day on the first `GET my-work/` of the day (`core.daily`), so the system works without a scheduler.
 
 ## 6. Frontend structure
 
@@ -123,6 +133,8 @@ All under `/api/`. Everything needs sign-in and a finished forced password chang
 `components/records/RecordTabs` gives every detail page the same Overview | Activity | Files | Comments tabs.
 New screens reuse `components/ui/*`; no new visual language. Every string is a key in both `locales/en.json` and `locales/ar.json`, and
 backend messages shown to people are mapped in `lib/i18n.tsx` (`API_MESSAGES`).
+
+Leads: `components/leads/` holds the browser (list + board, filters in the address bar), `LeadMoves` (the "Move to…" menu, drag and the detail page's primary action all end in the same sheets), `LeadSheets` (contact/outcome, assign, reopen, archive), the stepper and the form with its saved draft. Routes: `/leads`, `/leads/new`, `/leads/import`, `/leads/[id]`, `/leads/[id]/edit`, `/pipeline`.
 
 ## 7. Testing
 

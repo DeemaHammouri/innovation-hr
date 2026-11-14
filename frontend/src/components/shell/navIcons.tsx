@@ -1,7 +1,7 @@
-import { Buildings, GearSix, House, Users } from "@phosphor-icons/react";
+import { Buildings, GearSix, House, Kanban, Megaphone, Users } from "@phosphor-icons/react";
 import type { NavItem } from "@/lib/nav";
 
-const ICONS = { home: House, users: Users, clients: Buildings, settings: GearSix };
+const ICONS = { home: House, users: Users, clients: Buildings, settings: GearSix, leads: Megaphone, pipeline: Kanban };
 
 /** Regular when idle, fill when active (the SF Symbols behaviour). */
 export function NavIcon({ item, active, size = 20 }: { item: NavItem["key"]; active: boolean; size?: number }) {

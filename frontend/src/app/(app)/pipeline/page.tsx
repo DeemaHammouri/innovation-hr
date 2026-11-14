@@ -1,0 +1,20 @@
+"use client";
+
+import { LeadsBrowser } from "@/components/leads/LeadsBrowser";
+import { NoAccess } from "@/components/NoAccess";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
+
+export default function PipelinePage() {
+  const { user } = useAuth();
+  const { t } = useI18n();
+  if (!user) return null;
+  if (user.role_key !== "commercial_head" && user.role_key !== "commercial_member") return <NoAccess />;
+  return (
+    <>
+      <PageHeader title={t("lead.pipelineTitle")} description={t("lead.pipelineDescription")} />
+      <LeadsBrowser board />
+    </>
+  );
+}

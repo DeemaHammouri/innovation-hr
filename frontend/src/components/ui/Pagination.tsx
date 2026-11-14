@@ -7,12 +7,12 @@ import { Button } from "./Button";
 export const PAGE_SIZE = 10;
 
 /** "Showing 1-10 of 24" with Previous and Next. The server returns whole lists, so paging happens here. */
-export function Pagination({ page, total, onPage }: { page: number; total: number; onPage: (page: number) => void }) {
+export function Pagination({ page, total, onPage, pageSize = PAGE_SIZE }: { page: number; total: number; onPage: (page: number) => void; pageSize?: number }) {
   const { t, formatNumber } = useI18n();
-  if (total <= PAGE_SIZE) return null;
-  const from = (page - 1) * PAGE_SIZE + 1;
-  const to = Math.min(total, page * PAGE_SIZE);
-  const last = Math.ceil(total / PAGE_SIZE);
+  if (total <= pageSize) return null;
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(total, page * pageSize);
+  const last = Math.ceil(total / pageSize);
   return (
     <nav aria-label={t("common.pagination")} className="flex items-center justify-between gap-3 border-t border-line px-4 py-3">
       <p className="tnum text-label font-medium text-ink-2">

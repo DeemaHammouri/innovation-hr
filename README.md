@@ -51,7 +51,7 @@ If the API is somewhere else, copy `.env.example` to `.env.local` and set `NEXT_
 
 ```bash
 cd backend
-python manage.py test        # 70 tests: Task 1 rules plus audit, notifications, files, comments, lookups, My Work and the eight-role permission harness
+python manage.py test        # 151 tests: Task 1 rules, Phase 1 foundation and Phase 2 leads, pipeline and CSV import
 ```
 
 ## Try the full flow
@@ -136,4 +136,27 @@ indexed on `(user, timestamp)` and `(action, timestamp)`. Failed logins are not 
 
 The full lead-to-cash workflow is being added phase by phase. See `docs/ARCHITECTURE.md` for the modules, state machines, permission matrix and API list.
 
+- **Phase 2 (done):** Leads and Pipeline. Marketing adds leads by hand or imports a CSV (template, preview with row errors, duplicate detection, undo while untouched). The Commercial head assigns; members work their own leads on a board or list, log contacts, and record Waiting / Rejected / Initial acceptance. Overdue follow-ups are flagged and reminded.
 - **Phase 1 (done):** activity trail, in-app notifications (bell), private file uploads, comments with @mentions, CEO Settings (rejection reasons, services, legal checklist, work hours, follow-up rules), My Work on Home with sidebar badges, role-aware navigation with a More sheet on phones, and the eight-role permission test harness.
+
+### Demo data (development only)
+
+```bash
+cd backend
+python manage.py seed_demo_data     # refuses to run when DEBUG is off or DJANGO_ENV=production
+```
+
+Creates one demo user per role (`ceo@demo.test`, `marketing@demo.test`, `commercial.head@demo.test`, … password `Demo-12345`) and sample leads in every state. Seats that are already taken (the CEO, Marketing's one person, a department head) keep their real person.
+
+### Phase 2 setup on an existing database
+
+`django-filter` is new, so install requirements, then migrate (the migrations only add tables):
+
+```bash
+cd backend
+.venv\Scriptsctivate          # Windows; on macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+```
+
+Optional: `python manage.py lead_reminders` once a day (a scheduled task). Without it, the reminders run on the first visit each day.

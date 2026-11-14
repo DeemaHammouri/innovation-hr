@@ -226,3 +226,88 @@ export async function downloadFile(path: string, fileName: string) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+export type LeadStatus = "new" | "contacted" | "waiting" | "qualified" | "rejected";
+export type LeadPermissions = {
+  can_edit: boolean;
+  can_assign: boolean;
+  can_log: boolean;
+  can_reopen: boolean;
+  can_archive: boolean;
+  can_restore: boolean;
+};
+export type Lead = {
+  id: number;
+  ref: string;
+  company_name: string;
+  contact_name: string;
+  phone: string;
+  email: string;
+  source: string;
+  notes: string;
+  status: LeadStatus;
+  assigned_to: number | null;
+  assigned_to_name: string | null;
+  assigned_at: string | null;
+  batch: number | null;
+  batch_ref: string | null;
+  created_by: number;
+  created_by_name: string;
+  created_at: string;
+  next_follow_up: string | null;
+  rejection_reason: number | null;
+  rejection_reason_en: string | null;
+  rejection_reason_ar: string | null;
+  rejection_note: string;
+  first_contacted_at: string | null;
+  last_contacted_at: string | null;
+  qualified_at: string | null;
+  rejected_at: string | null;
+  archived_at: string | null;
+  archive_reason: string;
+  follow_up_overdue: boolean;
+  first_contact_overdue: boolean;
+  permissions: LeadPermissions;
+};
+export type Interaction = {
+  id: number;
+  type: "call" | "whatsapp" | "email" | "meeting" | "other";
+  occurred_at: string;
+  notes: string;
+  outcome: "" | "waiting" | "rejected" | "accepted";
+  created_by: number;
+  created_by_name: string;
+  created_at: string;
+};
+export type ImportBatch = {
+  id: number;
+  ref: string;
+  filename: string;
+  status: "active" | "undone";
+  total_rows: number;
+  imported_count: number;
+  skipped_errors: number;
+  skipped_duplicates: number;
+  created_by: number;
+  created_by_name: string;
+  created_at: string;
+  undone_at: string | null;
+  contacted_count: number;
+  can_undo: boolean;
+};
+export type PreviewRow = {
+  row: number;
+  company_name: string;
+  contact_name: string;
+  phone: string;
+  email: string;
+  source: string;
+  notes: string;
+  errors: { field: string; message: string }[];
+  duplicate_of: string | null;
+  duplicate_in_file: number | null;
+  state: "ok" | "error" | "duplicate";
+};
+export type PreviewResult = { file_name: string; rows: PreviewRow[]; summary: { total: number; ok: number; errors: number; duplicates: number } };
+export type BoardColumn = { status: LeadStatus; count: number; results: Lead[] };
+export type Assignee = { id: number; full_name: string; role: string; open_leads: number };

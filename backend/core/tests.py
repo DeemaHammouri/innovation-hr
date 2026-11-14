@@ -331,3 +331,40 @@ class HarnessTests(RoleCase):
     def test_matrix_fails_on_a_wrong_expectation(self):
         with self.assertRaises(AssertionError):
             self.assert_matrix("get", "/api/lookups/services/", {"*": 403})
+
+
+class SeedDemoDataTests(TestCase):
+    def run_seed(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        call_command("seed_demo_data", stdout=StringIO())
+
+    def test_refuses_outside_development(self):
+        from django.core.management.base import CommandError
+        from django.test import override_settings
+
+        with override_settings(DEBUG=False), self.assertRaises(CommandError):
+            self.run_seed()
+        with override_settings(DEBUG=True), self.settings():
+            import os
+            os.environ["DJANGO_ENV"] = "production"
+            try:
+                with self.assertRaises(CommandError):
+                    self.run_seed()
+            finally:
+                del os.environ["DJANGO_ENV"]
+
+    def test_runs_twice_without_duplicating(self):
+        from django.test import override_settings
+
+        from accounts.models import User
+        from leads.models import Lead
+
+        with override_settings(DEBUG=True):
+            self.run_seed()
+            people, leads = User.objects.count(), Lead.objects.count()
+            self.run_seed()
+        self.assertEqual((User.objects.count(), Lead.objects.count()), (people, leads))
+        self.assertGreaterEqual(leads, 7)
