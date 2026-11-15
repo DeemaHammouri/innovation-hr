@@ -69,6 +69,10 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         ordering = ["full_name"]
+        constraints = [
+            # A department has at most one active head, enforced by the database as well as by the user screens.
+            models.UniqueConstraint(fields=["department"], condition=models.Q(role="head", is_active=True, department__isnull=False), name="one_active_head_per_department"),
+        ]
 
     def __str__(self):
         return self.email

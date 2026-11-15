@@ -104,7 +104,7 @@ export function NotificationBell() {
             <span
               aria-hidden
               dir="ltr"
-              className="pointer-events-none absolute -end-0.5 -top-0.5 flex min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-caption font-semibold leading-[18px] text-white ring-2 ring-canvas"
+              className="pointer-events-none absolute -end-0.5 -top-0.5 flex min-w-4.5 items-center justify-center rounded-full bg-primary-strong px-1 text-caption font-semibold leading-[18px] text-white ring-2 ring-canvas"
             >
               {unread > 99 ? "99+" : unread}
             </span>

@@ -62,7 +62,7 @@ export function Segmented<V extends string>({
       {/* The thumb moves with transform only. --dir-sign mirrors it in RTL. */}
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-y-0.5 start-0.5 rounded-full bg-primary transition-transform duration-[var(--dur-base)] ease-[var(--ease-spring)]"
+        className="pointer-events-none absolute inset-y-0.5 start-0.5 rounded-full bg-primary-strong transition-transform duration-[var(--dur-base)] ease-[var(--ease-spring)]"
         style={{
           width: `calc((100% - 4px) / ${segments.length})`,
           transform: `translateX(calc(${index * 100}% * var(--dir-sign)))`,

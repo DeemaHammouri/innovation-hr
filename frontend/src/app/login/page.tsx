@@ -37,7 +37,7 @@ export default function LoginPage() {
       const signedIn = await login(form.values.email.trim(), form.values.password);
       router.replace(signedIn.must_change_password ? "/set-password" : "/");
     } catch (err) {
-      setFormError(err instanceof ApiError && err.status === 401 ? "login.mismatch" : "login.failed");
+      setFormError(err instanceof ApiError && err.status === 401 ? "login.mismatch" : err instanceof ApiError && err.status === 429 ? "p8.api.0" : "login.failed");
       setSubmitting(false);
     }
   }

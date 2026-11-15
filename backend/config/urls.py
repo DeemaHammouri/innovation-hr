@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 
-from core.views import MyWorkView
+from core.views import HealthView, MyWorkView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -20,4 +20,8 @@ urlpatterns = [
     path("api/", include("hr.urls")),
     path("api/", include("reports.urls")),
     path("api/my-work/", MyWorkView.as_view()),
+    path("api/health/", HealthView.as_view()),
 ]
+
+handler404 = "core.views.json_404"
+handler500 = "core.views.json_500"

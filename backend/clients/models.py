@@ -19,6 +19,7 @@ class Client(models.Model):
 
     class Meta:
         ordering = ["company_name"]
+        constraints = [models.CheckConstraint(condition=models.Q(qa_cadence_days__gte=7) & models.Q(qa_cadence_days__lte=365), name="client_qa_cadence_range")]
 
     def __str__(self):
         return self.company_name

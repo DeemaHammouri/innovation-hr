@@ -148,7 +148,7 @@ export default function StatementPage() {
                       {p.reference ? <> · <span dir="ltr">{p.reference}</span></> : null}
                     </p>
                     {p.reason ? <p className="text-label font-normal text-ink-2">{t("pay.reversedBecause", { reason: p.reason })}</p> : null}
-                    <p className="text-caption text-ink-3">{p.recorded_by_name} · {formatDateTime(p.created_at)}</p>
+                    <p className="text-caption text-ink-2">{p.recorded_by_name} · {formatDateTime(p.created_at)}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {p.reversed ? <StatusPill tone="neutral">{t("pay.reversed")}</StatusPill> : null}

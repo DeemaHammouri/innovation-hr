@@ -63,7 +63,7 @@ export function SeriesCard({ s }: { s: ReportSeries }) {
                 <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-primary-tint" aria-hidden>
                   <div className={`h-full rounded-full ${funnel && i > 0 ? "bg-primary-strong" : "bg-primary"}`} style={{ width: `${width}%` }} />
                 </div>
-                {p.n !== null && s.unit !== "count" ? <p className="mt-0.5 text-caption text-ink-3">{t("rep.basedOn", { n: formatNumber(p.n) })}</p> : null}
+                {p.n !== null && s.unit !== "count" ? <p className="mt-0.5 text-caption text-ink-2">{t("rep.basedOn", { n: formatNumber(p.n) })}</p> : null}
               </li>
             );
           })}

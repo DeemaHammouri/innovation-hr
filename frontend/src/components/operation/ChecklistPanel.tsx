@@ -71,7 +71,7 @@ export function ChecklistPanel({ client, onChanged }: { client: OpClient; onChan
                     {!item.required ? <StatusPill tone="neutral" dot={false}>{t("op.item.optional")}</StatusPill> : null}
                   </div>
                   {item.status === "not_applicable" ? <p className="mt-1 text-label font-normal text-ink-2">{t("op.item.naBecause", { reason: item.na_reason })}</p> : null}
-                  {item.verified_at ? <p className="mt-0.5 text-caption text-ink-3">{item.verified_by_name} · {formatDateTime(item.verified_at)}</p> : null}
+                  {item.verified_at ? <p className="mt-0.5 text-caption text-ink-2">{item.verified_by_name} · {formatDateTime(item.verified_at)}</p> : null}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="secondary" onClick={() => setOpen({ kind: "files", item })}>{t("op.item.documents")}</Button>

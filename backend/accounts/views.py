@@ -1,5 +1,6 @@
 import secrets
 
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.db.models import Count
 from django.utils import timezone
@@ -13,6 +14,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from . import ratelimit
 from .models import ActionLog, Department, User
 from .permissions import IsCEO, PasswordChangeNotPending
 from .serializers import (
@@ -28,14 +30,18 @@ PASSWORD_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 
 def client_ip(request):
+    """The caller's address. X-Forwarded-For is honoured only when the deployment says a trusted proxy sets it (anyone can forge it)."""
     forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded:
+    if forwarded and getattr(settings, "TRUST_X_FORWARDED_FOR", False):
         return forwarded.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR")
 
 
 def log_action(request, user, action_name):
     ActionLog.objects.create(user=user, action=action_name, ip_address=client_ip(request))
+
+
+MSG_TOO_MANY = "Too many sign-in attempts. Wait 15 minutes and try again."
 
 
 class LoginView(APIView):
@@ -47,13 +53,18 @@ class LoginView(APIView):
         password = str(request.data.get("password", ""))
         if not email or not password:
             return Response({"detail": "Enter your email and password."}, status=status.HTTP_400_BAD_REQUEST)
+        ip = client_ip(request) or ""
+        if ratelimit.blocked(email, ip):
+            return Response({"detail": MSG_TOO_MANY}, status=status.HTTP_429_TOO_MANY_REQUESTS)
         user = authenticate(request, username=email, password=password)
         if user is None:
+            ratelimit.record_failure(email, ip)
             # Same answer for an unknown email, a wrong password and a deactivated account.
             return Response(
                 {"detail": "That email and password don't match. Check them and try again."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+        ratelimit.clear(email)
         log_action(request, user, ActionLog.Action.LOGIN)
         refresh = RefreshToken.for_user(user)
         return Response(

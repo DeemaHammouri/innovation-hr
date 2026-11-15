@@ -133,7 +133,7 @@ export default function OperationClientPage() {
                     <li key={m.id} className="px-4 py-3">
                       <p className="text-body font-semibold text-ink">{formatDate(m.held_on)}</p>
                       <p className="whitespace-pre-line text-label font-normal text-ink-2">{m.notes}</p>
-                      <p className="mt-0.5 text-caption text-ink-3">{m.logged_by_name}{m.next_date ? ` · ${t("op.meet.nextOn", { date: formatDate(m.next_date) })}` : ""}</p>
+                      <p className="mt-0.5 text-caption text-ink-2">{m.logged_by_name}{m.next_date ? ` · ${t("op.meet.nextOn", { date: formatDate(m.next_date) })}` : ""}</p>
                     </li>
                   ))}
                 </ul>

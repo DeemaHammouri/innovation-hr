@@ -132,9 +132,11 @@ indexed on `(user, timestamp)` and `(action, timestamp)`. Failed logins are not 
   client-rendered app behind a login.
 
 
-## Business workflow build (in progress)
+## Business workflow
 
-The full lead-to-cash workflow is being added phase by phase. See `docs/ARCHITECTURE.md` for the modules, state machines, permission matrix and API list.
+The full lead-to-cash workflow is built: marketing import, commercial pipeline, quotations, contracts, operation onboarding and recurring tasks, payments, HR (attendance, leave, payroll) and CEO reports.
+
+Documents: `docs/ARCHITECTURE.md` (modules, state machines, API), `docs/PERMISSIONS.md` (role x endpoint matrix, generated and tested), `docs/DEPLOYMENT.md` (production settings, Postgres, scheduled jobs, backups), `docs/USER_GUIDE.md` (per role, English and Arabic). The module detail is in `docs/ARCHITECTURE.md` for the modules, state machines, permission matrix and API list.
 
 - **Phase 7 (done):** Reports for the CEO and department heads (sales funnel and conversions, rejection reasons, stage durations, SLA breaches, revenue expected vs received, overdue balances, Operation and HR metrics), a forecast that shows its method and refuses when history is too thin, charts with a table alternative and CSV export, and permission-aware search across leads, quotations, contracts and clients.
 - **Phase 6 (done):** Payments (Commercial head writes, CEO reads: instalment schedules, an append-only payment ledger with receipts and reversal entries, statuses worked out automatically, client statement and CSV) and HR (attendance from sign-in history with late flags and CSV, leave with balances, approval and a calendar, and monthly payroll Draft -> CEO approved -> Paid with payslips; salary data is visible only to the CEO, the HR head and the employee).

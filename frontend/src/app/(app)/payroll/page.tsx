@@ -146,7 +146,7 @@ function Salaries({ canEdit }: { canEdit: boolean }) {
                   <p className="text-label font-normal text-ink-2">{s.department}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <p dir="ltr" className="tnum text-body text-ink">{s.base_salary ? money(s.base_salary, s.currency ?? "JOD") : <span className="text-ink-3">{t("payroll.noSalary")}</span>}</p>
+                  <p dir="ltr" className="tnum text-body text-ink">{s.base_salary ? money(s.base_salary, s.currency ?? "JOD") : <span className="text-ink-2">{t("payroll.noSalary")}</span>}</p>
                   {canEdit ? <Button variant="secondary" onClick={() => setEdit(s)}>{t(s.base_salary ? "common.edit" : "payroll.salary.set")}</Button> : null}
                 </div>
               </li>

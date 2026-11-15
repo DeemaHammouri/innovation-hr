@@ -62,7 +62,7 @@ function RequestRow({ r, showName, children }: { r: LeaveRequest; showName: bool
           </p>
           {r.reason ? <p className="whitespace-pre-line text-label font-normal text-ink-2">{r.reason}</p> : null}
           {r.status === "rejected" ? <p className="text-label font-normal text-ink-2">{t("leave.declinedBecause", { reason: r.decision_note })}</p> : null}
-          {r.decided_by_name && r.status !== "cancelled" ? <p className="text-caption text-ink-3">{r.decided_by_name}</p> : null}
+          {r.decided_by_name && r.status !== "cancelled" ? <p className="text-caption text-ink-2">{r.decided_by_name}</p> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <LeavePill status={r.status} />
@@ -99,7 +99,7 @@ function Mine({ params, setParams }: P) {
           <div key={b.leave_type} className="rounded-card border border-line bg-surface p-4">
             <p className="text-label font-normal text-ink-2">{name(b)}</p>
             <p className="tnum mt-1 text-section text-ink">{b.remaining === null ? t("leave.noLimit") : t("leave.remaining", { count: formatNumber(b.remaining) })}</p>
-            <p className="text-caption text-ink-3">{t("leave.usedPending", { used: formatNumber(b.used), pending: formatNumber(b.pending) })}</p>
+            <p className="text-caption text-ink-2">{t("leave.usedPending", { used: formatNumber(b.used), pending: formatNumber(b.pending) })}</p>
           </div>
         ))}
       </section>
@@ -221,8 +221,8 @@ function CalendarTab({ params, setParams }: P) {
       ) : (
         <>
           <Card className="hidden overflow-hidden md:block">
-            <div role="grid" aria-label={t("leave.tab.calendar")} className="grid grid-cols-7">
-              {dayNames.map((n) => <div key={n} role="columnheader" className="border-b border-line bg-canvas/50 p-2 text-center text-caption text-ink-2">{n}</div>)}
+            <div className="grid grid-cols-7">
+              {dayNames.map((n) => <div key={n} className="border-b border-line bg-canvas/50 p-2 text-center text-caption text-ink-2">{n}</div>)}
               {Array.from({ length: lead }, (_, i) => <div key={`l${i}`} className="min-h-24 border-b border-s border-line bg-canvas/30" />)}
               {Array.from({ length: last }, (_, i) => {
                 const d = i + 1;
@@ -230,13 +230,13 @@ function CalendarTab({ params, setParams }: P) {
                 const off = weekend.has((lead + i) % 7); // Monday-first column = the server's weekday number
                 const items = days[key] ?? [];
                 return (
-                  <div key={key} role="gridcell" className={`min-h-24 border-b border-s border-line p-1.5 ${off ? "bg-canvas/50" : ""}`}>
-                    <p className="tnum text-caption text-ink-3">{formatNumber(d)}</p>
+                  <div key={key} className={`min-h-24 border-b border-s border-line p-1.5 ${off ? "bg-canvas/50" : ""}`}>
+                    <p className="tnum text-caption text-ink-2">{formatNumber(d)}</p>
                     <ul className="mt-1 space-y-1">
                       {items.slice(0, 3).map((r) => (
                         <li key={r.id} className={`truncate rounded px-1.5 py-0.5 text-caption ${r.status === "approved" ? "bg-primary/10 text-primary-strong" : "bg-warning-bg text-warning-ink"}`} title={`${r.user_name} · ${lang === "ar" ? r.type_ar : r.type_en}`}>{nm(r)}</li>
                       ))}
-                      {items.length > 3 ? <li className="text-caption text-ink-3">{t("leave.cal.more", { count: formatNumber(items.length - 3) })}</li> : null}
+                      {items.length > 3 ? <li className="text-caption text-ink-2">{t("leave.cal.more", { count: formatNumber(items.length - 3) })}</li> : null}
                     </ul>
                   </div>
                 );

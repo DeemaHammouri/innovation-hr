@@ -58,7 +58,7 @@ export function ContractStepper({ contract }: { contract: Pick<Contract, "status
             <span
               aria-hidden
               className={`flex size-7 shrink-0 items-center justify-center rounded-full text-caption ${
-                cancelled ? "border border-line bg-surface text-ink-3" : done ? "bg-primary text-white" : current ? "border-2 border-primary bg-surface text-primary-strong" : "border border-line bg-surface text-ink-3"
+                cancelled ? "border border-line bg-surface text-ink-3" : done ? "bg-primary-strong text-white" : current ? "border-2 border-primary bg-surface text-primary-strong" : "border border-line bg-surface text-ink-3"
               }`}
             >
               {done && !cancelled ? <Check size={14} weight="bold" /> : i + 1}

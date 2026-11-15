@@ -44,7 +44,7 @@ export function TaskList({ tasks, onChanged, showClient = true }: { tasks: TaskI
             </div>
             {task.status === "done" && task.completion_note ? <p className="mt-1 whitespace-pre-line text-label font-normal text-ink-2">{task.completion_note}</p> : null}
             {task.status === "skipped" ? <p className="mt-1 whitespace-pre-line text-label font-normal text-ink-2">{t("op.task.skippedBecause", { reason: task.skip_reason })}</p> : null}
-            {task.closed_at ? <p className="mt-0.5 text-caption text-ink-3">{task.closed_by_name} · {formatDateTime(task.closed_at)}</p> : null}
+            {task.closed_at ? <p className="mt-0.5 text-caption text-ink-2">{task.closed_by_name} · {formatDateTime(task.closed_at)}</p> : null}
           </li>
         ))}
       </ul>

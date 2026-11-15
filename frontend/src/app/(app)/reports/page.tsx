@@ -97,7 +97,7 @@ function Section({ section, from, to, setPeriod }: { section: string; from: stri
                 <div key={cur} className="rounded-card border border-line bg-surface p-4">
                   <p className="text-label font-normal text-ink-2">{t("rep.kpi.overdue", { cur })}</p>
                   <p dir="ltr" className="tnum mt-1 text-section text-ink">{money(k.overdue_total, cur)}</p>
-                  <p className="text-caption text-ink-3">{t("rep.kpi.instalments", { n: formatNumber(k.overdue_instalments) })}</p>
+                  <p className="text-caption text-ink-2">{t("rep.kpi.instalments", { n: formatNumber(k.overdue_instalments) })}</p>
                 </div>
               ))}
             </section>

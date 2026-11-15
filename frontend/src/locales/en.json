@@ -1593,5 +1593,9 @@
   "rep.k.avg_hours_per_day": "Average hours per day",
   "rep.k.pending": "Waiting",
   "p7.api.1": "Choose a period of up to 2 years.",
-  "p7.api.2": "You don't have access to this report."
+  "p7.api.2": "You don't have access to this report.",
+  "status.error.title": "Something went wrong",
+  "status.error.text": "The page couldn't be shown. Your work is safe. Try again, and tell your administrator if it keeps happening.",
+  "status.error.retry": "Try again",
+  "p8.api.0": "Too many sign-in attempts. Wait 15 minutes and try again."
 }

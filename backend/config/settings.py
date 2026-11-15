@@ -125,5 +125,22 @@ if "test" in sys.argv:
 
     PRIVATE_MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="innovation-test-media-"))
 
+# Sign-in lockout (see accounts/ratelimit.py). Honour X-Forwarded-For only behind a proxy you control that sets it.
+LOGIN_MAX_FAILS_PER_EMAIL = 8
+LOGIN_MAX_FAILS_PER_IP = 40
+TRUST_X_FORWARDED_FOR = os.environ.get("TRUST_X_FORWARDED_FOR", "0") == "1"
+
+# Request bodies are small JSON or a single upload of at most 10 MB (files/views.py).
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
+
+# Never write passwords, tokens or Authorization headers to a log, whatever a future change logs by mistake.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"scrub": {"()": "core.logscrub.ScrubFilter"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "filters": ["scrub"]}},
+    "root": {"handlers": ["console"], "level": os.environ.get("DJANGO_LOG_LEVEL", "INFO")},
+}
+
 # Days that are not working days when counting leave (Monday = 0). Friday and Saturday by default.
 WEEKEND_DAYS = (4, 5)

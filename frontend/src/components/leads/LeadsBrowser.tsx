@@ -312,7 +312,7 @@ function BoardBody({ state, empty, moves, onBlocked }: { state: ReturnType<typeo
               <span className="tnum text-label text-ink-2">{formatNumber(col.count)}</span>
             </header>
             <ul className="flex flex-1 flex-col gap-2.5 p-2.5 pt-1">
-              {col.results.length === 0 ? <li className="px-2 py-6 text-center text-label font-normal text-ink-3">{t("lead.board.empty")}</li> : null}
+              {col.results.length === 0 ? <li className="px-2 py-6 text-center text-label font-normal text-ink-2">{t("lead.board.empty")}</li> : null}
               {col.results.map((l) => (
                 <li
                   key={l.id}

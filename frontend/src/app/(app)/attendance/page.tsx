@@ -125,7 +125,7 @@ function Mine({ params, setParams }: Tabs) {
               <ul className="divide-y divide-line">{data.rows.map((r) => <DayRow key={r.date} r={r} showName={false} />)}</ul>
             )}
           </Card>
-          <p className="mt-3 text-caption text-ink-3">{t("att.note")}</p>
+          <p className="mt-3 text-caption text-ink-2">{t("att.note")}</p>
         </>
       )}
     </div>
