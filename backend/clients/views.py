@@ -1,3 +1,4 @@
+from core.concurrency import check_fresh
 from rest_framework import mixins, viewsets
 from rest_framework.filters import SearchFilter
 
@@ -29,6 +30,7 @@ class ClientViewSet(
         record(self.request.user, client, "created")
 
     def perform_update(self, serializer):
+        check_fresh(serializer.instance, self.request.data)
         changed = [f for f, v in serializer.validated_data.items() if getattr(serializer.instance, f) != v]
         client = serializer.save()
         if changed:

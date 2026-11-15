@@ -10,9 +10,9 @@ class ClientSerializer(serializers.ModelSerializer):
         model = Client
         fields = [
             "id", "company_name", "contact_person", "phone", "email", "address", "notes",
-            "created_by", "created_by_name", "created_at",
+            "created_by", "created_by_name", "created_at", "updated_at",
         ]
-        read_only_fields = ["created_by", "created_at"]
+        read_only_fields = ["created_by", "created_at", "updated_at"]
 
     def validate_company_name(self, value):
         value = value.strip()

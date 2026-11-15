@@ -26,7 +26,7 @@ export function TaskList({ tasks, onChanged, showClient = true }: { tasks: TaskI
               <div className="min-w-0">
                 <p className="text-body font-semibold text-ink">{task.title}</p>
                 <p className="text-label font-normal text-ink-2">
-                  {showClient ? <><Link href={`/operation/${task.client}`} className="text-primary-strong hover:underline">{task.client_name}</Link> · </> : null}
+                  {showClient ? <><Link href={`/operation/${task.client}`} className="text-primary-strong underline-offset-2 hover:underline underline">{task.client_name}</Link> · </> : null}
                   {t("op.task.due", { date: formatDate(task.due_date) })} · {task.assignee_name ?? t("op.rec.unassigned")}
                 </p>
               </div>

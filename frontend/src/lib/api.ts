@@ -53,6 +53,7 @@ export type Client = {
   notes: string;
   created_by_name: string;
   created_at: string;
+  updated_at: string;
 };
 
 export class ApiError extends Error {
@@ -274,6 +275,7 @@ export type Lead = {
   quotation: { id: number; ref: string; status: QuotationStatus } | null;
   contract: { id: number; ref: string; status: ContractStatus } | null;
   skipped_quotation_at: string | null;
+  updated_at: string;
 };
 export type Interaction = {
   id: number;

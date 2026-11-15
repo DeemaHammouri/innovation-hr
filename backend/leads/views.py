@@ -1,6 +1,7 @@
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from core.concurrency import check_fresh
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
@@ -90,6 +91,7 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
         lead = self.get_object()
         if not access.can_edit(request.user, lead):
             raise PermissionDenied(MSG_NO_EDIT)
+        check_fresh(lead, request.data)
         return self.out(services.update_lead(request.user, lead, request.data))
 
     # ---- the board: every stage with its count and its first cards ----

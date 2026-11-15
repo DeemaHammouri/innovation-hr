@@ -77,7 +77,7 @@ export function LeadForm({ editing }: { editing: Lead | null }) {
     if (!form.check()) return;
     setSaving(true);
     try {
-      const body = { ...form.values, ...(allowDuplicate ? { allow_duplicate: true } : {}) };
+      const body = { ...form.values, ...(allowDuplicate ? { allow_duplicate: true } : {}), ...(editing ? { expected_updated_at: editing.updated_at } : {}) };
       const saved = await api<Lead>(editing ? `/leads/${editing.id}/` : "/leads/", { method: editing ? "PATCH" : "POST", body });
       if (!editing) writeDraft(null);
       toast.success(t(editing ? "lead.saved" : "lead.created"));
@@ -96,7 +96,7 @@ export function LeadForm({ editing }: { editing: Lead | null }) {
           else setFormError(fields.detail || "lead.fix");
         }
       } else {
-        setFormError(err instanceof ApiError && err.status === 403 ? err.message : "lead.saveFailed");
+        setFormError(err instanceof ApiError && (err.status === 403 || err.status === 409) ? err.message : "lead.saveFailed");
       }
       setSaving(false);
     }

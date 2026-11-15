@@ -85,7 +85,7 @@ if os.environ.get("DB_ENGINE") == "postgres":
         }
     }
 else:
-    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": os.environ.get("DJANGO_DB_PATH", BASE_DIR / "db.sqlite3")}}
 
 AUTH_USER_MODEL = "accounts.User"
 

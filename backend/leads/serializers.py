@@ -25,7 +25,7 @@ class LeadSerializer(serializers.ModelSerializer):
             "assigned_to", "assigned_to_name", "assigned_at", "batch", "batch_ref", "created_by", "created_by_name", "created_at",
             "next_follow_up", "rejection_reason", "rejection_reason_en", "rejection_reason_ar", "rejection_note",
             "first_contacted_at", "last_contacted_at", "qualified_at", "rejected_at", "archived_at", "archive_reason",
-            "follow_up_overdue", "first_contact_overdue", "permissions", "quotation", "contract", "skipped_quotation_at",
+            "follow_up_overdue", "first_contact_overdue", "permissions", "quotation", "contract", "skipped_quotation_at", "updated_at",
         ]
         read_only_fields = fields
 

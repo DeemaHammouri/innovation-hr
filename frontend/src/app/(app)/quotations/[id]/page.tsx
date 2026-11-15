@@ -156,7 +156,7 @@ export default function QuotationDetailPage() {
               </Card>
             ) : null}
             <InsetList title={t("qt.sectionClient")}>
-              <InsetRow label={t("lead.company")}><Link href={`/leads/${data.lead}`} className="text-primary-strong hover:underline">{data.lead_company}</Link></InsetRow>
+              <InsetRow label={t("lead.company")}>{["ceo", "marketing", "commercial_head", "commercial_member"].includes(user?.role_key ?? "") ? <Link href={`/leads/${data.lead}`} className="text-primary-strong underline underline-offset-2">{data.lead_company}</Link> : data.lead_company}</InsetRow>
               <InsetRow label={t("lead.reference")}><Ltr>{data.lead_ref}</Ltr></InsetRow>
               <InsetRow label={t("lead.contactName")}>{data.lead_contact || empty}</InsetRow>
               <InsetRow label={t("lead.assignee")}>{data.assigned_to_name ?? empty}</InsetRow>

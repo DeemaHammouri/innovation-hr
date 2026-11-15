@@ -209,6 +209,7 @@ const API_MESSAGES: Record<string, string> = {
   "Only HR can prepare quotations.": "qt.api.22",
   "Only the Commercial head or the assigned member can do this.": "qt.api.24",
   "You don't have access to quotations.": "qt.api.25",
+  "Someone else changed this record while you were editing. Reload to see their changes, then make your edit again.": "err.conflict",
   "Only a qualified lead can skip the quotation.": "qt.api.26",
   "The quotation was already skipped for this lead.": "qt.api.27",
 };

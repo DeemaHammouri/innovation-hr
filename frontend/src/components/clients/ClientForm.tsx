@@ -47,7 +47,7 @@ export function ClientForm({ editing }: { editing: Client | null }) {
     if (!form.check()) return;
     setSaving(true);
     try {
-      const saved = await api<Client>(editing ? `/clients/${editing.id}/` : "/clients/", { method: editing ? "PATCH" : "POST", body: form.values });
+      const saved = await api<Client>(editing ? `/clients/${editing.id}/` : "/clients/", { method: editing ? "PATCH" : "POST", body: editing ? { ...form.values, expected_updated_at: editing.updated_at } : form.values });
       toast.success(t("clients.saved"));
       router.push(`/clients/${saved.id}`);
     } catch (err) {
@@ -59,7 +59,7 @@ export function ClientForm({ editing }: { editing: Client | null }) {
         if (first) form.focusField(first);
         else setFormError("users.checkDetails");
       } else {
-        setFormError("clients.saveFailed");
+        setFormError(err instanceof ApiError && err.status === 409 ? err.message : "clients.saveFailed");
       }
       setSaving(false);
     }

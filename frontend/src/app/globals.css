@@ -19,8 +19,8 @@
   --color-line: #e3e8f0;
 
   --color-ink: #0f1b33;
-  --color-ink-2: #5b6b85;
-  --color-ink-3: #8a97ad;
+  --color-ink-2: #4a5a75;
+  --color-ink-3: #617088;
 
   --color-success: #1f9d55;
   --color-success-bg: #e6f6ec;
@@ -31,7 +31,7 @@
   --color-danger: #d92d20;
   --color-danger-bg: #fdecea;
   --color-danger-ink: #b42318;
-  --color-neutral: #5b6b85;
+  --color-neutral: #4a5a75;
   --color-neutral-bg: #eef1f6;
 
   /* Avatar tints: the blue / navy / teal-gray family only. Picked from the name. */

@@ -16,7 +16,7 @@ Roles are derived from department and head/member: **CEO** (Administration head)
 | Quotations: see | all | no | all | own leads | all | all | no | no |
 | Quotations: request | no | no | yes | yes (own leads) | no | no | no | no |
 | Quotations: prepare, submit | no | no | no | no | yes | yes | no | no |
-| Quotations: sign (approve or return) | yes | no | no | no | no | no | no | no |
+| Quotations: sign (approve or return) | no | no | yes (head only) | no | no | no | no | no |
 | Quotations: send, record outcome, follow up | no | no | yes | own leads | no | no | no | no |
 | Contracts: see | all | no | all | own leads | all | all | handed over only | handed over only |
 | Contracts: request | no | no | yes | own leads | no | no | no | no |
