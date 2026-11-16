@@ -86,6 +86,30 @@ export function NotApplicableSheet({ itemId, name, onClose, onDone }: { itemId: 
   );
 }
 
+/** Verifying a document that runs out asks for the date it stops being valid. */
+export function ExpirySheet({ itemId, name, onClose, onDone }: { itemId: number; name: string; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const [day, setDay] = useState("");
+  const action = useAction(["expires_on"]);
+  async function save() {
+    const ok = await action.run(() => api(`/operations/checklist/${itemId}/verify/`, { method: "POST", body: { expires_on: day } }));
+    if (ok) {
+      toast.success(t("op.item.verified"));
+      onDone();
+    }
+  }
+  return (
+    <Sheet open onClose={onClose} title={t("op.expiry.title")} footer={<><Button variant="secondary" onClick={onClose}>{t("common.cancel")}</Button><Button loading={action.saving} onClick={save}>{t("op.item.verify")}</Button></>}>
+      <div className="space-y-4">
+        <FormError message={action.formError} />
+        <p className="text-label font-normal text-ink-2">{name}</p>
+        <Input name="expires_on" label={t("op.expiry.date")} type="date" required value={day} onChange={(e) => setDay(e.target.value)} error={action.errors.expires_on} />
+      </div>
+    </Sheet>
+  );
+}
+
 export function AddItemSheet({ client, onClose, onDone }: { client: OpClient; onClose: () => void; onDone: () => void }) {
   const { t } = useI18n();
   const toast = useToast();

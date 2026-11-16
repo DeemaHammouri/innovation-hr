@@ -22,3 +22,26 @@ def operation_items(user):
     for i in ChecklistItem.objects.filter(status="uploaded", archived_at__isnull=True).select_related("client").order_by("updated_at")[:CAP]:
         out.append({"kind": "op_verify", "section": "operation", "ref": i.name_en, "title": i.client.company_name, "link": f"/operation/{i.client_id}", "due": None, "overdue": False})
     return out
+
+
+@provider
+def handover_items(user):
+    """Commercial: handovers to fill in or fix. The Operation head and the CEO: handovers waiting for a decision."""
+    from .models import Handover
+
+    out = []
+    if user.has_capability("handover.write"):
+        mine = Handover.objects.filter(status__in=["draft", "returned"])
+        if not user.has_capability("lead.manage"):
+            mine = mine.filter(prepared_by=user)
+        out += [
+            {"kind": "handover_fill", "section": "handovers", "ref": h.ref, "title": h.client.company_name, "link": f"/handovers/{h.pk}", "due": None, "overdue": False}
+            for h in mine.select_related("client").order_by("created_at")[:CAP]
+        ]
+    if user.has_capability("handover.decide"):
+        waiting = Handover.objects.filter(status__in=["submitted", "escalated"]).select_related("client").order_by("submitted_at")
+        out += [
+            {"kind": "handover_decide", "section": "handovers", "ref": h.ref, "title": h.client.company_name, "link": f"/handovers/{h.pk}", "due": None, "overdue": False}
+            for h in waiting[:CAP]
+        ]
+    return out

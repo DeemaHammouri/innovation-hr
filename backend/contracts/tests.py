@@ -81,8 +81,9 @@ class CCase(RoleCase):
 
 
 class AccessTests(CCase):
-    def test_list_for_seven_roles(self):
-        self.assert_matrix("get", "/api/contracts/", {"marketing": 403, "*": 200})
+    def test_list_for_the_roles_that_work_contracts(self):
+        # Operation gets a handover, never the contract (objective 18), so it is refused here like Marketing.
+        self.assert_matrix("get", "/api/contracts/", {"marketing": 403, "operation_head": 403, "operation_member": 403, "*": 200})
 
     def test_visibility(self):
         mine, theirs = self.contract(), self.contract(lead=self.lead(assigned=self.member2))
@@ -95,9 +96,9 @@ class AccessTests(CCase):
             self.assertEqual(self.client.get("/api/contracts/").data["count"], 3, key)
         for key in ("operation_head", "operation_member"):
             self.as_role(key)
-            self.assertEqual({r["id"] for r in self.client.get("/api/contracts/").data["results"]}, {done.pk}, key)
-            self.assertEqual(self.client.get(f"/api/contracts/{mine.pk}/").status_code, 404, key)
-            self.assertEqual(self.client.get(f"/api/contracts/{done.pk}/").status_code, 200, key)
+            self.assertEqual(self.client.get("/api/contracts/").status_code, 403, key)
+            self.assertEqual(self.client.get(f"/api/contracts/{mine.pk}/").status_code, 403, key)
+            self.assertEqual(self.client.get(f"/api/contracts/{done.pk}/").status_code, 403, key)  # even once handed over
         self.as_role("marketing")
         self.assertEqual(self.client.get(f"/api/contracts/{mine.pk}/").status_code, 403)
 
@@ -367,8 +368,10 @@ class FlowTests(CCase):
         self.attach(c, "final_signed")
         res = self.act(self.hr2, c, "handover")
         self.assertEqual((res.status_code, res.data["status"], res.data["handed_over_by_name"]), (200, "handed_over", self.hr2.full_name))
+        # Operation is not told about the contract (it never sees one); Commercial is asked to fill in the handover instead.
         for key in ("operation_head", "operation_member"):
-            self.assertTrue(Notification.objects.filter(user=self.users[key], kind="contract_handover").exists(), key)
+            self.assertFalse(Notification.objects.filter(user=self.users[key], kind="contract_handover").exists(), key)
+        self.assertTrue(Notification.objects.filter(user=c.lead.assigned_to, kind="handover_requested").exists())
         self.assertIn("contract_handed_over", list(AuditEntry.objects.filter(content_type=content_type_for(Lead), object_id=c.lead_id).values_list("action", flat=True)))
 
     def test_every_illegal_transition_is_refused(self):

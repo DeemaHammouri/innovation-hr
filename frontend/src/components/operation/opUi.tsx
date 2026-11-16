@@ -5,7 +5,7 @@ import type { ChecklistStatus, Frequency, OpClientStatus, RecurringTask } from "
 import { useI18n } from "@/lib/i18n";
 
 const CLIENT_TONE: Record<OpClientStatus, "neutral" | "primary" | "warning" | "success" | "danger"> = { onboarding: "warning", active: "success", inactive: "neutral" };
-const ITEM_TONE: Record<ChecklistStatus, "neutral" | "primary" | "warning" | "success" | "danger"> = { pending: "neutral", uploaded: "primary", verified: "success", not_applicable: "neutral" };
+const ITEM_TONE: Record<ChecklistStatus, "neutral" | "primary" | "warning" | "success" | "danger"> = { pending: "neutral", uploaded: "primary", verified: "success", expired: "danger", not_applicable: "neutral" };
 
 export const FREQUENCIES: Frequency[] = ["daily", "weekly", "biweekly", "monthly", "yearly", "custom"];
 

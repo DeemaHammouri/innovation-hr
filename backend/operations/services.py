@@ -19,7 +19,7 @@ from files.models import Attachment
 from lookups.models import ChecklistTemplateItem
 from notifications.service import notify, notify_many
 
-from .models import ChecklistItem, QAMeeting, RecurringTask, TaskInstance
+from .models import ChecklistItem, ChecklistItemVersion, QAMeeting, RecurringTask, TaskInstance
 
 MSG_STATE = "That can't be done in the current state."
 MSG_NO_FILE = "Upload the document first."
@@ -39,6 +39,8 @@ MSG_MEETING_NOTES = "Write what was discussed in the meeting."
 MSG_NEXT = "Choose a date after the meeting."
 MSG_CADENCE = "Enter a number of days from 7 to 365."
 MSG_TASK_CLOSED = "This task is already closed."
+MSG_EXPIRY = "Enter the date this document stops being valid."
+MSG_EXPIRY_PAST = "The expiry date must be after today."
 
 Item = ChecklistItem.Status
 Task = TaskInstance.Status
@@ -70,7 +72,7 @@ def onboard(actor, contract):
         contract.save(update_fields=["client", "updated_at"])
         if not client.checklist.exists():
             for pos, t in enumerate(ChecklistTemplateItem.objects.filter(is_active=True).order_by("sort_order", "id")):
-                ChecklistItem.objects.create(client=client, template_item=t, name_en=t.name_en, name_ar=t.name_ar, required=t.required, position=pos)
+                ChecklistItem.objects.create(client=client, template_item=t, name_en=t.name_en, name_ar=t.name_ar, required=t.required, expires_required=t.has_expiry, position=pos)
         if client.status == "prospect":  # converted from a lead earlier; the handover is what starts onboarding
             client.status = "onboarding"
             client.save(update_fields=["status", "updated_at"])
@@ -80,8 +82,13 @@ def onboard(actor, contract):
     return client
 
 
-def _satisfied(item):
-    return item.status in (Item.VERIFIED, Item.NOT_APPLICABLE)
+def _satisfied(item, today=None):
+    """Not applicable, or verified and not past its expiry date. An expired document never counts, even before the daily job has marked it."""
+    if item.status == Item.NOT_APPLICABLE:
+        return True
+    if item.status != Item.VERIFIED:
+        return False
+    return item.expires_on is None or item.expires_on >= (today or timezone.localdate())
 
 
 def recompute_status(actor, client):
@@ -95,7 +102,7 @@ def recompute_status(actor, client):
         client.save(update_fields=["status", "activated_at", "updated_at"])
         record(actor, client, "activated", from_value="onboarding", to_value="active")
         notify_many(operation_users(), "client_active", exclude=actor, link=f"/operation/{client.pk}", ref=client.company_name, name="")
-    elif not ok and client.status == "active" and client.checklist.filter(archived_at__isnull=True, required=True).exclude(status__in=[Item.VERIFIED, Item.NOT_APPLICABLE]).exists():
+    elif not ok and client.status == "active":
         client.status = "onboarding"
         client.save(update_fields=["status", "updated_at"])
         record(actor, client, "back_to_onboarding", from_value="active", to_value="onboarding")
@@ -107,27 +114,61 @@ def _files(item):
 
 
 def file_attached(user, item, attachment):
-    """A document landed on a checklist item: Pending becomes Uploaded. Nothing else changes by uploading."""
-    if item.status == Item.PENDING:
-        item.status = Item.UPLOADED
-        item.save(update_fields=["status", "updated_at"])
-        record(user, item.client, "checklist_uploaded", to_value=item.name_en)
+    """A document landed on a checklist item. It becomes the newest version; every earlier version is superseded.
+
+    A pending, verified or expired item goes (back) to Uploaded, because the newest document has not been checked. A client that was
+    active only because of the old document therefore returns to onboarding until Operation verifies the new one."""
+    with transaction.atomic():
+        item = ChecklistItem.objects.select_for_update().select_related("client").get(pk=item.pk)
+        number = (item.versions.order_by("-number").values_list("number", flat=True).first() or 0) + 1
+        item.versions.exclude(state=ChecklistItemVersion.State.SUPERSEDED).update(state=ChecklistItemVersion.State.SUPERSEDED)
+        ChecklistItemVersion.objects.create(item=item, number=number, attachment=attachment, filename=attachment.original_name[:255], uploaded_by=user)
+        if item.status in (Item.PENDING, Item.VERIFIED, Item.EXPIRED):
+            was = item.status
+            item.status, item.verified_by, item.verified_at, item.expires_on = Item.UPLOADED, None, None, None
+            item.save(update_fields=["status", "verified_by", "verified_at", "expires_on", "updated_at"])
+            record(user, item.client, "checklist_uploaded" if was == Item.PENDING else "checklist_new_version", to_value=f"{item.name_en} v{number}")
+            if was != Item.PENDING:
+                recompute_status(user, item.client)
+        else:
+            record(user, item.client, "checklist_new_version", to_value=f"{item.name_en} v{number}")
 
 
 def _locked_item(item):
     return ChecklistItem.objects.select_for_update().select_related("client").get(pk=item.pk)
 
 
-def verify_item(actor, item):
+def _expiry(raw, required):
+    if raw in (None, ""):
+        if required:
+            raise ValidationError({"expires_on": [MSG_EXPIRY]})
+        return None
+    try:
+        day = date.fromisoformat(str(raw))
+    except ValueError:
+        raise ValidationError({"expires_on": [MSG_EXPIRY]})
+    if day <= timezone.localdate():
+        raise ValidationError({"expires_on": [MSG_EXPIRY_PAST]})
+    return day
+
+
+def verify_item(actor, item, expires_on=None):
+    """Verifies the newest version. Items flagged `expires_required` must come with the date the document runs out."""
     with transaction.atomic():
         item = _locked_item(item)
         if item.archived_at or item.status != Item.UPLOADED:
             raise ValidationError({"detail": MSG_STATE})
         if not _files(item).exists():
             raise ValidationError({"detail": MSG_NO_FILE})
-        item.status, item.verified_by, item.verified_at = Item.VERIFIED, actor, timezone.now()
-        item.save(update_fields=["status", "verified_by", "verified_at", "updated_at"])
-        record(actor, item.client, "checklist_verified", to_value=item.name_en)
+        day = _expiry(expires_on, item.expires_required)
+        now = timezone.now()
+        item.status, item.verified_by, item.verified_at, item.expires_on = Item.VERIFIED, actor, now, day
+        item.save(update_fields=["status", "verified_by", "verified_at", "expires_on", "updated_at"])
+        latest = item.versions.order_by("-number").first()
+        if latest is not None:
+            latest.state, latest.verified_by, latest.verified_at, latest.expires_on = ChecklistItemVersion.State.VERIFIED, actor, now, day
+            latest.save(update_fields=["state", "verified_by", "verified_at", "expires_on"])
+        record(actor, item.client, "checklist_verified", to_value=item.name_en, comment=f"expires {day.isoformat()}" if day else "")
         recompute_status(actor, item.client)
     return item
 
@@ -138,8 +179,9 @@ def reset_item(actor, item, note=""):
         item = _locked_item(item)
         if item.archived_at or item.status == Item.PENDING:
             raise ValidationError({"detail": MSG_STATE})
-        item.status, item.verified_by, item.verified_at, item.na_reason = Item.PENDING, None, None, ""
-        item.save(update_fields=["status", "verified_by", "verified_at", "na_reason", "updated_at"])
+        item.status, item.verified_by, item.verified_at, item.na_reason, item.expires_on = Item.PENDING, None, None, "", None
+        item.save(update_fields=["status", "verified_by", "verified_at", "na_reason", "expires_on", "updated_at"])
+        item.versions.filter(state=ChecklistItemVersion.State.VERIFIED).update(state=ChecklistItemVersion.State.UPLOADED, verified_by=None, verified_at=None, expires_on=None)
         record(actor, item.client, "checklist_reset", to_value=item.name_en, comment=(note or "")[:300])
         recompute_status(actor, item.client)
     return item
@@ -381,3 +423,36 @@ def set_cadence(actor, client, days):
     client.save(update_fields=["qa_cadence_days", "updated_at"])
     record(actor, client, "qa_cadence_changed", to_value=str(days))
     return client
+
+
+# ---------- document expiry ----------
+EXPIRY_WARNING_DAYS = 30
+
+
+def expire_documents(today=None):
+    """Daily. A verified document past its expiry date becomes Expired and its client goes back to onboarding; the Operation head is told.
+    Also warns once, 30 days ahead. Safe to run any number of times: a notification is keyed by item and expiry date."""
+    today = today or timezone.localdate()
+    sent = 0
+    head = operation_head()
+    soon = today + timedelta(days=EXPIRY_WARNING_DAYS)
+    due = ChecklistItem.objects.filter(status=Item.VERIFIED, expires_on__lt=today, archived_at__isnull=True).select_related("client")
+    clients = {}
+    for item in due:
+        with transaction.atomic():
+            item = _locked_item(item)
+            if item.status != Item.VERIFIED or item.expires_on is None or item.expires_on >= today:
+                continue
+            item.status = Item.EXPIRED
+            item.save(update_fields=["status", "updated_at"])
+            record(None, item.client, "checklist_expired", to_value=item.name_en, comment=item.expires_on.isoformat())
+            clients[item.client_id] = item.client
+        if head:
+            sent += bool(notify(head, "kyc_expired", link=f"/operation/{item.client_id}", dedupe_key=f"kycexpired:{item.pk}:{item.expires_on}", ref=item.name_en, name=item.client.company_name))
+    for client in clients.values():
+        recompute_status(None, Client.objects.get(pk=client.pk))
+    if head:
+        warn = ChecklistItem.objects.filter(status=Item.VERIFIED, expires_on__gte=today, expires_on__lte=soon, archived_at__isnull=True).select_related("client")
+        for item in warn:
+            sent += bool(notify(head, "kyc_expiring", link=f"/operation/{item.client_id}", dedupe_key=f"kycsoon:{item.pk}:{item.expires_on}", ref=item.name_en, name=item.client.company_name))
+    return sent + len(clients)

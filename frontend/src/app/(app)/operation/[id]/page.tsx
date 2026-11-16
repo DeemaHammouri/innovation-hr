@@ -146,7 +146,8 @@ export default function OperationClientPage() {
               <InsetRow label={t("op.phone")}>{data.phone ? <Ltr>{data.phone}</Ltr> : empty}</InsetRow>
               <InsetRow label={t("op.email")}>{data.email ? <Ltr>{data.email}</Ltr> : empty}</InsetRow>
               {data.activated_at ? <InsetRow label={t("op.activatedOn")}>{formatDateTime(data.activated_at)}</InsetRow> : null}
-              {(data.contracts ?? []).length ? <InsetRow label={t("ct.title")}><span className="flex flex-wrap justify-end gap-2">{data.contracts!.map((k) => <Link key={k.id} href={`/contracts/${k.id}`} className="text-primary-strong hover:underline"><Ltr>{k.ref}</Ltr></Link>)}</span></InsetRow> : null}
+              {(data.handovers ?? []).length ? <InsetRow label={t("ho.title")}><span className="flex flex-wrap justify-end gap-2">{data.handovers!.map((h) => <Link key={h.id} href={`/handovers/${h.id}`} className="text-primary-strong hover:underline"><Ltr>{h.ref}</Ltr></Link>)}</span></InsetRow> : null}
+              {(data.projects ?? []).length ? <InsetRow label={t("prj.title")}><span className="flex flex-wrap justify-end gap-2">{data.projects!.map((k) => <Link key={k.id} href="/projects" className="text-primary-strong hover:underline"><Ltr>{k.ref}</Ltr></Link>)}</span></InsetRow> : null}
             </InsetList>
           </div>
         }

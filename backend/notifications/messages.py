@@ -36,9 +36,41 @@ CATALOG = {
         "en": ("Contract waiting for your review: {ref}", "{name}"),
         "ar": ("عقد بانتظار مراجعتك: {ref}", "{name}"),
     },
-    "contract_handover": {
-        "en": ("New contract handed over: {ref}", "{name}"),
-        "ar": ("عقد جديد تم تسليمه: {ref}", "{name}"),
+    "handover_requested": {
+        "en": ("Fill in the handover for {name}", "{ref}"),
+        "ar": ("املأ نموذج التسليم الخاص بـ {name}", "{ref}"),
+    },
+    "handover_submitted": {
+        "en": ("New handover to review: {name}", "{ref}"),
+        "ar": ("تسليم جديد بانتظار المراجعة: {name}", "{ref}"),
+    },
+    "handover_accepted": {
+        "en": ("Operation accepted the handover for {name}", "{ref}"),
+        "ar": ("قبلت العمليات تسليم {name}", "{ref}"),
+    },
+    "handover_returned": {
+        "en": ("The handover for {name} was returned", "{ref}"),
+        "ar": ("أُعيد تسليم {name} للتعديل", "{ref}"),
+    },
+    "handover_escalated": {
+        "en": ("Handover escalated to the CEO: {name}", "{ref}"),
+        "ar": ("تم تصعيد تسليم {name} إلى المدير التنفيذي", "{ref}"),
+    },
+    "kyc_expired": {
+        "en": ("Document expired: {ref}", "{name}"),
+        "ar": ("انتهت صلاحية مستند: {ref}", "{name}"),
+    },
+    "kyc_expiring": {
+        "en": ("Document expires soon: {ref}", "{name}"),
+        "ar": ("مستند تنتهي صلاحيته قريبًا: {ref}", "{name}"),
+    },
+    "project_assigned": {
+        "en": ("You were assigned to a project: {name}", "{ref}"),
+        "ar": ("تم تعيينك على مشروع: {name}", "{ref}"),
+    },
+    "project_unassigned": {
+        "en": ("You were taken off a project: {name}", "{ref}"),
+        "ar": ("تمت إزالتك من مشروع: {name}", "{ref}"),
     },
     "task_due": {
         "en": ("Task due: {ref}", "{name}"),

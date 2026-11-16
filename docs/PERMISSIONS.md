@@ -25,6 +25,13 @@ Roles are derived from department and head/member: **CEO** (Administration head)
 | Contracts: sign (approve or return) | yes | no | no | no | no | no | no | no |
 | Clients and Operation: see | all | no | own deals, read-only | own deals, read-only | no | no | all | all |
 | Operation: checklist, tasks, QA meetings | no | no | no | no | no | no | write | write (tasks assigned to them; head customises) |
+| Handovers: see | all | no | own (the deals they prepared) | own | no | no | submitted, escalated, accepted and returned | read-only, same as head |
+| Handovers: fill in, submit | no | no | yes (own deals) | yes (own deals) | no | no | no | no |
+| Handovers: accept, return | yes | no | no | no | no | no | yes | no |
+| Handovers: escalate to the CEO | no | no | no | no | no | no | yes | no |
+| Projects: see | yes | no | read-only | no | no | no | yes | yes |
+| Projects: choose primary employee and support | no | no | no | no | no | no | yes | no |
+| Prices, payments and the contract file | yes (as before) | no | quotations: yes | quotations: own | contracts: yes | contracts: yes | never | never |
 | Payments (schedule, record, reverse) | read | no | write | no | no | no | no | no |
 | Attendance | own, all (report) | own | own | own | own, all (report) | own, all (report) | own | own |
 | Leave: request | no | yes | yes | yes | yes | yes | yes | yes |
@@ -99,21 +106,21 @@ OpH / OpM = Operation head / member.
 | PATCH | `/api/v1/company/` | 401 | 200 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/company/setup/` | 401 | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 |
 | GET | `/api/v1/company/stamp/` | 401 | 200 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
-| GET | `/api/v1/contract-templates/` | 401 | 200 | 403 | 200 | 200 | 200 | 200 | 200 | 200 |
+| GET | `/api/v1/contract-templates/` | 401 | 200 | 403 | 200 | 200 | 200 | 200 | 403 | 403 |
 | POST | `/api/v1/contract-templates/` | 401 | 400 | 403 | 403 | 403 | 400 | 403 | 403 | 403 |
 | DELETE | `/api/v1/contract-templates/1/` | 401 | 405 | 403 | 403 | 403 | 405 | 403 | 403 | 403 |
-| GET | `/api/v1/contract-templates/1/` | 401 | 200 | 403 | 200 | 200 | 200 | 200 | 200 | 200 |
+| GET | `/api/v1/contract-templates/1/` | 401 | 200 | 403 | 200 | 200 | 200 | 200 | 403 | 403 |
 | PATCH | `/api/v1/contract-templates/1/` | 401 | 200 | 403 | 403 | 403 | 200 | 403 | 403 | 403 |
 | PUT | `/api/v1/contract-templates/1/` | 401 | 405 | 403 | 403 | 403 | 405 | 403 | 403 | 403 |
-| GET | `/api/v1/contracts/` | 401 | 200 | 403 | 200 | 200 | 200 | 200 | 200 | 200 |
-| POST | `/api/v1/contracts/` | 401 | 404 | 403 | 404 | 404 | 404 | 404 | 404 | 404 |
-| GET | `/api/v1/contracts/1/` | 401 | 404 | 403 | 404 | 404 | 404 | 404 | 404 | 404 |
+| GET | `/api/v1/contracts/` | 401 | 200 | 403 | 200 | 200 | 200 | 200 | 403 | 403 |
+| POST | `/api/v1/contracts/` | 401 | 404 | 403 | 404 | 404 | 404 | 404 | 403 | 403 |
+| GET | `/api/v1/contracts/1/` | 401 | 404 | 403 | 404 | 404 | 404 | 404 | 403 | 403 |
 | POST | `/api/v1/contracts/1/approve/` | 401 | 404 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | POST | `/api/v1/contracts/1/cancel/` | 401 | 403 | 403 | 404 | 403 | 403 | 403 | 403 | 403 |
-| POST | `/api/v1/contracts/1/client-copy/` | 401 | 404 | 403 | 404 | 404 | 404 | 404 | 404 | 404 |
+| POST | `/api/v1/contracts/1/client-copy/` | 401 | 404 | 403 | 404 | 404 | 404 | 404 | 403 | 403 |
 | POST | `/api/v1/contracts/1/commercial-return/` | 401 | 403 | 403 | 404 | 403 | 403 | 403 | 403 | 403 |
 | POST | `/api/v1/contracts/1/confirm/` | 401 | 403 | 403 | 404 | 403 | 403 | 403 | 403 | 403 |
-| GET | `/api/v1/contracts/1/document/` | 401 | 404 | 403 | 404 | 404 | 404 | 404 | 404 | 404 |
+| GET | `/api/v1/contracts/1/document/` | 401 | 404 | 403 | 404 | 404 | 404 | 404 | 403 | 403 |
 | PATCH | `/api/v1/contracts/1/draft/` | 401 | 403 | 403 | 403 | 403 | 404 | 404 | 403 | 403 |
 | POST | `/api/v1/contracts/1/draft/` | 401 | 403 | 403 | 403 | 403 | 404 | 404 | 403 | 403 |
 | POST | `/api/v1/contracts/1/handover/` | 401 | 403 | 403 | 403 | 403 | 404 | 404 | 403 | 403 |
@@ -125,6 +132,13 @@ OpH / OpM = Operation head / member.
 | GET | `/api/v1/departments/` | 401 | 200 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/files/` | 401 | 400 | 400 | 400 | 400 | 400 | 400 | 400 | 400 |
 | POST | `/api/v1/files/` | 401 | 415 | 415 | 415 | 415 | 415 | 415 | 415 | 415 |
+| GET | `/api/v1/handovers/` | 401 | 200 | 403 | 200 | 200 | 403 | 403 | 200 | 200 |
+| GET | `/api/v1/handovers/1/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/handovers/1/accept/` | 401 | 404 | 403 | 403 | 403 | 403 | 403 | 404 | 403 |
+| POST | `/api/v1/handovers/1/escalate/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 404 | 403 |
+| POST | `/api/v1/handovers/1/return/` | 401 | 404 | 403 | 403 | 403 | 403 | 403 | 404 | 403 |
+| POST | `/api/v1/handovers/1/save/` | 401 | 403 | 403 | 404 | 404 | 403 | 403 | 403 | 403 |
+| POST | `/api/v1/handovers/1/submit/` | 401 | 403 | 403 | 404 | 404 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/health/` | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 |
 | GET | `/api/v1/hr/attendance/` | 401 | 200 | 403 | 403 | 403 | 200 | 200 | 403 | 403 |
 | GET | `/api/v1/hr/attendance/export/` | 401 | 200 | 403 | 403 | 403 | 200 | 200 | 403 | 403 |
@@ -252,6 +266,11 @@ OpH / OpM = Operation head / member.
 | GET | `/api/v1/portal/quotations/1/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/portal/quotations/1/document/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | POST | `/api/v1/portal/quotations/1/sign/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
+| GET | `/api/v1/projects/` | 401 | 200 | 403 | 200 | 403 | 403 | 403 | 200 | 200 |
+| GET | `/api/v1/projects/1/` | 401 | 404 | 403 | 404 | 403 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/projects/1/primary/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 404 | 403 |
+| POST | `/api/v1/projects/1/remove/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 404 | 403 |
+| POST | `/api/v1/projects/1/support/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 404 | 403 |
 | GET | `/api/v1/quotations/` | 401 | 200 | 403 | 200 | 200 | 200 | 200 | 403 | 403 |
 | POST | `/api/v1/quotations/` | 401 | 404 | 403 | 404 | 404 | 404 | 404 | 403 | 403 |
 | GET | `/api/v1/quotations/1/` | 401 | 404 | 403 | 404 | 404 | 404 | 404 | 403 | 403 |

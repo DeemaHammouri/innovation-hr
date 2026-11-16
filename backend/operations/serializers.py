@@ -10,11 +10,25 @@ from .models import ChecklistItem, QAMeeting, RecurringTask, TaskInstance
 
 class ChecklistItemSerializer(serializers.ModelSerializer):
     verified_by_name = serializers.CharField(source="verified_by.full_name", default=None, read_only=True)
+    versions = serializers.SerializerMethodField()
 
     class Meta:
         model = ChecklistItem
-        fields = ["id", "client", "name_en", "name_ar", "required", "status", "na_reason", "verified_by_name", "verified_at", "position"]
+        fields = [
+            "id", "client", "name_en", "name_ar", "required", "status", "na_reason", "verified_by_name", "verified_at", "position", "expires_required", "expires_on",
+            "versions",
+        ]
         read_only_fields = fields
+
+    def get_versions(self, i):
+        return [
+            {
+                "number": v.number, "filename": v.filename, "state": v.state, "uploaded_by_name": v.uploaded_by.full_name if v.uploaded_by else None,
+                "uploaded_at": v.uploaded_at, "verified_by_name": v.verified_by.full_name if v.verified_by else None, "verified_at": v.verified_at,
+                "expires_on": v.expires_on, "attachment": v.attachment_id,
+            }
+            for v in i.versions.all()
+        ]
 
 
 class RecurringSerializer(serializers.ModelSerializer):
@@ -102,10 +116,11 @@ class OpClientDetailSerializer(OpClientSerializer):
     address = serializers.CharField(read_only=True)
     checklist = serializers.SerializerMethodField()
     recurring_tasks = serializers.SerializerMethodField()
-    contracts = serializers.SerializerMethodField()
+    handovers = serializers.SerializerMethodField()
+    projects = serializers.SerializerMethodField()
 
     class Meta(OpClientSerializer.Meta):
-        fields = OpClientSerializer.Meta.fields + ["address", "checklist", "recurring_tasks", "contracts"]
+        fields = OpClientSerializer.Meta.fields + ["address", "checklist", "recurring_tasks", "handovers", "projects"]
         read_only_fields = fields
 
     def get_checklist(self, c):
@@ -115,5 +130,8 @@ class OpClientDetailSerializer(OpClientSerializer):
     def get_recurring_tasks(self, c):
         return RecurringSerializer(list(c.recurring_tasks.all()), many=True).data
 
-    def get_contracts(self, c):
-        return [{"id": k.pk, "ref": k.ref} for k in c.contracts.all()]
+    def get_handovers(self, c):
+        return [{"id": h.pk, "ref": h.ref, "status": h.status} for h in c.handovers.all() if h.status != "draft" or self.context["request"].user.has_capability("handover.write")]
+
+    def get_projects(self, c):
+        return [{"id": p.pk, "ref": p.ref, "status": p.status} for p in c.projects.all()]

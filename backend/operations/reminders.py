@@ -38,4 +38,4 @@ def overdue_meetings(today=None):
 @daily_job("operation_daily")
 def run(today=None):
     made = services.generate_due(today)
-    return made + overdue_tasks(today) + overdue_meetings(today)
+    return made + overdue_tasks(today) + overdue_meetings(today) + services.expire_documents(today)

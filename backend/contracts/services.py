@@ -403,8 +403,9 @@ def hand_over(actor, c):
         from operations import services as ops
 
         ops.onboard(actor, c)
-    ops = User.objects.filter(is_active=True, department__name="Operation")
-    notify_many(ops, "contract_handover", exclude=actor, link=link(c), ref=c.ref, name=c.lead.company_name)
+        from operations import handover
+
+        handover.create_for_contract(actor, c)
     return c
 
 

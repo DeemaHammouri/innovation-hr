@@ -59,14 +59,31 @@ class RejectionReasonViewSet(LookupViewSet):
     serializer_class = make_serializer(RejectionReason)
 
 
+PRICE_FIELDS = ("default_unit_price", "currency")
+PRICE_CAPABILITIES = ("settings.manage", "quotation.prepare")  # the CEO who sets the list and HR who prices a quotation with it
+
+
+class ServiceSerializer(make_serializer(Service, PRICE_FIELDS)):
+    """The names of the services are for everyone; the price list is not. Whoever may not price a quotation gets the names only."""
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not (user and any(user.has_capability(c) for c in PRICE_CAPABILITIES)):
+            for f in PRICE_FIELDS:
+                data.pop(f, None)
+        return data
+
+
 class ServiceViewSet(LookupViewSet):
     queryset = Service.objects.all()
-    serializer_class = make_serializer(Service, ("default_unit_price", "currency"))
+    serializer_class = ServiceSerializer
 
 
 class ChecklistTemplateItemViewSet(LookupViewSet):
     queryset = ChecklistTemplateItem.objects.all()
-    serializer_class = make_serializer(ChecklistTemplateItem, ("required",))
+    serializer_class = make_serializer(ChecklistTemplateItem, ("required", "has_expiry"))
 
 
 def singleton_view(model, fields):

@@ -1,4 +1,4 @@
-"""Who can see and change a contract. HR drafts, Commercial runs the meeting, the CEO signs, HR hands over to Operation."""
+"""Who can see and change a contract. HR drafts, Commercial confirms, the CEO signs, HR marks it handed over. Operation never sees a contract: it gets a handover."""
 from django.db.models import Q
 
 from leads import access as lead_access
@@ -30,8 +30,6 @@ def visible_q(user):
     q = Q(pk__in=[])
     if user.has_capability("contract.view_assigned"):
         q |= Q(lead__assigned_to=user)
-    if user.has_capability("contract.view_handed_over"):
-        q |= Q(status="handed_over")  # Operation sees a contract once it has been handed over
     return q
 
 
@@ -39,7 +37,6 @@ def can_view(user, c):
     return (
         user.has_capability("contract.view_all")
         or (user.has_capability("contract.view_assigned") and c.lead.assigned_to_id == user.pk)
-        or (user.has_capability("contract.view_handed_over") and c.status == "handed_over")
     )
 
 

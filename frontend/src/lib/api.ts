@@ -522,7 +522,8 @@ export type Tracking = {
 };
 
 export type OpClientStatus = "onboarding" | "active" | "inactive";
-export type ChecklistStatus = "pending" | "uploaded" | "verified" | "not_applicable";
+export type ChecklistStatus = "pending" | "uploaded" | "verified" | "expired" | "not_applicable";
+export type ChecklistVersion = { number: number; filename: string; state: "uploaded" | "verified" | "superseded"; uploaded_by_name: string | null; uploaded_at: string; verified_by_name: string | null; verified_at: string | null; expires_on: string | null; attachment: number | null };
 export type ChecklistItem = {
   id: number;
   client: number;
@@ -534,6 +535,9 @@ export type ChecklistItem = {
   verified_by_name: string | null;
   verified_at: string | null;
   position: number;
+  expires_required: boolean;
+  expires_on: string | null;
+  versions: ChecklistVersion[];
 };
 export type Frequency = "daily" | "weekly" | "biweekly" | "monthly" | "yearly" | "custom";
 export type RecurringTask = {
@@ -587,9 +591,43 @@ export type OpClient = {
   address?: string;
   checklist?: ChecklistItem[];
   recurring_tasks?: RecurringTask[];
-  contracts?: { id: number; ref: string }[];
+  handovers?: { id: number; ref: string; status: HandoverStatus }[];
+  projects?: { id: number; ref: string; status: ProjectStatus }[];
 };
 export type OpAssignee = { id: number; full_name: string; is_head: boolean };
+
+export type HandoverStatus = "draft" | "submitted" | "returned" | "escalated" | "accepted";
+export type Handover = {
+  id: number;
+  ref: string;
+  status: HandoverStatus;
+  client: number;
+  client_name: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  prepared_by_name: string;
+  services: string;
+  scope_notes: string;
+  contacts: string;
+  special_requirements: string;
+  start_date: string | null;
+  submitted_at: string | null;
+  decided_by_name: string | null;
+  decided_at: string | null;
+  decision_comment: string;
+  escalated_by_name: string | null;
+  escalated_at: string | null;
+  escalation_reason: string;
+  project: { id: number; ref: string } | null;
+  permissions: { can_edit: boolean; can_submit: boolean; can_accept: boolean; can_return: boolean; can_escalate: boolean };
+  created_at: string;
+  updated_at: string;
+};
+export type ProjectStatus = "active" | "on_hold" | "closed";
+export type ProjectStaffRow = { user: number; name: string; role: "primary" | "support"; since: string; ended_at: string | null; end_reason: string };
+export type Project = { id: number; ref: string; name: string; status: ProjectStatus; client: number; client_name: string; handover_id: number; handover_ref: string; start_date: string | null; created_at: string; staff: ProjectStaffRow[]; can_staff: boolean };
+
 
 export type InstalmentStatus = "expected" | "partially_paid" | "paid" | "overdue" | "cancelled";
 export type Instalment = {

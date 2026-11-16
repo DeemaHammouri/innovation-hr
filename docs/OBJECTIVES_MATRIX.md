@@ -28,8 +28,8 @@ Baseline audit, 16 Nov 2026, against commit `c1c68ef`. Source of truth for requi
 | 15 | Document rendering (PDF and Word) | 3 | 5 | 0 | 0 | 0 |
 | 16 | Meeting reports and contracts | 3 | 6 | 0 | 0 | 0 |
 | 17 | Administration tracking and urgent alerts | 3 | 3 (scheduler: written, not verified here) | 0 | 0 | 0 |
-| 18 | Handover, Operations privacy | 4 | 0 | 1 | 0 | 3 |
-| 19 | KYC, project staffing | 4 | 0 | 2 | 0 | 2 |
+| 18 | Handover, Operations privacy | 4 | 4 | 0 | 0 | 0 |
+| 19 | KYC, project staffing | 4 | 3 | 0 | 0 | 0 |
 | 20 | Recurrence engine, holidays | 4 | 0 | 2 | 0 | 2 |
 | 21 | Task lifecycle, escalation, reports | 4 | 0 | 2 | 0 | 4 |
 | 22 | General tasks | 5 | 0 | 0 | 0 | 6 |
@@ -254,17 +254,17 @@ Definitions (shown in the code header of `insights.py`): contact rate is leads e
 ### 18. Handover and Operations privacy
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Handover filled by Commercial, Operations Head accepts, returns, escalates | Partly | handover appears in `contracts/services.py` | confirm and extend |
-| Accepting creates a Project | Missing | no Project model | build |
-| No prices or payment data to Operations (whitelist serializers) | Missing | | build, plus the walker test |
-| Original contract file unreachable from Operations | Missing | | test |
+| Handover filled by Commercial, Operations Head accepts, returns, escalates | Done | `operations/handover.py` (draft, submitted, returned, escalated, accepted; created in the same transaction as the contract hand-over); `/api/handovers/` actions `save`, `submit`, `accept`, `return`, `escalate`; `operations/tests_handover.py` (creation, editing, decisions, visibility, illegal-transition matrix, history, My Work); `operations/tests_handover_migration.py` (contracts handed over before this existed get an accepted handover and one project; going back removes only those); browser EN and AR at 375/768/1280 (`qa/browser/phase4-obj18`, `phase4a.js`): Commercial fills and submits, Operation head accepts, returns with a comment, escalates, CEO decides the escalated one, a member sees no decision buttons | none |
+| Accepting creates a Project | Done | `Project` (ref `PRJ-`, one per handover, unique constraint); `test_accepting_creates_one_project`; `/projects` page | none |
+| No prices or payment data to Operations (whitelist serializers) | Done | `HandoverSerializer` and `ProjectSerializer` are whitelists; `operations/tests_privacy.py` seeds a quotation (7777.77), a contract body (6666.66) and an instalment with a payment (8888.88), then walks every endpoint Operation can reach and fails on any money key or any of those numbers; it found one real leak, `/lookups/services/` (default unit price), now hidden unless the role may price; Operation no longer has `contract.access` or `contract.view_handed_over` (accounts migration 0012, reversible) | none |
+| Original contract file unreachable from Operations | Done | `ContractFileIsUnreachableTests`: the file, its download link, the contract record and the files list all answer 403 or 404 to Operation; browser: no Contracts menu, `/contracts` empty, the contracts API answers 403 | none |
 
 ### 19. KYC and staffing
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Versioned KYC record and legal checklist with expiry | Partly | `operations/models.py: ChecklistItem`, QA journey (4 of 5, 5 of 5) | versioning, expiry |
-| Onboarding approval only when KYC verified | Done | QA journey (client becomes Active at 5 of 5) | confirm with a test |
-| One primary employee per project (DB constraint) plus support; replace needs a reason | Missing | | build |
+| Versioned KYC record and legal checklist with expiry | Done | `ChecklistItemVersion` (every upload is the next version, earlier ones are superseded and kept, unique number per item); template items can carry `has_expiry`, and verifying such an item needs a future expiry date; `expire_documents` (daily, in `operation_daily`) marks expired documents, sends the client back to onboarding, tells the Operation head, warns 30 days ahead, and is safe to repeat; `operations/tests_kyc_staffing.py` (7 tests), `operations/tests_kyc_migration.py` (existing documents become versions, reversible); browser EN and AR: expiry sheet, past date refused, versions list | scheduler must run the daily job (see DEPLOYMENT) |
+| Onboarding approval only when KYC verified | Done | `OnboardingNeedsVerifiedTests`: an uploaded but unverified required item keeps the client in onboarding; an expired document does not count even before the daily job has run | none |
+| One primary employee per project (DB constraint) plus support; replace needs a reason | Done | `ProjectStaff` with `project_one_active_primary`, `project_person_once_while_active` and an end-needs-reason check; `operations/staffing.py`; only the Operation head (`project.staff`) and only Operation people; replacing the primary needs a reason and keeps the old row with its end date; `StaffingTests` (5 tests, including the database refusing a second active primary); browser EN and AR: choose, replace without reason is refused, replace with reason, history kept | none |
 
 ### 20. Recurrence engine
 | Row | Status | Evidence | Work needed |

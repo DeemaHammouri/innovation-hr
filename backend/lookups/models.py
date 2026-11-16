@@ -28,6 +28,7 @@ class ChecklistTemplateItem(Bilingual):
     """The legal / KYC checklist a new client starts with. Operation can customise it per client later."""
 
     required = models.BooleanField(default=True)
+    has_expiry = models.BooleanField(default=False)  # the document runs out (a licence, a certificate): verifying it asks for the expiry date
 
 
 class Singleton(models.Model):

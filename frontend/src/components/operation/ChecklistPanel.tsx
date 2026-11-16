@@ -10,14 +10,14 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage, type ChecklistItem, type OpClient } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { AddItemSheet, NotApplicableSheet } from "./OpSheets";
+import { AddItemSheet, ExpirySheet, NotApplicableSheet } from "./OpSheets";
 import { ItemStatusPill } from "./opUi";
 
-type Open = { kind: "files" | "na"; item: ChecklistItem } | { kind: "add" } | null;
+type Open = { kind: "files" | "na" | "expiry"; item: ChecklistItem } | { kind: "add" } | null;
 
 /** The KYC / legal checklist. Required items must be verified (or not applicable, with a reason) before the client is Active. */
 export function ChecklistPanel({ client, onChanged }: { client: OpClient; onChanged: () => void }) {
-  const { t, lang, msg, formatDateTime, formatNumber } = useI18n();
+  const { t, lang, msg, formatDate, formatDateTime, formatNumber } = useI18n();
   const toast = useToast();
   const [open, setOpen] = useState<Open>(null);
   const items = client.checklist ?? [];
@@ -72,10 +72,12 @@ export function ChecklistPanel({ client, onChanged }: { client: OpClient; onChan
                   </div>
                   {item.status === "not_applicable" ? <p className="mt-1 text-label font-normal text-ink-2">{t("op.item.naBecause", { reason: item.na_reason })}</p> : null}
                   {item.verified_at ? <p className="mt-0.5 text-caption text-ink-2">{item.verified_by_name} · {formatDateTime(item.verified_at)}</p> : null}
+                  {item.expires_on ? <p className={`mt-0.5 text-caption ${item.status === "expired" ? "text-danger" : "text-ink-2"}`}>{t("op.expiry.on", { date: formatDate(item.expires_on) })}</p> : null}
+                  {item.expires_required && !item.expires_on && item.status !== "expired" ? <p className="mt-0.5 text-caption text-ink-2">{t("op.expiry.needed")}</p> : null}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="secondary" onClick={() => setOpen({ kind: "files", item })}>{t("op.item.documents")}</Button>
-                  {work && item.status === "uploaded" ? <Button onClick={() => post(item, "verify", t("op.item.verified"))}>{t("op.item.verify")}</Button> : null}
+                  {work && item.status === "uploaded" ? <Button onClick={() => (item.expires_required ? setOpen({ kind: "expiry", item }) : post(item, "verify", t("op.item.verified")))}>{t("op.item.verify")}</Button> : null}
                   {work ? (
                     <Menu
                       label={t("common.actions")}
@@ -103,9 +105,26 @@ export function ChecklistPanel({ client, onChanged }: { client: OpClient; onChan
       )}
       {open?.kind === "files" ? (
         <Sheet open onClose={changed} title={lang === "ar" ? open.item.name_ar : open.item.name_en} footer={<Button onClick={changed}>{t("common.done")}</Button>}>
+          {open.item.versions.length ? (
+            <section aria-labelledby="op-versions" className="mb-5">
+              <h3 id="op-versions" className="mb-2 text-body font-semibold text-ink">{t("op.versions")}</h3>
+              <ul className="divide-y divide-line rounded-control border border-line">
+                {open.item.versions.map((v) => (
+                  <li key={v.number} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-label font-semibold text-ink">{t("op.version", { n: formatNumber(v.number) })} · {v.filename}</p>
+                      <p className="text-caption text-ink-2">{v.uploaded_by_name} · {formatDateTime(v.uploaded_at)}{v.expires_on ? ` · ${t("op.expiry.on", { date: formatDate(v.expires_on) })}` : ""}</p>
+                    </div>
+                    <StatusPill tone={v.state === "verified" ? "success" : v.state === "uploaded" ? "primary" : "neutral"} dot={false}>{t(`op.version.${v.state}`)}</StatusPill>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           <FilesPanel target={`checklist_item:${open.item.id}`} canAttach={work} category="kyc" />
         </Sheet>
       ) : null}
+      {open?.kind === "expiry" ? <ExpirySheet itemId={open.item.id} name={lang === "ar" ? open.item.name_ar : open.item.name_en} onClose={close} onDone={changed} /> : null}
       {open?.kind === "na" ? <NotApplicableSheet itemId={open.item.id} name={lang === "ar" ? open.item.name_ar : open.item.name_en} onClose={close} onDone={changed} /> : null}
       {open?.kind === "add" ? <AddItemSheet client={client} onClose={close} onDone={changed} /> : null}
     </Card>

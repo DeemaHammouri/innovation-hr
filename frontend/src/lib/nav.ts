@@ -4,7 +4,7 @@ import { useAuth } from "./auth";
 import { can, canAny } from "@/lib/can";
 
 /** Add a key here, then its icon in navIcons.tsx and its label (nav.<key>) in both locale files. */
-export type NavKey = "home" | "users" | "clients" | "portal" | "leads" | "dashboard" | "appointments" | "pipeline" | "quotations" | "contracts" | "approvals" | "operation" | "payments" | "attendance" | "leave" | "payroll" | "reports" | "settings" | "company" | "meetings" | "tracking" | "templates";
+export type NavKey = "home" | "users" | "clients" | "portal" | "leads" | "dashboard" | "appointments" | "pipeline" | "quotations" | "contracts" | "approvals" | "operation" | "payments" | "attendance" | "leave" | "payroll" | "reports" | "settings" | "company" | "meetings" | "tracking" | "templates" | "handovers" | "projects";
 export type NavItem = { key: NavKey; href: string };
 
 /**
@@ -25,6 +25,8 @@ export function useNavItems(): NavItem[] {
   if (can(user, "quotation.access")) items.push({ key: "quotations", href: "/quotations" });
   if (can(user, "contract.access")) items.push({ key: "contracts", href: "/contracts" });
   if (can(user, "operation.access")) items.push({ key: "operation", href: "/operation" });
+  if (can(user, "handover.view")) items.push({ key: "handovers", href: "/handovers" });
+  if (can(user, "project.view")) items.push({ key: "projects", href: "/projects" });
   if (can(user, "payment.view")) items.push({ key: "payments", href: "/payments" });
   if (user?.role_key) items.push({ key: "attendance", href: "/attendance" });
   if (user?.role_key) items.push({ key: "leave", href: "/leave" });

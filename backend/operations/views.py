@@ -73,7 +73,7 @@ class OpClientViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, Base):
             .order_by("company_name", "id")
         )
         if self.action == "retrieve":
-            qs = qs.prefetch_related("checklist", "checklist__verified_by", "recurring_tasks", "recurring_tasks__assignee", "contracts")
+            qs = qs.prefetch_related("checklist", "checklist__verified_by", "checklist__versions__uploaded_by", "checklist__versions__verified_by", "recurring_tasks", "recurring_tasks__assignee", "handovers", "projects")
         return qs
 
     def get_serializer_class(self):
@@ -83,7 +83,7 @@ class OpClientViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, Base):
         return get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
 
     def out(self, client):
-        client = self.get_queryset().prefetch_related("checklist", "checklist__verified_by", "recurring_tasks", "recurring_tasks__assignee", "contracts").get(pk=client.pk)
+        client = self.get_queryset().prefetch_related("checklist", "checklist__verified_by", "checklist__versions__uploaded_by", "checklist__versions__verified_by", "recurring_tasks", "recurring_tasks__assignee", "handovers", "projects").get(pk=client.pk)
         return Response(OpClientDetailSerializer(client, context=self.get_serializer_context()).data)
 
     @action(detail=True, methods=["post"])
@@ -107,13 +107,13 @@ class ChecklistViewSet(Base):
         return get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
 
     def respond(self, item):
-        item = ChecklistItem.objects.select_related("verified_by").get(pk=item.pk)
+        item = ChecklistItem.objects.select_related("verified_by").prefetch_related("versions__uploaded_by", "versions__verified_by").get(pk=item.pk)
         return Response(ChecklistItemSerializer(item).data)
 
     @action(detail=True, methods=["post"])
     def verify(self, request, pk=None):
         self.need_op()
-        return self.respond(services.verify_item(request.user, self.item()))
+        return self.respond(services.verify_item(request.user, self.item(), request.data.get("expires_on")))
 
     @action(detail=True, methods=["post"])
     def reset(self, request, pk=None):
