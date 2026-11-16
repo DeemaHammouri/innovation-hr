@@ -54,6 +54,8 @@
   "v.company": "Enter the company name.",
   "err.generic": "Something went wrong. Please try again.",
   "err.conflict": "Someone else changed this record while you were editing. Reload to see their changes, then make your edit again.",
+  "status.offline.title": "We can't reach the server",
+  "status.offline.text": "You are still signed in. Check your connection, then try again.",
   "err.network": "We can't reach the server. Check your connection and try again.",
   "err.loadList": "Please check your connection and try again.",
   "err.required": "This field is required.",

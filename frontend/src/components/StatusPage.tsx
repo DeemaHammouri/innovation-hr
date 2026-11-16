@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, LockSimple, Timer, WarningCircle } from "@phosphor-icons/react";
+import { Compass, LockSimple, Timer, WarningCircle, WifiSlash } from "@phosphor-icons/react";
 import Link from "next/link";
 import { LanguageSwitcher } from "@/components/shell/LanguageSwitcher";
 import { LogoMark } from "@/components/shell/Logo";
@@ -8,7 +8,7 @@ import { buttonClass } from "@/components/ui/Button";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { useT } from "@/lib/i18n";
 
-const ICONS = { notFound: Compass, noAccess: LockSimple, expired: Timer, error: WarningCircle };
+const ICONS = { notFound: Compass, noAccess: LockSimple, expired: Timer, error: WarningCircle, offline: WifiSlash };
 
 /** A whole-page message with one clear way back. Used for 404 and an expired session. */
 export function StatusPage({ kind, href, action, onAction }: { kind: keyof typeof ICONS; href: string; action: string; onAction?: () => void }) {

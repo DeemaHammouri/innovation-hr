@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { api, tokens, type User } from "./api";
+import { api, ApiError, tokens, type User } from "./api";
 import { useI18n, type Lang } from "./i18n";
 
 type AuthState = {
@@ -11,6 +11,9 @@ type AuthState = {
   logout: () => Promise<void>;
   /** True after the server refused a refresh: the session ran out, as opposed to a deliberate sign out. */
   sessionExpired: boolean;
+  /** The server could not be reached while restoring the session. The sign-in is kept; the person can retry. */
+  offline: boolean;
+  retry: () => void;
   setUser: (user: User) => void;
 };
 
@@ -28,6 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const { setLang } = useI18n();
   const setLangRef = useRef(setLang);
   useEffect(() => {
@@ -46,11 +51,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const me = await api<User>("/auth/me/");
           if (!cancelled) {
+            setOffline(false);
             setUser(me);
             applyLanguage(me);
           }
-        } catch {
-          tokens.clear();
+        } catch (err) {
+          // A network failure or a server error says nothing about the session, so keep the tokens and offer a retry.
+          if (err instanceof ApiError && (err.status === 0 || err.status >= 500)) {
+            if (!cancelled) setOffline(true);
+          } else {
+            tokens.clear();
+          }
         }
       }
       if (!cancelled) setLoading(false);
@@ -64,7 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       window.removeEventListener("innovation:signed-out", onSignedOut);
     };
-  }, [applyLanguage]);
+  }, [applyLanguage, attempt]);
+
+  const retry = useCallback(() => {
+    setLoading(true);
+    setAttempt((n) => n + 1);
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api<{ access: string; refresh: string; user: User }>("/auth/login/", {
@@ -91,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, loading, login, logout, sessionExpired, setUser }), [user, loading, login, logout, sessionExpired]);
+  const value = useMemo(() => ({ user, loading, login, logout, sessionExpired, offline, retry, setUser }), [user, loading, login, logout, sessionExpired, offline, retry]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

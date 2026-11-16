@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
+import { StatusPage } from "@/components/StatusPage";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { Skeleton } from "@/components/ui/States";
@@ -10,16 +11,17 @@ import { useT } from "@/lib/i18n";
 
 /** Everything inside (app) needs a signed-in person who has already set their own password. */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, sessionExpired } = useAuth();
+  const { user, loading, sessionExpired, offline, retry } = useAuth();
   const router = useRouter();
   const t = useT();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || offline) return;
     if (!user) router.replace(sessionExpired ? "/session-expired" : "/login");
     else if (user.must_change_password) router.replace("/set-password");
-  }, [loading, user, sessionExpired, router]);
+  }, [loading, offline, user, sessionExpired, router]);
 
+  if (offline && !loading) return <StatusPage kind="offline" href="/" action={t("common.tryAgain")} onAction={retry} />;
   if (loading || !user || user.must_change_password) {
     return (
       <div className="flex min-h-dvh" aria-busy="true" aria-label={t("common.loading")}>
