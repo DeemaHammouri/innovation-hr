@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from . import access, sla
-from .models import ImportBatch, Interaction, Lead
+from .models import ImportBatch, Interaction, Lead, LeadStatusChange
 
 
 class LeadSerializer(serializers.ModelSerializer):
@@ -102,3 +102,14 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     def get_can_undo(self, batch):
         user = self.context["request"].user
         return batch.status == "active" and batch.created_by_id == user.pk and self.get_contacted_count(batch) == 0
+
+
+class StatusChangeSerializer(serializers.ModelSerializer):
+    changed_by_name = serializers.CharField(source="changed_by.full_name", read_only=True)
+    rejection_reason_en = serializers.CharField(source="rejection_reason.name_en", default=None, read_only=True)
+    rejection_reason_ar = serializers.CharField(source="rejection_reason.name_ar", default=None, read_only=True)
+
+    class Meta:
+        model = LeadStatusChange
+        fields = ["id", "from_status", "to_status", "changed_by", "changed_by_name", "changed_at", "follow_up_date", "rejection_reason_en", "rejection_reason_ar", "note"]
+        read_only_fields = fields

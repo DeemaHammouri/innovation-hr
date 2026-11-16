@@ -22,7 +22,7 @@ from core.access import content_type_for
 from core.models import Sequence
 from notifications.service import notify
 
-from .models import ImportBatch, Lead, email_key, phone_key
+from .models import ImportBatch, Lead, LeadStatusChange, email_key, phone_key
 from .services import commercial_head
 from .validation import clean_lead_fields
 
@@ -275,6 +275,9 @@ def _write(actor, parsed, take):
         created = {ref: pk for ref, pk in Lead.objects.filter(batch=batch).values_list("ref", "pk")}
         AuditEntry.objects.bulk_create(
             [AuditEntry(actor=actor, content_type=ct, object_id=created[lead.ref], action="imported", to_value=batch.ref, created_at=now) for lead in leads]
+        )
+        LeadStatusChange.objects.bulk_create(
+            [LeadStatusChange(lead_id=created[lead.ref], from_status="", to_status="new", changed_by=actor, changed_at=now, note=batch.ref) for lead in leads]
         )
         record(actor, batch, "imported", to_value=str(len(take)))
     head = commercial_head()

@@ -1,7 +1,7 @@
 "use client";
 
 import { Archive, ArrowCounterClockwise, DotsThreeVertical, Pencil, UserSwitch } from "@phosphor-icons/react";
-import { canAny } from "@/lib/can";
+import { can, canAny } from "@/lib/can";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -20,7 +20,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Menu, MenuItem } from "@/components/ui/Popover";
 import { ErrorState, Skeleton, useDelayed } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
-import { api, type Interaction, type Lead } from "@/lib/api";
+import { api, type Appointment, type Interaction, type Lead, type Page, type StatusChange } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useFetch } from "@/lib/useFetch";
@@ -31,11 +31,13 @@ export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { t, formatDateTime, formatDate } = useI18n();
+  const { t, formatDateTime, formatDate, lang } = useI18n();
   const toast = useToast();
   const reasonName = useReasonName();
   const { data, error, loading, reload } = useFetch<Lead>(user ? `/leads/${id}/` : null);
   const interactions = useFetch<Interaction[] | { results: Interaction[] }>(user ? `/leads/${id}/interactions/` : null);
+  const history = useFetch<StatusChange[]>(user ? `/leads/${id}/history/` : null);
+  const appts = useFetch<Page<Appointment>>(user && can(user, "appointment.access") ? `/appointments/?lead=${id}&status=scheduled` : null);
   const showSkeleton = useDelayed(loading);
   const [sheet, setSheet] = useState<Sheet>(null);
 
@@ -231,6 +233,33 @@ export default function LeadDetailPage() {
                 </ul>
               )}
             </Card>
+            {appts.data && appts.data.results.length > 0 ? (
+              <InsetList title={t("appt.upcoming")}>
+                {appts.data.results.map((a) => (
+                  <InsetRow key={a.id} label={t(`appt.type.${a.type}`)}>
+                    <Link href="/appointments" className="text-primary-strong hover:underline">{formatDateTime(a.starts_at)} · {a.owner_name}</Link>
+                  </InsetRow>
+                ))}
+              </InsetList>
+            ) : null}
+            {history.data && history.data.length > 0 ? (
+              <Card as="section" className="overflow-hidden">
+                <h2 className="px-4 pt-4 text-section text-ink">{t("lead.history")}</h2>
+                <ol className="mt-2 divide-y divide-line border-t border-line">
+                  {history.data.map((h) => (
+                    <li key={h.id} className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {h.from_status ? <><LeadStatusPill status={h.from_status} /><span aria-hidden className="text-ink-2">{"\u2192"}</span></> : null}
+                        <LeadStatusPill status={h.to_status} />
+                        <span className="text-label font-normal text-ink-2">{formatDateTime(h.changed_at)} · {h.changed_by_name}</span>
+                      </div>
+                      {h.follow_up_date ? <p className="mt-1 text-label font-normal text-ink-2">{t("lead.followUp")}: {formatDate(h.follow_up_date)}</p> : null}
+                      {h.rejection_reason_en ? <p className="mt-1 text-label font-normal text-ink-2">{t("lead.rejectionReason")}: {lang === "ar" ? h.rejection_reason_ar : h.rejection_reason_en}</p> : null}
+                    </li>
+                  ))}
+                </ol>
+              </Card>
+            ) : null}
             <InsetList title={t("lead.sectionRecord")}>
               <InsetRow label={t("lead.createdBy")}>{data.created_by_name}</InsetRow>
               <InsetRow label={t("lead.createdAt")}>{formatDateTime(data.created_at)}</InsetRow>

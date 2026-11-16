@@ -7,12 +7,13 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from accounts.models import User
+from appointments import services as appointments
 from audit.models import record
 from core.models import Sequence
 from lookups.models import RejectionReason
 from notifications.service import notify
 
-from .models import Interaction, Lead, email_key, phone_key
+from .models import Interaction, Lead, LeadStatusChange, email_key, phone_key
 from .validation import FIELDS, clean_lead_fields
 
 L = Lead.Status
@@ -22,7 +23,7 @@ MSG_CLOSED = "This lead is already closed."
 MSG_FIRST_CONTACT = "Log the first contact before recording an outcome."
 MSG_OUTCOME = "Choose what happened: waiting, rejected or accepted."
 MSG_FOLLOW_UP = "Choose a follow-up date."
-MSG_FOLLOW_UP_PAST = "Choose today or a later date."
+MSG_FOLLOW_UP_PAST = "Choose a date after today."
 MSG_FOLLOW_UP_FAR = "Choose a date within the next year."
 MSG_REASON = "Choose why this lead was rejected."
 MSG_FUTURE = "Choose a time that has already passed."
@@ -34,6 +35,14 @@ MSG_RESTORE = "This lead isn't archived."
 MSG_RESTORE_DUPLICATE = "Another open lead already has this phone or email, so this one can't be restored."
 MSG_ARCHIVE_DONE = "This lead is already archived."
 MSG_TYPE = "Choose how you were in touch."
+
+
+def log_status(lead, actor, from_status, to_status, *, when=None, follow_up_date=None, reason=None, note=""):
+    """One history line per move between statuses."""
+    return LeadStatusChange.objects.create(
+        lead=lead, from_status=from_status or "", to_status=to_status, changed_by=actor, changed_at=when or timezone.now(),
+        follow_up_date=follow_up_date, rejection_reason=reason, note=(note or "")[:300],
+    )
 
 
 def commercial_head():
@@ -75,6 +84,7 @@ def create_lead(actor, data, **_ignored):
         with transaction.atomic():
             lead = Lead.objects.create(ref=Sequence.next_ref("LD"), created_by=actor, **cleaned)
             record(actor, lead, "created")
+            log_status(lead, actor, "", L.NEW)
     except IntegrityError:
         raise _duplicate_error(cleaned)
     head = commercial_head()
@@ -139,7 +149,7 @@ def _apply_outcome(lead, actor, outcome, next_follow_up, reason_id, note):
         today = timezone.localdate()
         if not isinstance(next_follow_up, date):
             raise ValidationError({"next_follow_up": [MSG_FOLLOW_UP]})
-        if next_follow_up < today:
+        if next_follow_up <= today:
             raise ValidationError({"next_follow_up": [MSG_FOLLOW_UP_PAST]})
         if next_follow_up > today + timedelta(days=366):
             raise ValidationError({"next_follow_up": [MSG_FOLLOW_UP_FAR]})
@@ -148,6 +158,8 @@ def _apply_outcome(lead, actor, outcome, next_follow_up, reason_id, note):
         lead.rejection_reason = None
         lead.rejection_note = ""
         record(actor, lead, "outcome_waiting", from_value=old, to_value=next_follow_up.isoformat(), comment=note[:300])
+        log_status(lead, actor, old, L.WAITING, when=now, follow_up_date=next_follow_up, note=note)
+        appointments.sync_follow_up(lead, actor, next_follow_up)
     elif outcome == "rejected":
         reason = RejectionReason.objects.filter(pk=reason_id, is_active=True).first() if reason_id else None
         if reason is None:
@@ -158,6 +170,8 @@ def _apply_outcome(lead, actor, outcome, next_follow_up, reason_id, note):
         lead.rejected_at = now
         lead.next_follow_up = None
         record(actor, lead, "outcome_rejected", from_value=old, comment=note[:300])
+        log_status(lead, actor, old, L.REJECTED, when=now, reason=reason, note=note)
+        appointments.cancel_open_follow_ups(lead, actor, "Lead rejected")
         _tell_head(actor, lead, "lead_rejected")
     elif outcome == "accepted":
         lead.status = L.QUALIFIED
@@ -166,6 +180,8 @@ def _apply_outcome(lead, actor, outcome, next_follow_up, reason_id, note):
         lead.rejection_reason = None
         lead.rejection_note = ""
         record(actor, lead, "outcome_qualified", from_value=old, comment=note[:300])
+        log_status(lead, actor, old, L.QUALIFIED, when=now, note=note)
+        appointments.cancel_open_follow_ups(lead, actor, "Lead accepted")
         _tell_head(actor, lead, "lead_qualified")
     else:
         raise ValidationError({"outcome": [MSG_OUTCOME]})
@@ -201,6 +217,7 @@ def log_interaction(actor, lead, *, type, occurred_at=None, notes="", outcome=""
         if lead.status == L.NEW:
             lead.status = L.CONTACTED
             record(actor, lead, "contacted", from_value=L.NEW, to_value=L.CONTACTED)
+            log_status(lead, actor, L.NEW, L.CONTACTED, when=occurred_at)
         if outcome:
             _apply_outcome(lead, actor, outcome, next_follow_up, reason_id, note)
         lead.save()
@@ -234,6 +251,7 @@ def reopen(actor, lead, note):
         lead.rejected_at = None
         lead.save()
         record(actor, lead, "reopened", from_value=L.REJECTED, to_value=L.CONTACTED, comment=note[:300])
+        log_status(lead, actor, L.REJECTED, L.CONTACTED, note=note)
     if lead.assigned_to_id and lead.assigned_to_id != actor.pk:
         notify(lead.assigned_to, "lead_reopened", link=link(lead), actor=actor.full_name, ref=lead.ref, name=lead.company_name)
     return lead

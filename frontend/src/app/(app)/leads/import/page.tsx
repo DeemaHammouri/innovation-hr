@@ -1,6 +1,6 @@
 "use client";
 
-import { DownloadSimple, FileCsv, UploadSimple } from "@phosphor-icons/react";
+import { DownloadSimple, FileCsv, FileXls, UploadSimple } from "@phosphor-icons/react";
 import { can } from "@/lib/can";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -174,7 +174,7 @@ export default function ImportLeadsPage() {
             </label>
             {file ? (
               <span className="flex min-w-0 items-center gap-2 text-body text-ink">
-                <FileCsv size={20} aria-hidden className="shrink-0 text-primary-strong" />
+                {file.name.toLowerCase().endsWith(".xlsx") ? <FileXls size={20} aria-hidden className="shrink-0 text-primary-strong" /> : <FileCsv size={20} aria-hidden className="shrink-0 text-primary-strong" />}
                 <span className="truncate"><Ltr>{file.name}</Ltr></span>
               </span>
             ) : null}

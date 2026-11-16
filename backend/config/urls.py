@@ -13,6 +13,7 @@ api_patterns = [
     path("", include("comments.urls")),
     path("", include("lookups.urls")),
     path("", include("leads.urls")),
+    path("", include("appointments.urls")),
     path("", include("quotations.urls")),
     path("", include("contracts.urls")),
     path("", include("operations.urls")),

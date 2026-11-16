@@ -72,6 +72,22 @@ CATALOG = {
         "en": ("{actor} reopened {ref}", "{name}"),
         "ar": ("أعاد {actor} فتح {ref}", "{name}"),
     },
+    "appointment_assigned": {
+        "en": ("{actor} gave you an appointment", "{name} · {when}"),
+        "ar": ("أسند إليك {actor} موعدًا", "{name} · {when}"),
+    },
+    "appointment_rescheduled": {
+        "en": ("{actor} rescheduled an appointment", "{name} · {when}"),
+        "ar": ("أعاد {actor} جدولة موعد", "{name} · {when}"),
+    },
+    "appointment_cancelled": {
+        "en": ("{actor} cancelled an appointment", "{name} · {when}"),
+        "ar": ("ألغى {actor} موعدًا", "{name} · {when}"),
+    },
+    "appointment_reminder": {
+        "en": ("Coming up: {name}", "{when}"),
+        "ar": ("موعد قريب: {name}", "{when}"),
+    },
     "followup_overdue": {
         "en": ("Follow-up overdue: {ref}", "{name}"),
         "ar": ("متابعة متأخرة: {ref}", "{name}"),

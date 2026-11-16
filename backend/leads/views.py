@@ -1,22 +1,27 @@
+from django.db import transaction
 from django.db.models import Count, Q
+from django.utils import timezone
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from core.concurrency import check_fresh
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 
 from accounts.models import User
 from core.pagination import StandardPagination
 
-from . import access, importer, services
+from audit.models import record
+
+from . import access, importer, insights, services
 from .filters import LeadFilter, LeadSearch
-from .models import ImportBatch, Lead
-from .serializers import ContactInputSerializer, ImportBatchSerializer, InteractionSerializer, LeadSerializer
+from .models import ImportBatch, Lead, MonthlyTarget
+from .serializers import ContactInputSerializer, ImportBatchSerializer, InteractionSerializer, LeadSerializer, StatusChangeSerializer
 from .sla import sla_now
 
 MSG_MARKETING_ONLY = "Only Marketing can add or import leads."
@@ -44,7 +49,7 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
     # Every action needs to be allowed into leads; the ones that are for one job also name its capability.
     required_capabilities = {
         "list": ["lead.access"], "retrieve": ["lead.access"], "board": ["lead.access"], "interactions": ["lead.access"],
-        "outcome": ["lead.access"], "skip_quotation": ["lead.access"], "archive": ["lead.access"], "partial_update": ["lead.access"],
+        "outcome": ["lead.access"], "history": ["lead.access"], "skip_quotation": ["lead.access"], "archive": ["lead.access"], "partial_update": ["lead.access"],
         "create": ["lead.access", "lead.create"],
         "assignees": ["lead.access", "lead.manage"], "assign": ["lead.access", "lead.manage"],
         "reopen": ["lead.access", "lead.manage"], "restore": ["lead.access", "lead.manage"],
@@ -143,6 +148,12 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
         )
         return self.out(lead, status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["get"])
+    def history(self, request, pk=None):
+        """Every status the lead has been in: who moved it, from what, to what, when."""
+        rows = self.get_object().status_changes.select_related("changed_by", "rejection_reason")
+        return Response(StatusChangeSerializer(rows, many=True).data)
+
     @action(detail=True, methods=["post"])
     def outcome(self, request, pk=None):
         lead = self.get_object()
@@ -231,3 +242,43 @@ class ImportBatchViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
         batch = importer.undo(request.user, batch)
         batch = self.get_queryset().get(pk=batch.pk)
         return Response(self.get_serializer(batch).data)
+
+
+class DashboardView(APIView):
+    required_capabilities = ["lead.dashboard"]
+    denied_message = "You don't have access to the leads dashboard."
+
+    def get(self, request):
+        return Response(insights.dashboard(request.user))
+
+
+class TargetView(APIView):
+    """GET ?month=YYYY-MM (this month by default): progress. PUT {month, target}: set it."""
+
+    required_capabilities = {"get": ["lead.dashboard"], "put": ["lead.target_manage"]}
+    denied_message = {"get": "You do not have access to the leads dashboard.", "put": "Only the CEO or the Commercial head can set the target."}
+
+    @staticmethod
+    def month_of(value):
+        today = timezone.localdate()
+        if not value:
+            return today.year, today.month
+        try:
+            y, m = (int(x) for x in str(value).split("-"))
+            assert 2000 <= y <= 2100 and 1 <= m <= 12
+        except (ValueError, AssertionError):
+            raise ValidationError({"month": ["Use a month like 2026-11."]})
+        return y, m
+
+    def get(self, request):
+        return Response(insights.progress(*self.month_of(request.query_params.get("month"))))
+
+    def put(self, request):
+        y, m = self.month_of(request.data.get("month"))
+        value = request.data.get("target")
+        if isinstance(value, bool) or not str(value).isdigit() or not (1 <= int(value) <= 100000):
+            raise ValidationError({"target": ["Enter a whole number between 1 and 100000."]})
+        with transaction.atomic():
+            row, _ = MonthlyTarget.objects.update_or_create(year=y, month=m, defaults={"target": int(value), "set_by": request.user})
+            record(request.user, row, "target_set", to_value=f"{y}-{m:02d}: {value}")
+        return Response(insights.progress(y, m))

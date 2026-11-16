@@ -198,7 +198,7 @@ class StateMachineTests(LeadCase):
             self.assertEqual(res.status_code, 201, res.data)
             self.assertEqual(res.data["status"], expected)
 
-    def test_waiting_needs_a_date_that_is_today_or_later_within_a_year(self):
+    def test_waiting_needs_a_date_after_today_within_a_year(self):
         lead = self.mk(assigned=self.member)
         self.assertEqual(self.log(lead, outcome="waiting").data["next_follow_up"], ["Choose a follow-up date."])
         self.assertEqual(self.log(lead, outcome="waiting", next_follow_up=self.day(-1)).status_code, 400)
@@ -206,7 +206,8 @@ class StateMachineTests(LeadCase):
         self.assertEqual(Interaction.objects.count(), 0)  # a refused request leaves nothing behind
         lead.refresh_from_db()
         self.assertEqual(lead.status, "new")
-        self.assertEqual(self.log(lead, outcome="waiting", next_follow_up=self.day(0)).status_code, 201)
+        self.assertEqual(self.log(lead, outcome="waiting", next_follow_up=self.day(0)).status_code, 400)  # today is no longer enough: the date must be after today
+        self.assertEqual(self.log(lead, outcome="waiting", next_follow_up=self.day(1)).status_code, 201)
 
     def test_rejected_needs_an_active_reason_from_the_lookup(self):
         lead = self.mk(assigned=self.member)
@@ -316,11 +317,12 @@ class StateMachineTests(LeadCase):
         lead = self.mk(assigned=self.member)
         self.log(lead, user=self.member, outcome="waiting", next_follow_up=self.day(1))
         self.log(lead, user=self.member, outcome="accepted")
-        self.assertEqual(self.actions(lead), ["interaction", "contacted", "outcome_waiting", "interaction", "outcome_qualified"])
+        self.assertEqual(self.actions(lead), ["interaction", "contacted", "outcome_waiting", "appointment_created", "interaction", "outcome_qualified", "followups_cancelled"])
         self.as_role("commercial_member")
         timeline = self.client.get(f"/api/activity/?target=lead:{lead.pk}").data["results"]
-        self.assertEqual(timeline[0]["action"], "outcome_qualified")
-        self.assertEqual(timeline[0]["actor_name"], self.member.full_name)
+        self.assertEqual(timeline[0]["action"], "followups_cancelled")
+        self.assertEqual(timeline[1]["action"], "outcome_qualified")
+        self.assertEqual(timeline[1]["actor_name"], self.member.full_name)
 
 
 class CreateAndDuplicateTests(LeadCase):

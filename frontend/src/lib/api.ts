@@ -640,3 +640,65 @@ export type Report = {
   method?: { window_from: string; window_to: string; decided: number; left_early: number; min_sample: number; p_sent?: number; p_confirmed?: number; open_quotations?: number };
 };
 export type SearchHit = { kind: "lead" | "quotation" | "contract" | "client"; id: number; title: string; subtitle: string; href: string };
+
+export type AppointmentType = "meeting" | "call" | "visit" | "follow_up" | "other";
+export type Appointment = {
+  id: number;
+  type: AppointmentType;
+  title: string;
+  lead: number | null;
+  lead_ref: string | null;
+  lead_company: string | null;
+  owner: number;
+  owner_name: string;
+  created_by: number;
+  created_by_name: string;
+  starts_at: string;
+  ends_at: string | null;
+  notes: string;
+  status: "scheduled" | "done" | "cancelled";
+  closed_at: string | null;
+  cancel_reason: string;
+  overdue: boolean;
+  permissions: { can_edit: boolean; can_reschedule: boolean; can_complete: boolean; can_cancel: boolean };
+};
+export type StatusChange = {
+  id: number;
+  from_status: LeadStatus | "";
+  to_status: LeadStatus;
+  changed_by_name: string;
+  changed_at: string;
+  follow_up_date: string | null;
+  rejection_reason_en: string | null;
+  rejection_reason_ar: string | null;
+  note: string;
+};
+export type LeadsDashboard = {
+  today: string;
+  total: number;
+  added: { today: number; last_7_days: number; this_month: number };
+  contact_rate: number;
+  acceptance_rate: number;
+  follow_ups: { due_today: number; overdue: number };
+  per_day: { date: string; count: number }[];
+  by_status: { status: LeadStatus; count: number }[];
+  by_source: { source: string; count: number }[];
+  top_contributors: { id: number; name: string; count: number }[];
+};
+export type TargetProgress = {
+  year: number;
+  month: number;
+  target: number;
+  set: boolean;
+  set_by: string | null;
+  added: number;
+  remaining: number;
+  percent: number;
+  days_in_month: number;
+  days_elapsed: number;
+  days_left: number;
+  expected_by_today: number;
+  on_track: boolean | null;
+  required_per_day: number | null;
+  days: { date: string; count: number | null; total: number | null; plan: number }[];
+};

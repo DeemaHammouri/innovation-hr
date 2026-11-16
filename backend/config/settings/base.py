@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "comments",
     "lookups",
     "leads",
+    "appointments",
     "quotations",
     "contracts",
     "operations",
@@ -162,3 +163,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
 ]
+
+# Appointment reminders go out this long before the start (see notifications: process_notifications).
+APPOINTMENT_REMINDER_MINUTES = 60

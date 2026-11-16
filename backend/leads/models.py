@@ -120,3 +120,33 @@ class Interaction(models.Model):
 
     class Meta:
         ordering = ["-occurred_at", "-id"]
+
+
+class LeadStatusChange(models.Model):
+    """Every move of a lead between statuses: who, from, to, when. Written in the same transaction as the move, never edited."""
+
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="status_changes")
+    from_status = models.CharField(max_length=12, blank=True)  # blank for the first entry (the lead was created)
+    to_status = models.CharField(max_length=12)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    changed_at = models.DateTimeField(db_index=True)
+    follow_up_date = models.DateField(null=True, blank=True)  # when the move was to Waiting
+    rejection_reason = models.ForeignKey("lookups.RejectionReason", on_delete=models.PROTECT, related_name="+", null=True, blank=True)
+    note = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["changed_at", "id"]
+        indexes = [models.Index(fields=["lead", "changed_at"])]
+
+
+class MonthlyTarget(models.Model):
+    """How many new leads the company wants added in a calendar month (company time zone)."""
+
+    year = models.PositiveSmallIntegerField()
+    month = models.PositiveSmallIntegerField()
+    target = models.PositiveIntegerField()
+    set_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["year", "month"], name="uniq_target_month")]

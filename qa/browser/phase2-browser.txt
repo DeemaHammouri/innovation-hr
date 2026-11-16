@@ -1,0 +1,23 @@
+en PASS en dashboard shows the target card
+en PASS en dashboard shows total and rates
+en PASS en overdue stat links to the filtered pool
+en PASS en overdue link opens the pool filtered
+en PASS en the follow-up from a Waiting lead is listed
+en PASS en a new appointment is created from the sheet
+en PASS en lead shows its status history
+en PASS en lead status is named with the brief's wording
+en PASS en the member sees their own follow-up
+en PASS en the member has no "Everyone" scope
+en PASS import page offers Excel and CSV templates
+en PASS xlsx preview lists rows with states
+en PASS skip report is shown after an import with skipped rows
+ar PASS ar dashboard shows the target card
+ar PASS ar dashboard shows total and rates
+ar PASS ar overdue stat links to the filtered pool
+ar PASS ar overdue link opens the pool filtered
+ar PASS ar the follow-up from a Waiting lead is listed
+ar PASS ar a new appointment is created from the sheet
+ar PASS ar lead shows its status history
+ar PASS ar lead status is named with the brief's wording
+ar PASS ar the member sees their own follow-up
+ar PASS ar the member has no "Everyone" scope

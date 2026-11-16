@@ -18,11 +18,11 @@ Baseline audit, 16 Nov 2026, against commit `c1c68ef`. Source of truth for requi
 | 5 | User management, first login | 1 | 10 | 0 | 0 | 0 |
 | 6 | Revocation, lockout, audit, error envelope | 1 | 7 | 0 | 0 | 0 |
 | 7 | Shell, i18n, proxy | 1 | 7 | 0 | 1 (decided) | 0 |
-| 8 | Lead model and normalisation | 2 | 0 | 2 | 0 | 3 |
-| 9 | Import (xlsx, CSV) | 2 | 0 | 2 | 0 | 3 |
-| 10 | Lead statuses and history | 2 | 1 | 2 | 0 | 0 |
-| 11 | Appointments and notifications | 2 | 0 | 1 | 0 | 4 |
-| 12 | Targets and leads dashboard | 2 | 0 | 1 | 0 | 3 |
+| 8 | Lead model and normalisation | 2 | 5 | 0 | 0 | 0 |
+| 9 | Import (xlsx, CSV) | 2 | 5 | 0 | 0 | 0 |
+| 10 | Lead statuses and history | 2 | 4 | 0 | 0 | 0 |
+| 11 | Appointments and notifications | 2 | 5 (scheduler: written, not verified here) | 0 | 0 | 0 |
+| 12 | Targets and leads dashboard | 2 | 4 | 0 | 1 (decided) | 0 |
 | 13 | Conversion and client portal | 3 | 0 | 1 | 0 | 4 |
 | 14 | Quotation state machine | 3 | 1 | 3 | 0 | 2 |
 | 15 | Document rendering (PDF and Word) | 3 | 0 | 1 | 0 | 4 |
@@ -131,49 +131,59 @@ Gate run: `manage.py test` and `pytest` both run the same 467 tests (466 pass, 1
 
 ## Phase 2: Leads
 
+Gate run: `pytest` 534 passed, 1 skipped; `manage.py test` 535 tests OK (skipped 1); `makemigrations --check` clean; `tsc`, `eslint`, `npm run i18n:check` (1712 keys) and `npm run build` clean. Browser proof: `qa/browser/phase2-browser.txt` (23 checks, English and Arabic) with screenshots in `qa/browser/phase2/`.
+
 ### 8. Lead model and normalisation
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Fields name, company, position, phone, email, location; phone or email required | Partly | `leads/models.py: Lead` (field list to compare) | align fields |
-| E164 normalisation (07.. to +9627.., 00.. to +.., Arabic digits) | Partly | `leads/importer.py`, `leads/models.py` mention it (grep) | shared normaliser, unit tests |
-| Lowercased email; database uniqueness constraints | Missing | duplicates found in code, not by constraint (grep) | constraints, clean 409 |
-| 0797707154 equals +962797707154; concurrent inserts give one lead | Missing | | tests (threaded on a file database) |
-| List with search, filters, ordering, pagination | Done (grep) | `leads/filters.py` | confirm |
+| Fields name, company, position, phone, email, location; phone or email required | Done | `leads/models.py` (`position`, `location`, migration `0004`); `leads/tests_lead_model.py: LeadFieldsTests` | none |
+| E164 normalisation (07.. to +9627.., 00.. to +.., Arabic digits) | Done | `leads/normalize.py`; `tests_lead_model.py: NormaliseTests`; backfill `0005_normalise_keys` | none |
+| Lowercased email; database uniqueness constraints | Done | `uniq_open_lead_phone` / `uniq_open_lead_email` (migration `0006`); duplicate gives a field error naming the existing lead; archived leads do not hold keys | none |
+| 0797707154 equals +962797707154; concurrent inserts give one lead | Done | `tests_lead_model.py: ConcurrentInsertTests` (threads on a file database, 12/12 isolated runs) | none |
+| List with search, filters, ordering, pagination | Done | `tests_lead_model.py: SearchFilterOrderPaginateTests`, `ListQueryCostTests` | none |
+
+Note: a lead can no longer be created as a duplicate on purpose (the old "add anyway" is gone); this follows the brief's database uniqueness. Migration `0005` clears the phone or email key of an older duplicate (keeps the lead) and prints how many.
 
 ### 9. Import
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| .xlsx template, Arabic and English | Missing | CSV only | add `openpyxl` |
-| CSV kept | Done | `leads/importer.py`, QA journey import (1 ready, 2 row errors) | none |
-| Up to 5,000 rows / 5 MB, type and size errors | Partly | limits to confirm | tests |
-| Header matching in either language | Missing | | build |
-| Skip invalid and duplicate rows (DB and in-file), full skip report | Partly | row errors reported | duplicates inside the file |
+| .xlsx template, Arabic and English | Done | `importer.template_xlsx(lang)`; `ExcelImportTests`; browser: both Excel templates and the CSV template on the page | none |
+| CSV kept | Done | `ExcelImportTests`, `leads/tests.py` import tests | none |
+| Up to 5,000 rows / 5 MB, type and size errors | Done | `MAX_ROWS`, `MAX_BYTES`; tests for wrong type, too big, too many rows, empty, wrong encoding | none |
+| Header matching in either language | Done | `_fold` header map; test with an Arabic-header workbook; browser run uses one | none |
+| Skip invalid and duplicate rows (DB and in-file), full skip report | Done | `ImportBatch.skip_report` (migration `0007`); browser: "Import finished" page lists each skipped row with the reason | none |
+
+Note: the old `duplicates=import` option is removed (it conflicts with the uniqueness rule).
 
 ### 10. Statuses and history
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Not contacted / Contacted (Waiting) / Rejected / Initial acceptance | Partly | existing statuses `new, contacted, waiting, qualified, rejected` | map names |
-| Waiting needs a future date and creates a follow-up appointment | Partly | follow-up date exists, no appointment object | objective 11 |
-| Rejected needs a reason and cancels open follow-ups | Done | rejection reason enforced (QA journey: reason required) | add follow-up cancel with appointments |
-| History (who, from, to, when) | Done (grep) | `leads/models.py: Interaction` | confirm |
+| Not contacted / Contacted (Waiting) / Rejected / Initial acceptance | Done | labels only: `new` is "Not contacted", `qualified` is "Initial acceptance" (keys unchanged so nothing else moves); EN and AR | none |
+| Waiting needs a future date and creates a follow-up appointment | Done | follow-up date must be after today; `appointments/tests.py: FollowUpWorkflowTests` (one open follow-up, replaced on a new date, nothing half-done on refusal) | none |
+| Rejected needs a reason and cancels open follow-ups | Done | `test_rejection_cancels_open_follow_ups_and_keeps_the_reason`; acceptance cancels them too | none |
+| History (who, from, to, when) | Done | `LeadStatusChange` (migration `0008`), `GET /leads/<id>/history/`; `test_history_endpoint_lists_every_move_in_order`; `test_a_failure_in_the_side_effect_rolls_the_status_back` (transactional); browser: history card on the lead | none |
+
+Limit: leads that existed before migration `0008` have no history rows until their next move (their earlier moves are still in the activity timeline). Not back-filled, because the exact earlier timestamps cannot be reconstructed reliably.
 
 ### 11. Appointments and notifications
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Appointment model, five types, own vs manager-all | Missing | no appointment model | build |
-| Notifications in the reader's language, polling bell | Partly | `notifications/` app, bell in the top bar | keys per language |
-| Idempotent `process_notifications` | Missing | `lead_reminders` command exists for leads | consolidate |
-| Rescheduling updates the lead's follow-up date | Missing | | build |
-| Mark one / all read | Done (grep) | `notifications/views.py` | confirm |
+| Appointment model, five types, own vs manager-all | Done | `appointments/` app; `AppointmentApiTests` (all five types, optional lead, own vs head and CEO all, only the Commercial head assigns); new capabilities `appointment.access`, `.view_all`, `.assign` | none |
+| Notifications in the reader's language, polling bell | Done | `notifications/messages.py` (EN and AR kinds); tests read the Arabic title; bell polls through the My Work request | none |
+| Idempotent `process_notifications` | Done | `notifications/processing.py`, command `process_notifications`; `ProcessNotificationsTests` (run twice sends once; a reschedule reminds again) | run it every few minutes from cron or a scheduler: written, not verified here |
+| Rescheduling a follow-up updates the lead's follow-up date | Done | `test_rescheduling_the_follow_up_moves_the_lead_date` | none |
+| Mark one / all read | Done | `test_mark_one_and_mark_all_read_and_unread_count` | none |
 
 ### 12. Targets and dashboard
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Marketing target over a date range, progress maths | Missing | no target model | build |
-| Leads dashboard (totals, rates, due and overdue, breakdowns, contributors) | Partly | `reports/` funnel report covers part | extend |
-| Company time zone for "today"; boundary tests | Partly | `DJANGO_TIME_ZONE`, `leads/sla.py: sla_now` | boundary tests |
-| Numbers equal a manual count | Missing | | test |
-| "Overdue" opens the filtered pool | Missing | `/leads?overdue=` filter exists | link and test |
+| Target, progress maths | Different (decided) | a company-wide target per calendar month (`MonthlyTarget`, migration `0009`), set by the CEO or Commercial head (`lead.target_manage`); progress %, remaining, days elapsed and left, expected by today, on track or behind, required per day, per-day chart (`tests_insights.py: TargetTests`) | per-marketer targets or arbitrary date ranges are not built |
+| Leads dashboard (totals, rates, due and overdue, breakdowns, contributors) | Done | `leads/insights.py`; `GET /leads/dashboard/`; browser screenshots EN and AR | none |
+| Company time zone for "today"; boundary tests | Done | `test_midnight_boundary_uses_the_company_time_zone_not_utc`, first-day and last-day tests, last-local-minute test | none |
+| Numbers equal a manual count | Done | `DashboardTests.test_numbers_equal_a_manual_count` | none |
+| "Overdue" opens the filtered pool | Done | `test_overdue_link_filter_returns_exactly_the_overdue_leads`; browser: the overdue card opens `?overdue=1` | none |
+
+Definitions (shown in the code header of `insights.py`): contact rate is leads ever contacted over leads added; acceptance rate is accepted over contacted; archived leads are left out; the dashboard counts only the leads the signed-in person may see.
 
 ---
 

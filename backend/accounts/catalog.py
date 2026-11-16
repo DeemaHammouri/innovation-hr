@@ -45,6 +45,12 @@ CAPABILITIES = {
     "lead.batches": ("See import batches", [_CEO, _CH, _MKT]),
     "lead.batches_all": ("See every import batch, not only your own", [_CEO, _CH]),
     "lead.edit_created": ("Edit and archive your own untouched leads", [_MKT]),
+    "lead.dashboard": ("See the leads dashboard and the monthly target", [_CEO, _CH, _MKT]),
+    "lead.target_manage": ("Set the monthly leads target", [_CEO, _CH]),
+    # Appointments
+    "appointment.access": ("Have appointments: meetings, calls, visits and follow-ups", [_CEO, _MKT, _CH, _CM]),
+    "appointment.view_all": ("See everyone's appointments", [_CEO, _CH]),
+    "appointment.assign": ("Give an appointment to someone else", [_CH]),
     # Quotations
     "quotation.access": ("Open quotations", [_CEO, _CH, _CM, _HH, _HM]),
     "quotation.view_all": ("See every quotation", [_CEO, _CH, _HH, _HM]),

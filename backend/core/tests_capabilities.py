@@ -87,7 +87,7 @@ class DeclarationTests(RoleCase):
             "operation.work", "operation.manage", "operation.view_all_clients", "operation.view_own_deals",
             "payment.manage", "hr.staff", "hr.manage", "hr.leave_request", "hr.leave_decide_hr_head", "hr.payroll_approve",
             "contract.sign", "contract.draft", "quotation.prepare", "quotation.sign", "lead.manage", "report.funnel", "report.revenue",
-            "report.forecast", "report.operations", "report.hr", "lead.create", "lead.import", "lead.batches_all",
+            "appointment.view_all", "report.forecast", "report.operations", "report.hr", "lead.create", "lead.import", "lead.batches_all",
         }
         self.assertEqual(sorted(set(CAPABILITIES) - used - in_rules), [], "unused capabilities: delete them or wire them in")
 
