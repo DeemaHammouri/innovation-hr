@@ -1,9 +1,9 @@
-"""Innovation HR settings. Dev defaults work out of the box; override with env vars."""
+"""Settings shared by every environment. development, test and production import this and override what differs."""
 import os
 from datetime import timedelta
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 def env_list(name, default=""):
@@ -116,14 +116,6 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": False,
 }
-
-import sys
-
-if "test" in sys.argv:
-    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # fast tests only
-    import tempfile
-
-    PRIVATE_MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="innovation-test-media-"))
 
 # Sign-in lockout (see accounts/ratelimit.py). Honour X-Forwarded-For only behind a proxy you control that sets it.
 LOGIN_MAX_FAILS_PER_EMAIL = 8

@@ -14,7 +14,7 @@ Set the environment (names are in `backend/.env.example`; the app does not read 
 
 | Variable | Production value |
 |---|---|
-| `DJANGO_SETTINGS_MODULE` | `config.settings_prod` (refuses to start with a guessable secret, DEBUG on, `*` hosts or missing values) |
+| `DJANGO_SETTINGS_MODULE` | `config.settings.production` (refuses to start with a guessable secret, DEBUG on, `*` hosts or missing values) |
 | `DJANGO_SECRET_KEY` | 50+ random characters |
 | `DJANGO_ALLOWED_HOSTS` | the API host name(s), comma-separated |
 | `CORS_ALLOWED_ORIGINS` | the `https://` address of the web app |

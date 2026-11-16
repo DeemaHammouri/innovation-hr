@@ -146,7 +146,7 @@ class ProductionSettingsTests(SimpleTestCase):
 
     def load(self, **env):
         with mock.patch.dict(os.environ, env, clear=False):
-            import config.settings_prod as prod
+            import config.settings.production as prod
 
             return importlib.reload(prod)
 
@@ -175,6 +175,6 @@ class ProductionSettingsTests(SimpleTestCase):
     def test_missing_secret_refused(self):
         env = {k: v for k, v in os.environ.items() if k != "DJANGO_SECRET_KEY"}
         with mock.patch.dict(os.environ, env, clear=True), self.assertRaises(ImproperlyConfigured):
-            import config.settings_prod as prod
+            import config.settings.production as prod
 
             importlib.reload(prod)

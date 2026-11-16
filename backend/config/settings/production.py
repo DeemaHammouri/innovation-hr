@@ -1,12 +1,12 @@
-"""Production settings. Use with:  DJANGO_SETTINGS_MODULE=config.settings_prod
+"""Production settings. Use with:  DJANGO_SETTINGS_MODULE=config.settings.production
 
 Starts only when the required environment variables are present and sane; it refuses to run with a guessable secret, with DEBUG on,
-with no allowed hosts, or with the demo-data guard defeated. Everything not listed here is inherited from config.settings.
+with no allowed hosts, or with the demo-data guard defeated. Everything not listed here is inherited from config.settings.base.
 """
 import os
 
-from .settings import *  # noqa: F401,F403
-from .settings import BASE_DIR, env_list
+from .base import *  # noqa: F401,F403
+from .base import BASE_DIR, env_list
 
 from django.core.exceptions import ImproperlyConfigured
 
