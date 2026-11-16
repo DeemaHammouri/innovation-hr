@@ -1,15 +1,14 @@
-# Innovation: internal system (Task 1)
+# Innovation Accounting Solutions: internal workflow platform
 
-Login, forced password change, home, Users (CEO only) and Clients (Operation head and CEO).
+Lead-to-cash workflow for five departments (Administration/CEO, Marketing, Commercial, HR, Operation), a client portal, English and Arabic (RTL).
 
-- **Backend:** Django + Django REST Framework + JWT (`/backend`)
+- **Backend:** Django 5.2 + Django REST Framework, JWT in HttpOnly cookies (`/backend`)
 - **Frontend:** Next.js (App Router) + TypeScript + Tailwind (`/frontend`)
+- They are separate processes. The browser talks to Next.js, which proxies `/api/*` to Django.
 
-They are fully separate and talk over a REST API at `http://localhost:8000/api`.
+Needs Python 3.11+ and Node 20+. PostgreSQL 16 is used in Docker; SQLite is the default for local development.
 
-## Run it
-
-You need Python 3.11+ and Node 20+.
+## Run it locally
 
 ### 1. Backend (http://localhost:8000)
 
@@ -18,172 +17,90 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-python manage.py migrate        # run again after every update: new apps add tables and seed the default lists
+python manage.py migrate        # also creates the 5 departments, 9 roles, capabilities, default lists
+```
 
-# Create the 5 departments and the CEO account (change the values)
-# Windows PowerShell:
-$env:CEO_EMAIL="ceo@innovation.test"; $env:CEO_PASSWORD="ChangeMe-123"; $env:CEO_NAME="Your Name"
-# macOS/Linux:
-# export CEO_EMAIL=ceo@innovation.test CEO_PASSWORD=ChangeMe-123 CEO_NAME="Your Name"
-python manage.py seed
+Create the two accounts that start the system (change the values):
 
+```bash
+# Windows PowerShell
+$env:CEO_EMAIL="ceo@innovation.test"; $env:CEO_PASSWORD="ChangeMe-123-strong"; $env:CEO_NAME="Your Name"
+$env:DJANGO_SUPERUSER_PASSWORD="Another-strong-1"
+# macOS/Linux: export CEO_EMAIL=... CEO_PASSWORD=... CEO_NAME=... DJANGO_SUPERUSER_PASSWORD=...
+
+python manage.py seed           # the CEO (Administration head). Does nothing if the CEO exists
+python manage.py createsuperuser --noinput --email admin@innovation.test --full_name "System Admin"   # the Super Admin
 python manage.py runserver 8000
 ```
 
-`seed` is safe to run again: it does nothing if the CEO already exists.
-
-The CEO account is a normal account with no forced password change, so pick a strong `CEO_PASSWORD`.
-
-Uploaded files are stored in `backend/private_media/` (override with `PRIVATE_MEDIA_ROOT`). They are never served as public URLs. Back this folder up with the database.
-The time zone for "today" and attendance is `Asia/Amman`; set `DJANGO_TIME_ZONE` to change it.
+- The **Super Admin** has no department and holds every capability; it is invisible to the CEO. Only the CEO creates users, from **Users → Add user**.
+- Check the result any time: `python manage.py list_users` (read-only, no passwords).
+- Uploaded files go to `backend/private_media/` (override `PRIVATE_MEDIA_ROOT`). They are never public URLs. Back the folder up with the database.
+- "Today", attendance and recurrence use `Asia/Amman` (override `DJANGO_TIME_ZONE`).
+- API documentation (Swagger at `/api/v1/docs/`, ReDoc at `/api/v1/redoc/`, raw schema at `/api/v1/schema/`) is served only to people with the `settings.manage` capability (CEO, Super Admin).
 
 ### 2. Frontend (http://localhost:3000)
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                     # production check: npm run build && npm start
 ```
 
-If the API is somewhere else, copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL`.
+If the API is elsewhere, copy `frontend/.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL` (read at build time).
 
-### Tests
+### 3. First walk-through
+
+1. Sign in as the CEO. Open the company page (`/admin/company`) and upload the company stamp (needed before anything can be signed).
+2. **Users → Add user**: create each role (Marketing, Commercial head/member, HR head/member, Operation head/member). Choose **Generate** for a temporary password and copy it: it is shown once.
+3. Each new person signs in with the temporary password and is sent to **Set your new password**.
+4. Marketing imports or adds leads; the pipeline continues as described in `docs/USER_GUIDE.md`.
+
+Development only: `python manage.py seed_demo_data` creates one demo user per role (`*@demo.test`, password `Demo-12345`). It refuses to run when `DJANGO_ENV=production` or DEBUG is off.
+
+## Scheduled jobs (required in production)
+
+| Job | Command | Cadence |
+|---|---|---|
+| Due reminders, 60-minute urgent alerts, appointments | `python manage.py process_notifications` | every 5 minutes |
+| Recurring client tasks, overdue task reminders | `python manage.py generate_recurring_tasks` | daily, early morning |
+| Overdue instalments | `python manage.py check_overdue_payments` | daily |
+| General-task overdue alerts | `python manage.py general_task_alerts` | daily |
+| Lead follow-up reminders | `python manage.py lead_reminders` | daily |
+
+All are idempotent. If one is missed, the daily ones also run on the first request of the day. Details in `docs/DEPLOYMENT.md`.
+
+## Tests and checks
 
 ```bash
 cd backend
-python manage.py test        # 226 tests: Task 1 rules, Phase 1 foundation, Phase 2 leads, Phase 3 quotations, Phase 4 contracts
+python -m pytest -q                      # whole backend suite (python manage.py test runs the same tests)
+python manage.py makemigrations --check --dry-run
+python manage.py spectacular --validate --fail-on-warn --file NUL     # OpenAPI must generate with no warning
+cd ../frontend
+npx tsc --noEmit && npm run lint && npm run i18n:check && npm run build
+cd .. && python scripts/secret_scan.py
 ```
 
-## Try the full flow
+Browser proofs (real Chrome, EN and AR, 375/768/1280px) live in `qa/browser` and `frontend/e2e`; see their READMEs.
 
-1. Sign in as the CEO.
-2. **Users → Add user**: Operation department, role Head, select **Generate** for a temporary password. Copy the details shown.
-3. Sign out, then sign in as that person with the temporary password. You are sent to **Set your new password**.
-4. Choose a new password. You land on Home, and **Clients** is now in the menu.
-5. **Clients → Add client**.
-
-## Languages: English and Arabic (RTL)
-
-- Switch with the **EN | عربي** control in the top bar (on the sign-in and set-password screens it sits in the top corner), or in **Settings**.
-  The choice is saved in a `lang` cookie, so the server renders the right `<html lang dir>` on first paint, even before sign-in.
-  URLs are the same in both languages.
-- Text lives in `frontend/src/locales/en.json` and `ar.json`. In code use `const t = useT()` then `t("users.add")`. Add every new
-  string to both files. Backend messages (English) are mapped to keys in `frontend/src/lib/i18n.tsx`; an unmapped backend message shows a
-  generic translated error in Arabic.
-- Stored values never change. Department and role names are translated for display only.
-- Use logical Tailwind classes (`ms-`, `me-`, `ps-`, `pe-`, `start-`, `end-`, `text-start`, `border-s`, `rounded-s`), never left/right.
-  Wrap emails, phone numbers and passwords in `<Ltr>`. Flip direction-only icons with `rtl:-scale-x-100`.
-- Dates and numbers use `Intl` with the active language, always with Western digits (0-9).
-- Arabic uses IBM Plex Sans Arabic through `next/font/google`.
-
-The account stores `preferred_language` (set from Profile > Settings, or by the CEO when creating a user) and it is applied at sign-in.
-After pulling this version run `python manage.py migrate` once (adds that column).
-
-Design: see `frontend/DESIGN.md` (tokens, type, spacing, motion, components). Review screenshots live in `frontend/.design-review/`.
-Profile (`/profile`, tabs Overview and Settings) replaces the old Settings page; `/settings` redirects to `/profile?tab=settings`.
-
-## API (all under `/api`)
-
-| Endpoint | Who |
-|---|---|
-| `POST auth/login/`, `POST auth/refresh/` | anyone |
-| `POST auth/logout/`, `GET auth/me/`, `PATCH auth/me/` (only `preferred_language`), `POST auth/change-password/` | signed in (these work even while a password change is pending) |
-| `GET dashboard/summary/` | signed in; the content depends on the role (CEO, Operation head, everyone else) |
-| `GET/POST users/`, `GET/PATCH users/{id}/`, `POST users/{id}/deactivate/`, `activate/`, `reset-password/` | CEO |
-| `GET departments/` | CEO |
-| `GET/POST clients/`, `GET/PATCH clients/{id}/` | Operation head, CEO |
-
-Every endpoint other than the ones marked "signed in" returns **403** while `must_change_password` is true.
-
-## Database
-
-SQLite by default. For Postgres set `DB_ENGINE=postgres` plus `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`
-and `pip install "psycopg[binary]"`. Other env vars: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG` (`1`/`0`),
-`DJANGO_ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS` (comma separated).
-
-## Attendance log
-
-`accounts_actionlog` has one row per login or logout: `user`, `action` (`login`/`logout`), `timestamp`, `ip_address`,
-indexed on `(user, timestamp)` and `(action, timestamp)`. Failed logins are not logged.
-
-## Decisions where the brief was open (simplest option picked)
-
-- **Rules live in the model.** `User.save()` checks the department rules, so no code path can skip them. The API turns
-  failures into plain field errors.
-- **Seats count inactive users too.** A deactivated Operation head still holds the head seat. To replace them, change
-  their role to Member first. This stops a reactivation from creating a second head.
-- **Marketing "exactly one"** is enforced as "at most one". Nothing can force the seat to be filled. Its one person can
-  be either role.
-- **Administration** accepts only one user, who must be a head (the CEO). The CEO can't change their own department or
-  role, and can't deactivate themselves.
-- **CEO** means: Administration department and role head.
-- **Forced change needs no old password**, because the person has just signed in with the temporary one. The new password
-  must differ from the temporary one, be at least 8 characters, and match the confirm field. That endpoint only works while
-  a change is pending.
-- **Temporary passwords** are never stored or shown again. After "Add user" or "Reset password" the CEO sees them once in
-  a panel with a Copy button. "Generate" avoids look-alike characters (0/O, 1/l/I).
-- **Failed login** gives one message for an unknown email, a wrong password and a deactivated account.
-- **Tokens** are kept in `localStorage` (access 30 min, refresh 1 day). Sign out blacklists the refresh token and does a
-  full page reload so nothing from the last person stays in memory. A hardened version would use httpOnly cookies.
-- **No pagination** on the Users and Clients lists, since both are small for an internal tool. Search is server side.
-- **Emails** are stored lowercase, and uniqueness ignores case.
-- **No dark mode, no login throttling**, to keep this task small.
-- The Next.js scaffold's `cacheComponents` setting is switched off in `next.config.ts`. It adds nothing to a
-  client-rendered app behind a login.
-
-
-## Business workflow
-
-The full lead-to-cash workflow is built: marketing import, commercial pipeline, quotations, contracts, operation onboarding and recurring tasks, payments, HR (attendance, leave, payroll) and CEO reports.
-
-Documents: `docs/ARCHITECTURE.md` (modules, state machines, API), `docs/PERMISSIONS.md` (role x endpoint matrix, generated and tested), `docs/DEPLOYMENT.md` (production settings, Postgres, scheduled jobs, backups), `docs/USER_GUIDE.md` (per role, English and Arabic). The module detail is in `docs/ARCHITECTURE.md` for the modules, state machines, permission matrix and API list.
-
-- **Phase 7 (done):** Reports for the CEO and department heads (sales funnel and conversions, rejection reasons, stage durations, SLA breaches, revenue expected vs received, overdue balances, Operation and HR metrics), a forecast that shows its method and refuses when history is too thin, charts with a table alternative and CSV export, and permission-aware search across leads, quotations, contracts and clients.
-- **Phase 6 (done):** Payments (Commercial head writes, CEO reads: instalment schedules, an append-only payment ledger with receipts and reversal entries, statuses worked out automatically, client statement and CSV) and HR (attendance from sign-in history with late flags and CSV, leave with balances, approval and a calendar, and monthly payroll Draft -> CEO approved -> Paid with payslips; salary data is visible only to the CEO, the HR head and the employee).
-- **Phase 5 (done):** Operation. A handover creates (or links, by company name) the client in Onboarding and copies the CEO's document checklist. Operation uploads, verifies or marks items not applicable (with a reason); the client becomes Active only when every required item is verified or not applicable. The Operation head can customise a client's checklist and sets up recurring tasks (daily, weekly, every 2 weeks, monthly, yearly or every N days) whose instances are generated automatically, completed with a note or skipped with a reason. QA meetings are logged per client with a cadence and a suggested next date. Commercial sees their own clients read-only.
-- **Phase 4 (done):** Contracts. Starts once a quotation is confirmed or skipped. HR drafts (draft file required, versions kept) and sends to Commercial; Commercial logs the offline meeting and uploads the visit report and the client-signed copy; the CEO signs or returns with a comment (CEO Approvals inbox); HR uploads the final signed contract and hands it over to Operation. A stepper shows progress on every contract page.
-- **Phase 3 (done):** Quotations. Commercial requests a quotation from a qualified lead (or the head skips it); HR prepares versioned line items; the Commercial head signs or asks for changes (comment required, new version); then Sent → Confirmed / Waiting (follow-up date) / Rejected (reason). Version history with side-by-side compare, and a bilingual printable view (EN/AR, RTL) that is saved as PDF from the browser's print dialog.
-- **Phase 2 (done):** Leads and Pipeline. Marketing adds leads by hand or imports a CSV (template, preview with row errors, duplicate detection, undo while untouched). The Commercial head assigns; members work their own leads on a board or list, log contacts, and record Waiting / Rejected / Initial acceptance. Overdue follow-ups are flagged and reminded.
-- **Phase 1 (done):** activity trail, in-app notifications (bell), private file uploads, comments with @mentions, CEO Settings (rejection reasons, services, legal checklist, work hours, follow-up rules), My Work on Home with sidebar badges, role-aware navigation with a More sheet on phones, and the eight-role permission test harness.
-
-### Demo data (development only)
+## Docker
 
 ```bash
-cd backend
-python manage.py seed_demo_data     # refuses to run when DEBUG is off or DJANGO_ENV=production
+cp .env.example .env            # fill in DB_PASSWORD and DJANGO_SECRET_KEY (50+ random characters)
+docker compose up --build       # PostgreSQL, Gunicorn Django, Next.js; only the frontend is published
 ```
 
-Creates one demo user per role (`ceo@demo.test`, `marketing@demo.test`, `commercial.head@demo.test`, … password `Demo-12345`) and sample leads in every state. Seats that are already taken (the CEO, Marketing's one person, a department head) keep their real person.
+Then create the CEO and Super Admin inside the backend container (`docker compose exec backend python manage.py seed`, and `createsuperuser --noinput`, with the environment variables above).
 
-### Phase 6 setup on an existing database
+## Languages
 
-No new packages. Run `python manage.py migrate`; it adds the payments and HR tables and three default leave types (Annual 21 days, Sick 14, Unpaid). Nothing existing changes.
+English (LTR) and Arabic (RTL). Switch with **EN | عربي** in the top bar or in Profile → Settings; the `lang` cookie lets the server render the right `<html lang dir>` on first paint. Text lives in `frontend/src/locales/{en,ar}.json`; `npm run i18n:check` fails on any missing or extra key. Use logical Tailwind classes (`ms-`, `me-`, `ps-`, `pe-`, `start-`, `end-`). Dates and numbers use Western digits.
 
-Overdue instalment reminders come from `python manage.py check_overdue_payments`. It is safe to run any number of times; schedule it once a day next to `generate_recurring_tasks`. Without it, the same check runs on the first request each day. Attendance is worked out from sign-in and sign-out history, so it starts the day you deploy.
+## Security model in one paragraph
 
-### Phase 5 setup on an existing database
+Tokens live only in HttpOnly SameSite=Lax cookies (Secure in production); unsafe requests need the `X-CSRF-Token` header; refresh tokens rotate and are blacklisted; deactivating a user or changing their role or password cuts off old tokens at once; five failed sign-ins in five minutes lock the account, with a per-IP throttle; every error uses one envelope `{error: {code, message, fields?}}`; every endpoint declares the capabilities it needs and fails closed. Operation users never see prices, contract values, payments or contract files. Temporary passwords are never stored or logged.
 
-No new packages. Run `python manage.py migrate`; it adds three columns to clients (`status` defaults to Active, so existing clients are unchanged) and the Operation tables.
+## Documents
 
-Recurring tasks are created on each due date by `python manage.py generate_recurring_tasks`. It is safe to run any number of times. Schedule it once a day (Windows Task Scheduler: `python manage.py generate_recurring_tasks` in the `backend` folder; Linux: a daily cron line). Without it, the same job runs on the first request each day.
-
-### Phase 4 setup on an existing database
-
-No new packages. Run `python manage.py migrate`; it only adds the contract tables.
-
-### Phase 3 setup on an existing database
-
-No new packages. Run `python manage.py migrate`; the migrations only add tables and two nullable lead columns.
-
-### Phase 2 setup on an existing database
-
-`django-filter` is new, so install requirements, then migrate (the migrations only add tables):
-
-```bash
-cd backend
-.venv\Scripts\activate          # Windows; on macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-python manage.py migrate
-```
-
-Optional: `python manage.py lead_reminders` once a day (a scheduled task). Without it, the reminders run on the first visit each day.
+`docs/ARCHITECTURE.md` (modules and state machines), `docs/PERMISSIONS.md` (role × endpoint matrix, generated and tested), `docs/DEPLOYMENT.md`, `docs/USER_GUIDE.md`, `docs/OBJECTIVES_MATRIX.md`, `docs/ACCEPTANCE_MATRIX.md` and `docs/ACCEPTANCE_REPORT.md` (this audit).

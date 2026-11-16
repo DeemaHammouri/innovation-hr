@@ -29,9 +29,11 @@ python manage.py migrate
 python manage.py collectstatic --noinput
 set CEO_EMAIL=ceo@yourcompany.com & set CEO_PASSWORD=<strong password> & set CEO_NAME="Full Name"
 python manage.py seed
+set DJANGO_SUPERUSER_PASSWORD=<strong password>
+python manage.py createsuperuser --noinput --email admin@yourcompany.com --full_name "System Admin"
 ```
 
-`seed` creates the departments and the CEO account, and does nothing if the CEO already exists (lookups, leave types and the checklist template come with the migrations). Change the CEO password after first sign-in from Profile. Serve with any WSGI server: `pip install waitress` then `waitress-serve --port 8000 config.wsgi:application` (Windows), or `pip install gunicorn` then `gunicorn config.wsgi` (Linux). `GET /api/health/` returns `{"status":"ok"}` (503 `{"status":"down"}` if the database is unreachable) for monitoring.
+`seed` creates the departments and the CEO account (`createsuperuser` makes the Super Admin, who has no department and is invisible to the CEO), and does nothing if the CEO already exists (lookups, leave types and the checklist template come with the migrations). Change the CEO password after first sign-in from Profile. Serve with any WSGI server: `pip install waitress` then `waitress-serve --port 8000 config.wsgi:application` (Windows), or `pip install gunicorn` then `gunicorn config.wsgi` (Linux). `GET /api/v1/health/` returns `{"status":"ok"}` (503 `{"status":"down"}` if the database is unreachable) for monitoring.
 
 ## 2. Frontend
 
@@ -57,13 +59,15 @@ To move existing data: `python manage.py dumpdata --natural-foreign --natural-pr
 
 ## 4. Scheduled jobs
 
-Run all three once a day (early morning). All are safe to run any number of times. If you forget, the same work runs on the first request of each day.
+Schedule all five. All are safe to run any number of times. If a daily job is missed, the same work runs on the first request of the day; `process_notifications` is the only one that must run every few minutes, because the 60-minute urgent alerts depend on it.
 
 | Job | Command |
 |---|---|
 | Create due recurring tasks | `python manage.py generate_recurring_tasks` |
 | Instalment overdue status and reminders | `python manage.py check_overdue_payments` |
 | Overdue alerts for general tasks (one per deadline) | `python manage.py general_task_alerts` |
+| Lead follow-up reminders (daily) | `python manage.py lead_reminders` |
+| Reminders, urgent 60-minute alerts, appointments (**every 5 minutes**) | `python manage.py process_notifications` |
 
 Windows Task Scheduler (daily 06:00): Action "Start a program", Program `C:\path\backend\.venv\Scripts\python.exe`, Arguments `manage.py generate_recurring_tasks`, Start in `C:\path\backend`. Repeat for the other jobs. Set `DJANGO_SETTINGS_MODULE` and the other variables for the task (or use a small `.bat` that sets them).
 
