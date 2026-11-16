@@ -1,13 +1,13 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError, tokens, type User } from "./api";
+import { api, ApiError, type User } from "./api";
 import { useI18n, type Lang } from "./i18n";
 
 type AuthState = {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<User>;
+  login: (identifier: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   /** True after the server refused a refresh: the session ran out, as opposed to a deliberate sign out. */
   sessionExpired: boolean;
@@ -47,21 +47,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (tokens.access || tokens.refresh) {
-        try {
-          const me = await api<User>("/auth/me/");
-          if (!cancelled) {
-            setOffline(false);
-            setUser(me);
-            applyLanguage(me);
-          }
-        } catch (err) {
-          // A network failure or a server error says nothing about the session, so keep the tokens and offer a retry.
-          if (err instanceof ApiError && (err.status === 0 || err.status >= 500)) {
-            if (!cancelled) setOffline(true);
-          } else {
-            tokens.clear();
-          }
+      try {
+        // The session lives in HttpOnly cookies the page cannot see, so ask the server who this is.
+        const me = await api<User>("/auth/me/", { quiet401: true });
+        if (!cancelled) {
+          setOffline(false);
+          setUser(me);
+          applyLanguage(me);
+        }
+      } catch (err) {
+        // A network failure or a server error says nothing about the session, so offer a retry. Anything else means signed out.
+        if (err instanceof ApiError && (err.status === 0 || err.status >= 500)) {
+          if (!cancelled) setOffline(true);
         }
       }
       if (!cancelled) setLoading(false);
@@ -82,13 +79,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAttempt((n) => n + 1);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await api<{ access: string; refresh: string; user: User }>("/auth/login/", {
+  const login = useCallback(async (identifier: string, password: string) => {
+    const res = await api<{ user: User }>("/auth/login/", {
       method: "POST",
-      body: { email, password },
+      body: { identifier, password },
       auth: false,
     });
-    tokens.set(res.access, res.refresh);
     temporaryPassword = res.user.must_change_password ? password : "";
     setSessionExpired(false);
     setUser(res.user);
@@ -98,11 +94,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await api("/auth/logout/", { method: "POST", body: { refresh: tokens.refresh } });
+      await api("/auth/logout/", { method: "POST", auth: false });
     } catch {
       // Signing out locally still works if the server can't be reached.
     }
-    tokens.clear();
     setSessionExpired(false);
     setUser(null);
   }, []);

@@ -1,4 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+// Same-origin: Next.js forwards /api/* to Django (app/api/[...path]/route.ts). The sign-in cookies are HttpOnly, so no script holds a token.
+const API_URL = "/api/v1";
 
 export type RoleKey =
   | "ceo"
@@ -8,7 +9,8 @@ export type RoleKey =
   | "hr_head"
   | "hr_member"
   | "operation_head"
-  | "operation_member";
+  | "operation_member"
+  | "super_admin";
 
 export type Permissions = { manage_users: boolean; manage_clients: boolean };
 
@@ -16,6 +18,8 @@ export type User = {
   id: number;
   full_name: string;
   email: string;
+  username: string | null;
+  capabilities: string[];
   department: number | null;
   department_name: string | null;
   role: "head" | "member";
@@ -76,34 +80,23 @@ export class ApiError extends Error {
   }
 }
 
-const ACCESS = "innovation.access";
-const REFRESH = "innovation.refresh";
+const CSRF_COOKIE = "csrf_token";
 
-export const tokens = {
-  get access() {
-    return localStorage.getItem(ACCESS);
-  },
-  get refresh() {
-    return localStorage.getItem(REFRESH);
-  },
-  set(access: string, refresh?: string) {
-    localStorage.setItem(ACCESS, access);
-    if (refresh) localStorage.setItem(REFRESH, refresh);
-  },
-  clear() {
-    localStorage.removeItem(ACCESS);
-    localStorage.removeItem(REFRESH);
-  },
-};
+/** The readable half of the double-submit CSRF pair. Empty when nobody is signed in. */
+function csrfToken() {
+  const m = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE}=([^;]*)`));
+  return m ? decodeURIComponent(m[1]) : "";
+}
 
-async function send(path: string, method: string, body?: unknown, auth = true) {
+async function send(path: string, method: string, body?: unknown) {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (auth && tokens.access) headers.Authorization = `Bearer ${tokens.access}`;
+  if (method !== "GET" && method !== "HEAD") headers["X-CSRF-Token"] = csrfToken();
   try {
     return await fetch(`${API_URL}${path}`, {
       method,
       headers,
+      credentials: "same-origin",
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
@@ -113,29 +106,29 @@ async function send(path: string, method: string, body?: unknown, auth = true) {
 
 let refreshing: Promise<boolean> | null = null;
 
+/** Asks for a new cookie pair. Nobody signed in means no CSRF cookie, so there is nothing to refresh. */
 async function refreshAccess(): Promise<boolean> {
-  if (!tokens.refresh) return false;
+  if (!csrfToken()) return false;
   refreshing ??= (async () => {
-    const res = await send("/auth/refresh/", "POST", { refresh: tokens.refresh }, false).catch(() => null);
-    if (res?.ok) {
-      tokens.set((await res.json()).access);
-      return true;
-    }
-    return false;
+    const res = await send("/auth/refresh/", "POST").catch(() => null);
+    return !!res?.ok;
   })().finally(() => {
     refreshing = null;
   });
   return refreshing;
 }
 
-export async function api<T = unknown>(path: string, options: { method?: string; body?: unknown; auth?: boolean } = {}) {
-  const { method = "GET", body, auth = true } = options;
-  let res = await send(path, method, body, auth);
+/**
+ * `auth: false` is for the sign-in and sign-out calls. `quiet401` is for "who am I?" at page load, where a 401 just means
+ * nobody is signed in (it must not announce an expired session).
+ */
+export async function api<T = unknown>(path: string, options: { method?: string; body?: unknown; auth?: boolean; quiet401?: boolean } = {}) {
+  const { method = "GET", body, auth = true, quiet401 = false } = options;
+  let res = await send(path, method, body);
   if (res.status === 401 && auth && (await refreshAccess())) {
-    res = await send(path, method, body, auth);
+    res = await send(path, method, body);
   }
-  if (res.status === 401 && auth) {
-    tokens.clear();
+  if (res.status === 401 && auth && !quiet401) {
     window.dispatchEvent(new Event("innovation:signed-out"));
   }
   const data = res.status === 204 ? {} : await res.json().catch(() => ({}));
@@ -194,8 +187,11 @@ export type SlaSettings = { first_contact_hours: number; follow_up_days: number 
 export type Target = string;
 
 async function authedFetch(path: string, init: RequestInit) {
-  const run = () =>
-    fetch(`${API_URL}${path}`, { ...init, headers: { ...(init.headers ?? {}), ...(tokens.access ? { Authorization: `Bearer ${tokens.access}` } : {}) } });
+  const run = () => {
+    const headers: Record<string, string> = { ...((init.headers as Record<string, string>) ?? {}) };
+    if (init.method && init.method !== "GET") headers["X-CSRF-Token"] = csrfToken();
+    return fetch(`${API_URL}${path}`, { ...init, headers, credentials: "same-origin" });
+  };
   let res: Response;
   try {
     res = await run();
@@ -214,7 +210,7 @@ export async function upload<T = unknown>(path: string, form: FormData) {
   return data as T;
 }
 
-/** Files are never public URLs: fetch with the token, then hand the browser a temporary blob to save. */
+/** Files are never public URLs: fetch with the session cookie, then hand the browser a temporary blob to save. */
 export async function downloadFile(path: string, fileName: string) {
   const res = await authedFetch(path, { method: "GET" });
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));

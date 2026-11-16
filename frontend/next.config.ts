@@ -1,13 +1,5 @@
 import type { NextConfig } from "next";
 
-const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
-const apiOrigin = (() => {
-  try {
-    return new URL(api).origin;
-  } catch {
-    return "";
-  }
-})();
 const prod = process.env.NODE_ENV === "production";
 
 // Headers every page gets. The content policy is production-only: the dev server needs eval for hot reload.
@@ -27,7 +19,7 @@ const headers = [
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
             "font-src 'self' data:",
-            `connect-src 'self' ${apiOrigin}`.trim(),
+            "connect-src 'self'", // the browser only talks to this app; /api/* is proxied to Django
             "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",
@@ -41,6 +33,7 @@ const headers = [
 const nextConfig: NextConfig = {
   // Plain client-rendered app behind a login: no cache components or partial prefetching needed.
   poweredByHeader: false,
+  skipTrailingSlashRedirect: true, // /api/v1/x/ must reach Django with its slash
   async headers() {
     return [{ source: "/:path*", headers }];
   },
