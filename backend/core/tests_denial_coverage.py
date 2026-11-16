@@ -6,9 +6,8 @@ The other is consulted inside a rule (who may see this record, who may act at th
 the gap impossible to grow: every capability in the catalogue must be either named by an endpoint or named in at least one test file, and
 every test file that names a rule-level capability must also assert a refusal (403, 404 or a validation error) somewhere in it.
 
-Honest limit: 27 rule-level capabilities are pinned below as KNOWN_GAPS. They are exercised only through role-based feature tests (for example a
-Commercial member seeing only their own leads), not by a test that removes that one capability and shows the refusal. The list can only shrink:
-adding a test that names one makes the equality below fail until the name is removed from the list, and a new capability cannot join it.
+KNOWN_GAPS is empty: every rule-level capability has an allowed/denied pair. A new capability must come with one (or an endpoint requirement).
+Known weak spot: `hr.staff` is only read by `hr.access.is_hr()`, which no endpoint uses, so its test pins the dead rule, not a behaviour.
 """
 import re
 from pathlib import Path
@@ -23,16 +22,11 @@ BACKEND = Path(__file__).resolve().parent.parent
 REFUSAL = re.compile(r"(status_code, 40[0134]|assertEqual\([^)]*, 40[0134]\)|assertRaises|assertFalse\(.*(can_|has_capability)|PermissionDenied|ImmutableError)")
 
 
-KNOWN_GAPS = {
-    "lead.view_all", "lead.view_assigned", "lead.view_created", "lead.work_assigned", "lead.batches_all", "lead.edit_created", "appointment.view_all",
-    "quotation.view_all", "quotation.view_assigned", "contract.view_all", "contract.view_assigned", "meeting_report.view_all", "operation.work",
-    "operation.review", "operation.view_all_clients", "operation.view_own_deals", "payment.manage", "report.funnel", "report.revenue", "report.forecast",
-    "report.operations", "report.hr", "hr.staff", "hr.manage", "hr.leave_request", "hr.leave_decide_hr_head", "hr.payroll_approve",
-}
+KNOWN_GAPS = set()  # closed in the acceptance audit: see tests_capability_denials_sales.py and tests_capability_denials_ops.py
 
 
 def test_files():
-    return [p for p in BACKEND.rglob("tests*.py") if ".venv" not in p.parts and p.name != "tests_denial_coverage.py"]
+    return [p for p in BACKEND.rglob("tests*.py") if not ({".venv", "venv", "site-packages"} & set(p.parts)) and p.name != "tests_denial_coverage.py"]
 
 
 def named_by_endpoints():

@@ -15,7 +15,7 @@ class EnvDocumentationTests(SimpleTestCase):
         documented = set(re.findall(r"^([A-Z][A-Z0-9_]+)=", (BACKEND / ".env.example").read_text(), re.M))
         used = set()
         for path in BACKEND.rglob("*.py"):
-            if ".venv" in path.parts or "migrations" in path.parts or path.name.startswith(("tests", "test_")):
+            if {".venv", "venv", "site-packages"} & set(path.parts) or "migrations" in path.parts or path.name.startswith(("tests", "test_")):
                 continue
             used |= set(READS.findall(path.read_text(encoding="utf-8")))
         self.assertEqual(sorted(used - documented), [], "add these to backend/.env.example")
