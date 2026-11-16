@@ -1,0 +1,59 @@
+PASS en 375 tasks-ceo: no horizontal scroll
+PASS en 375 tasks-ceo: shows "Open task EN1"
+PASS en 375 tasks-ceo: no console error
+PASS en 375 tasks-head: no horizontal scroll
+PASS en 375 tasks-head: shows "Open task EN1"
+PASS en 375 tasks-head: no console error
+PASS en 375 tasks-member: no horizontal scroll
+PASS en 375 tasks-member: shows "Late task EN1"
+PASS en 375 tasks-member: no console error
+PASS en 375 new-task sheet: no horizontal scroll
+PASS en 375 new-task sheet: no console error
+PASS en 768 tasks-ceo: no horizontal scroll
+PASS en 768 tasks-ceo: shows "Open task EN1"
+PASS en 768 tasks-ceo: no console error
+PASS en 768 tasks-head: no horizontal scroll
+PASS en 768 tasks-head: shows "Open task EN1"
+PASS en 768 tasks-head: no console error
+PASS en 768 tasks-member: no horizontal scroll
+PASS en 768 tasks-member: shows "Late task EN1"
+PASS en 768 tasks-member: no console error
+PASS en 768 new-task sheet: no horizontal scroll
+PASS en 768 new-task sheet: no console error
+PASS en 1280 tasks-ceo: no horizontal scroll
+PASS en 1280 tasks-ceo: shows "Open task EN1"
+PASS en 1280 tasks-ceo: no console error
+PASS en 1280 tasks-head: no horizontal scroll
+PASS en 1280 tasks-head: shows "Open task EN1"
+PASS en 1280 tasks-head: no console error
+PASS en 1280 tasks-member: no horizontal scroll
+PASS en 1280 tasks-member: shows "Late task EN1"
+PASS en 1280 tasks-member: no console error
+PASS en 1280 new-task sheet: no horizontal scroll
+PASS en 1280 new-task sheet: no console error
+PASS en 1280 empty form: title, person and deadline are all refused
+PASS en 1280 the CEO can pick someone from any department
+PASS en 1280 the task appears under "given by me"
+PASS en 1280 the CEO has no "Mark as done" on a task given to someone else
+PASS en 1280 giving: no console error
+PASS en 1280 the head sees the CEO's task for their department's person
+PASS en 1280 the head does not see another department's task
+PASS en 1280 the head can pick only people of their own department | Choose a person | Demo Operation Head · Operation | Demo Operation Member · Operation
+PASS en 1280 the deadline change is saved and shown
+PASS en 1280 head: no console error
+PASS en 1280 the member sees their tasks
+PASS en 1280 the member sees no other department's task
+PASS en 1280 the member has no "New task" button and no team views
+PASS en 1280 an overdue task is marked as overdue
+PASS en 1280 the API answers 404 for another department's task | 404
+PASS en 1280 the API refuses a member who tries to give a task | 403
+PASS en 1280 a fake PDF is refused (checked by its first bytes)
+PASS en 1280 a real PDF is accepted and listed
+PASS en 1280 the history shows who gave the task
+PASS en 1280 the late task is shown as "Done late"
+PASS en 1280 the five counters on screen equal the server's numbers | [{"open":6,"due_today":2,"overdue":1,"done":1,"done_late":1},{"open":6,"overdue":1,"due_today":2,"done":1,"done_late":1}]
+PASS en 1280 My Work (API) lists the task due today, and the Tasks menu entry carries a count | {"role":"operation_member","items":[{"kind":"gtask","section":"tasks","ref":"Lat
+PASS en 1280 member: no console error
+PASS en 1280 a Commercial member sees only their own task
+PASS en 1280 commercial: no console error
+DONE en: 0 failure(s)

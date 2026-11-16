@@ -21,6 +21,7 @@ api_patterns = [
     path("", include("meetings.urls")),
     path("documents/", ClientDocumentsView.as_view()),
     path("", include("operations.urls")),
+    path("", include("generaltasks.urls")),
     path("", include("payments.urls")),
     path("", include("hr.urls")),
     path("", include("reports.urls")),

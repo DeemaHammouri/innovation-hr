@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "quotations",
     "contracts",
     "operations",
+    "generaltasks",
     "payments",
     "hr",
     "reports",

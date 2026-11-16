@@ -253,6 +253,14 @@ const API_MESSAGES: Record<string, string> = {
   "Someone else changed this record while you were editing. Reload to see their changes, then make your edit again.": "err.conflict",
   "Only a qualified lead can skip the quotation.": "qt.api.26",
   "The quotation was already skipped for this lead.": "qt.api.27",
+  "You can't give a task to this person.": "gt.api.1",
+  "Choose a deadline.": "gt.api.2",
+  "The deadline can't be in the past.": "gt.api.3",
+  "Only the person the task was given to can mark it as done.": "gt.api.4",
+  "This task is already done.": "gt.api.5",
+  "You can't change this task.": "gt.api.6",
+  "Only the CEO and department heads can give tasks.": "gt.api.7",
+  "You don't have access to tasks.": "gt.api.8",
 };
 
 type I18n = {

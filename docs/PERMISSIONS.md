@@ -37,6 +37,10 @@ Roles are derived from department and head/member: **CEO** (Administration head)
 | Handovers: escalate to the CEO | no | no | no | no | no | no | yes | no |
 | Projects: see | yes | no | read-only | no | no | no | yes | yes |
 | Projects: choose primary employee and support | no | no | no | no | no | no | yes | no |
+| General tasks: see | all | own | own and their department's | own | own and their department's | own | own and their department's | own |
+| General tasks: give a task, change its title, deadline or person | to anyone | no | to their own department (themselves included) | no | to their own department | no | to their own department | no |
+| General tasks: mark as done | only the person it was given to, never the giver, the head or the CEO (every role, on their own tasks) |||||||| 
+| General tasks: add notes and files (PDF, PNG, JPG, DOCX, XLSX up to 10 MB, checked by their first bytes) | while open: assignee, giver, the department head and the CEO |||||||| 
 | Prices, payments and the contract file | yes (as before) | no | quotations: yes | quotations: own | contracts: yes | contracts: yes | never | never |
 | Payments (schedule, record, reverse) | read | no | write | no | no | no | no | no |
 | Attendance | own, all (report) | own | own | own | own, all (report) | own, all (report) | own | own |

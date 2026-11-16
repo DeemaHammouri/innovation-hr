@@ -829,3 +829,25 @@ export type LeadTargetProgress = {
   required_per_day: number | null;
   days: { date: string; count: number | null; total: number | null; plan: number }[];
 };
+
+/** A task one person gives another (the CEO to anyone, a department head to their own department). */
+export type GeneralTask = {
+  id: number;
+  title: string;
+  description: string;
+  assignee: number;
+  assignee_name: string;
+  assignee_department: string | null;
+  assigned_by: number;
+  assigned_by_name: string;
+  deadline: string;
+  status: "open" | "done";
+  done_at: string | null;
+  done_late: boolean;
+  overdue: boolean;
+  can_done: boolean;
+  can_edit: boolean;
+  can_attach: boolean;
+  created_at: string;
+};
+export type GeneralTaskCounts = { open: number; overdue: number; due_today: number; done: number; done_late: number };

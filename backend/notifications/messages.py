@@ -244,6 +244,30 @@ CATALOG = {
         "en": ("Payment overdue: {ref}", "{name}"),
         "ar": ("دفعة متأخرة: {ref}", "{name}"),
     },
+    "gtask_assigned": {
+        "en": ("{actor} gave you a task: {ref}", "Due {name}"),
+        "ar": ("أسند إليك {actor} مهمة: {ref}", "الاستحقاق {name}"),
+    },
+    "gtask_deadline": {
+        "en": ("The deadline changed: {ref}", "New deadline {name}"),
+        "ar": ("تغيّر الموعد النهائي: {ref}", "الموعد الجديد {name}"),
+    },
+    "gtask_done": {
+        "en": ("{actor} finished: {ref}", "On time"),
+        "ar": ("أنجز {actor} المهمة: {ref}", "ضمن الموعد"),
+    },
+    "gtask_done_late": {
+        "en": ("{actor} finished, after the deadline: {ref}", "Late"),
+        "ar": ("أنجز {actor} المهمة بعد الموعد النهائي: {ref}", "متأخرة"),
+    },
+    "gtask_overdue": {
+        "en": ("Your task is overdue: {ref}", "It was due {name}"),
+        "ar": ("مهمتك متأخرة: {ref}", "كان موعدها {name}"),
+    },
+    "gtask_overdue_given": {
+        "en": ("A task you gave is overdue: {ref}", "{name}"),
+        "ar": ("مهمة أسندتها متأخرة: {ref}", "{name}"),
+    },
 }
 
 

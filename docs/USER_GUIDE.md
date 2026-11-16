@@ -25,6 +25,10 @@ Sign in with the email and password you were given. Use the language button (EN 
 - A handed-over client starts *Onboarding*. Upload and verify each required checklist item; when all are verified the client becomes **Active**.
 - The head sets recurring tasks and assigns them; members complete them with a note. Log QA meetings; the next date is suggested from the client's cadence.
 
+**Tasks (everyone)**
+- *Tasks* lists what the CEO or your department head gave you, with how many are open, due today, overdue, done and done late. Only you can mark a task as done; if you finish after the deadline it is recorded as **Done late**. Open a task to add notes and files (PDF, PNG, JPG, DOCX or XLSX up to 10 MB; a file that is not what its name says is refused).
+- The CEO gives a task to anyone; a department head gives one to people in their own department (or to themselves). Changing the deadline gives the person a new overdue alert. Heads and the CEO also see *My team* and *Given by me*.
+
 **CEO / Administration**
 - *Approvals*: sign or return contracts; approve payroll. *Users*: create accounts, move people, deactivate (nothing is deleted).
 - *Reports*: funnel, revenue, forecast, operations, HR. Each chart has a table view and CSV export. The forecast shows how it was computed and refuses when there is too little history.
@@ -55,6 +59,10 @@ Tips: nothing is ever hard-deleted; every action is recorded with who and when. 
 **العمليات**
 - يبدأ العميل المُسلَّم في *التهيئة*. ارفع وتحقّق من كل بند مطلوب؛ وعند اكتمالها يصبح العميل **نشطاً**.
 - يحدّد الرئيس المهام المتكررة ويوزّعها؛ وينجزها الأعضاء مع ملاحظة. سجّل اجتماعات الجودة؛ ويُقترح الموعد التالي حسب وتيرة العميل.
+
+**المهام (للجميع)**
+- تعرض *المهام* ما أسنده إليك المدير التنفيذي أو رئيس قسمك، مع عدد المفتوحة والمستحقة اليوم والمتأخرة والمنجزة والمنجزة متأخرة. أنت وحدك تعلّم المهمة كمنجزة؛ وإذا أنجزتها بعد الموعد النهائي تُسجَّل **أُنجزت متأخرة**. افتح المهمة لإضافة ملاحظات وملفات (PDF أو PNG أو JPG أو DOCX أو XLSX حتى 10 ميغابايت؛ يُرفض الملف الذي لا يطابق اسمه).
+- يسند المدير التنفيذي مهمة إلى أي شخص، ويسندها رئيس القسم إلى أفراد قسمه (أو إلى نفسه). تغيير الموعد النهائي يُنشئ للشخص تنبيه تأخير جديداً. ويرى الرؤساء والمدير التنفيذي أيضاً *فريقي* و*أسندتها أنا*.
 
 **المدير التنفيذي / الإدارة**
 - *الموافقات*: وقّع العقود أو أعدها، واعتمد الرواتب. *المستخدمون*: أنشئ الحسابات وانقل الأشخاص وعطّلهم (لا يُحذف شيء).

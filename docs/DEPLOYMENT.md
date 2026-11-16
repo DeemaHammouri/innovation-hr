@@ -57,16 +57,17 @@ To move existing data: `python manage.py dumpdata --natural-foreign --natural-pr
 
 ## 4. Scheduled jobs
 
-Run both once a day (early morning). Both are safe to run any number of times. If you forget, the same work runs on the first request of each day.
+Run all three once a day (early morning). All are safe to run any number of times. If you forget, the same work runs on the first request of each day.
 
 | Job | Command |
 |---|---|
 | Create due recurring tasks | `python manage.py generate_recurring_tasks` |
 | Instalment overdue status and reminders | `python manage.py check_overdue_payments` |
+| Overdue alerts for general tasks (one per deadline) | `python manage.py general_task_alerts` |
 
-Windows Task Scheduler (daily 06:00): Action "Start a program", Program `C:\path\backend\.venv\Scripts\python.exe`, Arguments `manage.py generate_recurring_tasks`, Start in `C:\path\backend`. Repeat for the second job. Set `DJANGO_SETTINGS_MODULE` and the other variables for the task (or use a small `.bat` that sets them).
+Windows Task Scheduler (daily 06:00): Action "Start a program", Program `C:\path\backend\.venv\Scripts\python.exe`, Arguments `manage.py generate_recurring_tasks`, Start in `C:\path\backend`. Repeat for the other jobs. Set `DJANGO_SETTINGS_MODULE` and the other variables for the task (or use a small `.bat` that sets them).
 
-Linux cron: `0 6 * * * cd /srv/innovation/backend && .venv/bin/python manage.py generate_recurring_tasks && .venv/bin/python manage.py check_overdue_payments`
+Linux cron: `0 6 * * * cd /srv/innovation/backend && .venv/bin/python manage.py generate_recurring_tasks && .venv/bin/python manage.py check_overdue_payments && .venv/bin/python manage.py general_task_alerts`
 
 ## 5. Backup
 

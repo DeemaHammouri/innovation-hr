@@ -32,7 +32,7 @@ Baseline audit, 16 Nov 2026, against commit `c1c68ef`. Source of truth for requi
 | 19 | KYC, project staffing | 4 | 3 | 0 | 0 | 0 |
 | 20 | Recurrence engine, holidays | 4 | 5 | 0 | 0 | 0 |
 | 21 | Task lifecycle, escalation, reports | 4 | 6 | 0 | 0 | 0 |
-| 22 | General tasks | 5 | 0 | 0 | 0 | 6 |
+| 22 | General tasks | 5 | 7 | 0 | 0 | 0 |
 | 23 | Test suites | 6 | 1 | 1 | 0 | 3 |
 | 24 | Documentation, OpenAPI, production checklist | 6 | 1 | 2 | 0 | 2 |
 
@@ -287,14 +287,26 @@ Also closed here (objective 19 gap): the checklist template has a "has expiry" f
 | JSON, Excel and PDF reports with identical numbers | Done | `/api/reports/<section>/export/?fmt=csv|xlsx|pdf&lang=en|ar` all come from the same rows as the JSON; `operations/tests_reports_and_log.py` reads the JSON, the CSV, the Excel sheet and the text of the PDF (English and Arabic) and compares every value; permissions are the same for every format; spreadsheet cells are written as text so nothing runs as a formula; browser EN and AR: the three Export buttons on `/reports` download CSV, Excel and PDF, and `qa/browser/compare_exports.py` shows the 12 values equal in JSON, CSV, Excel and the PDF text (`docs/evidence/phase4/export-compare-*.txt`); an Operation member is refused another department's export | none |
 | Append-only activity log, confirmed per action | Done | every lifecycle step, escalation and deliverable writes an `AuditEntry` in the same transaction; `ActivityLogTests`: every action appears once, saving, deleting, bulk update and bulk delete all raise `ImmutableError`, and a refused step writes nothing | none |
 
-**Phase 4 gate run (16 Nov 2026):** `manage.py test` 762 tests OK (1 skipped, the opt-in matrix dump); `pytest` 761 passed, 1 skipped; `tsc`, `eslint` (no warnings), `npm run i18n:check` (2171 keys) and `next build` clean. Browser: `qa/browser/phase4a.js` (objectives 18-19) and `phase4.js` (objectives 20-21), English and Arabic, 375/768/1280, 153 checks with no failure and no console error; export comparison in `docs/evidence/phase4/export-compare-*.txt`. The run found and fixed two bugs: the Team sheet stayed disabled after a save, and the assignee could not show a file to the client after submitting. Still written but not verified here: the items already marked so in the table above (Docker and PostgreSQL, and the schedulers that run the daily jobs).
+**Phase 4 gate run (16 Nov 2026):** `manage.py test` 762 tests OK (1 skipped, the opt-in matrix dump); `pytest` 761 passed, 1 skipped; `tsc`, `eslint` (no warnings), `npm run i18n:check` (2171 keys) and `next build` clean. Browser: `qa/browser/phase4a.js` (objectives 18-19) and `phase4.js` (objectives 20-21), English and Arabic, 375/768/1280, 306 checks (97 per language for objectives 20-21, 56 for 18-19) with no failure and no console error; export comparison in `docs/evidence/phase4/export-compare-*.txt`. The run found and fixed two bugs: the Team sheet stayed disabled after a save, and the assignee could not show a file to the client after submitting. Still written but not verified here: the items already marked so in the table above (Docker and PostgreSQL, and the schedulers that run the daily jobs).
 
 ---
 
 ## Phase 5: General tasks
 
+**Phase 5 gate run.** Backend: Django runner 802 tests OK (1 skipped), pytest 805 passed (1 skipped). Frontend: tsc, eslint, `i18n:check` (2232 keys) and `next build` clean. Browser: `docs/evidence/phase5/`, 58 checks per language, 0 failures, on a throwaway database.
+
 ### 22. General tasks
-All rows Missing: model and screens; scope by department head or CEO; only the assignee can mark done; done late; magic-byte upload checks; overdue alert re-armed on deadline change; counters.
+Model `generaltasks.GeneralTask` (migration `0001`), app `generaltasks/`, capabilities `gtask.access`, `gtask.assign_team`, `gtask.assign_any` (accounts migration `0014`), page `/tasks`. Browser evidence for every row: `docs/evidence/phase5/` (script `qa/browser/phase5.js`, seed `qa/browser/seed/phase5_general_tasks.py`): English and Arabic, 375/768/1280, 58 checks each, no failure, no console error. Tests: `generaltasks/tests.py` (39).
+
+| Row | Status | Evidence | Work needed |
+|-----|--------|----------|-------------|
+| Model and screens | Done | title, details, assignee, giver, deadline, status, `done_at`, `done_late`, `alert_round`; database checks (a done task has a time, an open one is never late, no blank title); `/tasks` with five counters, views My tasks, My team and Given by me, filter open, finished or all, a form with refusals, edit, details sheet (notes, files, history through the shared record panels), nav entry and a My Work section; browser: give a task (empty form refuses title, person and deadline), pick a person, edit a deadline | none |
+| Scope: the CEO gives to anyone, a department head to their own department | Done | `generaltasks/scope.py`; tests: the CEO to all seven others, a head to their department and to themselves only, members refused (403), inactive and missing people refused, the person picker lists only allowed people; visibility: the assignee, the giver, the department head and the CEO see a task, everyone else gets 404; browser: the CEO's picker lists Commercial, the head's lists only the head's department, a head does not see another department's task, a member sees no other department's task, the API answers 404 and 403 | none |
+| Only the assignee can mark it done | Done | `services.mark_done` refuses the CEO, the head and the giver (403) and a second time (400); a done task cannot be edited; browser: the CEO has no "Mark as done" on someone else's task | none |
+| "Done late" | Done | `done_late` is set once, when it is marked done, by comparing the local date to the deadline (the deadline day itself is on time); the history writes `gtask_done_late`; the giver is told; tests move the clock; browser: an overdue task finished by its assignee shows "Done late" with its time | none |
+| Magic-byte upload checks | Done | tasks are a registered record type, so the shared upload check applies: the file's first bytes must match its extension (PDF, PNG, JPG, DOCX, XLSX), 10 MB, no other types, path and double extensions neutralised; tests: a program renamed to .pdf, a PDF renamed to .png, an empty file, .exe, .js, .html, .zip, an oversized file; only people who can see the task can add or read files; a done task takes no more; browser: a fake PDF is refused, a real one is listed | none |
+| Overdue alert re-armed when the deadline changes | Done | one alert per `alert_round`, to the assignee and to the giver; changing the deadline adds 1 to the round, so the next overdue day alerts again, the same date changes nothing, done tasks never alert; daily job `general_tasks_daily`; tests run the job with a moved clock, twice, and after a change. Not covered in the browser: the alert itself, which needs the daily job and a past deadline (tests only) | the daily job must run (see DEPLOYMENT) |
+| Counters | Done | `GET /api/tasks/counters/`: open, due today, overdue, done, done late, for the person and, for heads and the CEO, for everything they may see; tests check every number and that they match the list; browser: the five tiles equal the server's numbers | none |
 
 ---
 

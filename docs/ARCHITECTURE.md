@@ -19,6 +19,7 @@ Design language: `/frontend/DESIGN.md`. This file is updated at the end of every
 | `quotations` | Quotations, versions, lines, PDF | Phase 3 |
 | `contracts` | Contracts, versions, meetings, visit report | Phase 4 |
 | `operations` | KYC / legal checklist, client activation, recurring tasks, QA meetings | Phase 5 |
+| `generaltasks` | Tasks the CEO or a department head gives a person outside any client: scope, only-the-assignee-finishes, done late, overdue alert per deadline, counters | Phase 5 (objective 22) |
 | `payments` | Schedules, instalments, payments (reversals) | Phase 6 |
 | `hr` | Attendance, leave, payroll | Phase 6 |
 | `reports` | Funnel, revenue, operations, HR, forecast | Phase 7 |
@@ -110,6 +111,7 @@ All under `/api/`. Everything needs sign-in and a finished forced password chang
 | `GET dashboard/summary/` | signed in, content by role |
 | `GET departments/`, `users/…` (create, edit, activate, deactivate, reset-password) | CEO |
 | `clients/…` (list, create, read, edit; no delete) | CEO, Operation head |
+| `tasks/…` (list with `view=mine\|given\|team`, `status`, `overdue`, `assignee`; read; create; edit; `POST tasks/<id>/done/`; `GET tasks/counters/`; `GET tasks/assignees/`) | everyone with `gtask.access` (own tasks); `gtask.assign_team` (own department), `gtask.assign_any` (CEO) to give and edit; only the assignee finishes |
 | `quotations/…` (list, read, create, `start`, `draft` (PUT), `submit`, `request-changes`, `sign`, `send`, `outcome`, `cancel`) | CEO read; Commercial head/assigned member request, send, record outcome; HR prepare; head signs/cancels |
 | `POST leads/<id>/skip-quotation/` | Commercial head or assigned member |
 | `contracts/…` (list, read, create, `start`, `send`, `meeting`, `submit`, `approve`, `return`, `handover`, `cancel`) | CEO read, approve, return; Commercial head/assigned member request, meeting, submit; HR draft, send, handover; Commercial head cancels; Operation reads handed-over contracts |

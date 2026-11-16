@@ -91,6 +91,10 @@ CAPABILITIES = {
     "operation.monitor": ("See the monitoring view of Operation tasks", [_CEO, _OH]),
     "operation.view_all_clients": ("See every client in Operation", [_CEO, _OH, _OM]),
     "operation.view_own_deals": ("See clients from your own deals", [_CH, _CM]),
+    # General tasks: a task one person gives another, outside any client
+    "gtask.access": ("Open Tasks: see the tasks given to you and mark them as done", [_CEO, _MKT, _CH, _CM, _HH, _HM, _OH, _OM]),
+    "gtask.assign_team": ("Give tasks to people in your own department and follow them", [_CH, _HH, _OH]),
+    "gtask.assign_any": ("Give tasks to anyone and follow every task", [_CEO]),
     "client.manage": ("Create and edit clients", [_CEO, _OH]),
     # Payments
     "payment.manage": ("Schedule and record payments", [_CH]),
