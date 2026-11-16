@@ -12,8 +12,12 @@ const dictionaries: Record<Lang, Record<string, string>> = { en, ar };
 // Western digits (0-9) in both languages.
 const LOCALES: Record<Lang, string> = { en: "en-US", ar: "ar-u-nu-latn" };
 
+/** `{name}` inserts a value. `{count|lead|leads}` picks the singular when the number is exactly 1. */
 function interpolate(text: string, vars?: Vars) {
-  return vars ? text.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`)) : text;
+  if (!vars) return text;
+  return text
+    .replace(/\{(\w+)\|([^|{}]*)\|([^|{}]*)\}/g, (_, k, one, many) => (Number(vars[k]) === 1 ? one : many))
+    .replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
 }
 
 /** What the backend says (in English) mapped to a dictionary key. Stored values never change; only display does. */
