@@ -37,3 +37,6 @@ Desktop.ini
 .vscode/
 *.swp
 *.log
+# Stale Phase 4 browser evidence
+qa/browser/phase4-obj20/
+qa/browser/phase4-obj21/
