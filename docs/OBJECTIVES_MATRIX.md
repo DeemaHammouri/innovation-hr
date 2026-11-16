@@ -22,7 +22,7 @@ Baseline audit, 16 Nov 2026, against commit `c1c68ef`. Source of truth for requi
 | 9 | Import (xlsx, CSV) | 2 | 5 | 0 | 0 | 0 |
 | 10 | Lead statuses and history | 2 | 4 | 0 | 0 | 0 |
 | 11 | Appointments and notifications | 2 | 5 (scheduler: written, not verified here) | 0 | 0 | 0 |
-| 12 | Targets and leads dashboard | 2 | 4 | 0 | 1 (decided) | 0 |
+| 12 | Targets and leads dashboard | 2 | 5 | 0 | 0 | 0 |
 | 13 | Conversion and client portal | 3 | 0 | 1 | 0 | 4 |
 | 14 | Quotation state machine | 3 | 1 | 3 | 0 | 2 |
 | 15 | Document rendering (PDF and Word) | 3 | 0 | 1 | 0 | 4 |
@@ -177,7 +177,8 @@ Limit: leads that existed before migration `0008` have no history rows until the
 ### 12. Targets and dashboard
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Target, progress maths | Different (decided) | a company-wide target per calendar month (`MonthlyTarget`, migration `0009`), set by the CEO or Commercial head (`lead.target_manage`); progress %, remaining, days elapsed and left, expected by today, on track or behind, required per day, per-day chart (`tests_insights.py: TargetTests`) | per-marketer targets or arbitrary date ranges are not built |
+| Target per employee over a date range | Done | `LeadTarget` (user, start_date, end_date, target; migrations `leads/0010-0012`); a manager (`lead.target_manage`) assigns a Marketing employee a number of leads from date A to date B (no overlap per person, at most 366 days); progress %, remaining, days elapsed and left, expected by today (on track or behind) and required per day are computed in the company time zone and tested on the first day, the last day, before and after the range (`tests_insights.py: TargetMathTests`, `TargetApiTests`); an employee sees only their own targets; browser proof EN and AR `qa/browser/phase2/*-targets-*.png` | none |
+| Old monthly targets keep working | Done | data migration `leads/0011` turns each monthly target into a date range for its month, assigned to the only active Marketing user (else a team target); reversible; `MonthlyTargetMigrationTests`; also run on a copy of the QA database (40 for November became 2026-11-01 to 2026-11-30 for the Marketing user) | none |
 | Leads dashboard (totals, rates, due and overdue, breakdowns, contributors) | Done | `leads/insights.py`; `GET /leads/dashboard/`; browser screenshots EN and AR | none |
 | Company time zone for "today"; boundary tests | Done | `test_midnight_boundary_uses_the_company_time_zone_not_utc`, first-day and last-day tests, last-local-minute test | none |
 | Numbers equal a manual count | Done | `DashboardTests.test_numbers_equal_a_manual_count` | none |

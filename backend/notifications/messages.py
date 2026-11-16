@@ -72,6 +72,10 @@ CATALOG = {
         "en": ("{actor} reopened {ref}", "{name}"),
         "ar": ("أعاد {actor} فتح {ref}", "{name}"),
     },
+    "target_assigned": {
+        "en": ("{actor} gave you a leads target: {name}", "{when}"),
+        "ar": ("حدّد لك {actor} هدفًا للعملاء المحتملين: {name}", "{when}"),
+    },
     "appointment_assigned": {
         "en": ("{actor} gave you an appointment", "{name} · {when}"),
         "ar": ("أسند إليك {actor} موعدًا", "{name} · {when}"),

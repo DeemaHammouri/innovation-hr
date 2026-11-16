@@ -23,11 +23,11 @@ def snapshot():
 
 
 class SeedOrganizationTests(TestCase):
-    def test_creates_five_departments_nine_roles_and_every_capability(self):
+    def test_creates_five_departments_ten_roles_and_every_capability(self):
         call_command("seed_organization", stdout=StringIO())
         self.assertEqual(Department.objects.count(), 5)
         self.assertEqual(sorted(Department.objects.values_list("name", flat=True)), sorted(DEPARTMENT_NAMES))
-        self.assertEqual(Role.objects.count(), 9)
+        self.assertEqual(Role.objects.count(), 10)
         self.assertEqual(Role.objects.filter(is_head=True).count(), 4)  # CEO + three department heads
         self.assertEqual(Capability.objects.count(), len(CAPABILITIES))
 

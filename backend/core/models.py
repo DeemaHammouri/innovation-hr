@@ -1,5 +1,7 @@
 from django.db import models, transaction
 
+from .fields import UpdatedAtField
+
 
 class Sequence(models.Model):
     """Counter behind readable references such as LD-0001."""
@@ -39,7 +41,7 @@ class DailyRun(models.Model):
 
 class TimeStamped(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = UpdatedAtField()
 
     class Meta:
         abstract = True

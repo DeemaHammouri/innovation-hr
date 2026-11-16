@@ -1,5 +1,7 @@
 en PASS en dashboard shows the target card
 en PASS en dashboard shows total and rates
+en PASS en manager sees the new per-employee target card
+en PASS en the marketing employee sees their own target and cannot set one
 en PASS en overdue stat links to the filtered pool
 en PASS en overdue link opens the pool filtered
 en PASS en the follow-up from a Waiting lead is listed
@@ -13,6 +15,8 @@ en PASS xlsx preview lists rows with states
 en PASS skip report is shown after an import with skipped rows
 ar PASS ar dashboard shows the target card
 ar PASS ar dashboard shows total and rates
+ar PASS ar manager sees the new per-employee target card
+ar PASS ar the marketing employee sees their own target and cannot set one
 ar PASS ar overdue stat links to the filtered pool
 ar PASS ar overdue link opens the pool filtered
 ar PASS ar the follow-up from a Waiting lead is listed

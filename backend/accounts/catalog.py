@@ -12,6 +12,7 @@ OPERATION = "Operation"
 DEPARTMENT_NAMES = [ADMINISTRATION, MARKETING, COMMERCIAL, HR, OPERATION]
 
 SUPER_ADMIN = "super_admin"
+CLIENT = "client"
 
 # key: (department or None, is_head, English name, Arabic name)
 ROLES = {
@@ -24,6 +25,8 @@ ROLES = {
     "operation_head": (OPERATION, True, "Operation head", "رئيس العمليات"),
     "operation_member": (OPERATION, False, "Operation member", "عضو العمليات"),
     SUPER_ADMIN: (None, False, "Super Admin", "مدير النظام"),
+    # Portal accounts are made by the system when a lead becomes a client. They are never offered in user management.
+    CLIENT: (None, False, "Client", "عميل"),
 }
 
 _CEO, _MKT = "ceo", "marketing"
@@ -47,6 +50,8 @@ CAPABILITIES = {
     "lead.edit_created": ("Edit and archive your own untouched leads", [_MKT]),
     "lead.dashboard": ("See the leads dashboard and the monthly target", [_CEO, _CH, _MKT]),
     "lead.target_manage": ("Set the monthly leads target", [_CEO, _CH]),
+    # Client portal
+    "portal.access": ("Use the client portal (a client sees only their own company)", [CLIENT]),
     # Appointments
     "appointment.access": ("Have appointments: meetings, calls, visits and follow-ups", [_CEO, _MKT, _CH, _CM]),
     "appointment.view_all": ("See everyone's appointments", [_CEO, _CH]),

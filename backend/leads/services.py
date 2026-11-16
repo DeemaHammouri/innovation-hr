@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from accounts.models import User
 from appointments import services as appointments
+from clients import services as clients
 from audit.models import record
 from core.models import Sequence
 from lookups.models import RejectionReason
@@ -94,6 +95,7 @@ def create_lead(actor, data, **_ignored):
 
 
 def update_lead(actor, lead, data):
+    clients.forbid_if_converted(lead)
     cleaned, errors = clean_lead_fields({**{k: getattr(lead, k) for k in FIELDS}, **data})
     if errors:
         raise ValidationError({k: [v] for k, v in errors.items()})
@@ -114,6 +116,7 @@ def update_lead(actor, lead, data):
 
 
 def assign(actor, lead, assignee):
+    clients.forbid_if_converted(lead)
     if assignee is None or not assignee.is_active or not assignee.department_id or assignee.department.name != "Commercial":
         raise ValidationError({"assigned_to": [MSG_ASSIGNEE]})
     if lead.archived_at:
@@ -132,6 +135,7 @@ def assign(actor, lead, assignee):
 
 
 def _require_open(lead):
+    clients.forbid_if_converted(lead)
     if lead.archived_at:
         raise ValidationError({"detail": MSG_ARCHIVED})
     if lead.status in (L.QUALIFIED, L.REJECTED):
@@ -182,6 +186,7 @@ def _apply_outcome(lead, actor, outcome, next_follow_up, reason_id, note):
         record(actor, lead, "outcome_qualified", from_value=old, comment=note[:300])
         log_status(lead, actor, old, L.QUALIFIED, when=now, note=note)
         appointments.cancel_open_follow_ups(lead, actor, "Lead accepted")
+        clients.convert_lead(lead, actor)
         _tell_head(actor, lead, "lead_qualified")
     else:
         raise ValidationError({"outcome": [MSG_OUTCOME]})
@@ -236,6 +241,7 @@ def set_outcome(actor, lead, *, outcome, next_follow_up=None, reason_id=None, no
 
 
 def reopen(actor, lead, note):
+    clients.forbid_if_converted(lead)
     note = (note or "").strip()
     with transaction.atomic():
         lead = Lead.objects.select_for_update().get(pk=lead.pk)
@@ -258,6 +264,7 @@ def reopen(actor, lead, note):
 
 
 def archive(actor, lead, reason):
+    clients.forbid_if_converted(lead)
     reason = (reason or "").strip()
     if lead.archived_at:
         raise ValidationError({"detail": MSG_ARCHIVE_DONE})
@@ -272,6 +279,7 @@ def archive(actor, lead, reason):
 
 
 def restore(actor, lead):
+    clients.forbid_if_converted(lead)
     if not lead.archived_at:
         raise ValidationError({"detail": MSG_RESTORE})
     if find_duplicate(lead.phone, lead.email, exclude_pk=lead.pk):

@@ -166,3 +166,14 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Appointment reminders go out this long before the start (see notifications: process_notifications).
 APPOINTMENT_REMINDER_MINUTES = 60
+
+# Email. Development prints messages in the terminal; production sets EMAIL_HOST (and friends) in the environment.
+EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "1") == "1"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Innovation Accounting Solutions <no-reply@innovation.local>")
+# Where a client opens the portal (used in the welcome email).
+PORTAL_URL = os.environ.get("PORTAL_URL", "http://localhost:3000/portal")

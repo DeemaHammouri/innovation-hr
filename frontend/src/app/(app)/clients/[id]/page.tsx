@@ -8,11 +8,13 @@ import { useEffect } from "react";
 import { NoAccess } from "@/components/NoAccess";
 import { RecordTabs } from "@/components/records/RecordTabs";
 import { Avatar } from "@/components/ui/Avatar";
-import { buttonClass } from "@/components/ui/Button";
+import { Button, buttonClass } from "@/components/ui/Button";
+import { Ltr } from "@/components/ui/Ltr";
+import { useToast } from "@/components/ui/Toast";
 import { InsetList, InsetRow } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorState, Skeleton, useDelayed } from "@/components/ui/States";
-import type { Client } from "@/lib/api";
+import { api, type Client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { pushRecent } from "@/lib/recent";
@@ -25,6 +27,17 @@ export default function ClientDetailPage() {
   const allowed = can(user, "client.manage");
   const { data, error, loading, reload } = useFetch<Client>(allowed ? `/clients/${id}/` : null);
   const showSkeleton = useDelayed(loading);
+  const toast = useToast();
+
+  async function sendPortal() {
+    try {
+      await api(`/clients/${id}/portal/`, { method: "POST" });
+      toast.success(t("clients.portalSent"));
+      reload();
+    } catch {
+      toast.error(t("lead.saveFailed"));
+    }
+  }
 
   useEffect(() => {
     if (user && data) {
@@ -82,6 +95,10 @@ export default function ClientDetailPage() {
               <InsetRow label={t("common.phone")} ltr={!!data.phone}>{data.phone || empty}</InsetRow>
               <InsetRow label={t("common.email")} ltr={!!data.email}>{data.email || empty}</InsetRow>
               <InsetRow label={t("clients.address")}>{data.address ? <span className="whitespace-pre-line">{data.address}</span> : empty}</InsetRow>
+              {data.lead_ref ? <InsetRow label={t("clients.fromLead")}><Ltr>{data.lead_ref}</Ltr></InsetRow> : null}
+              <InsetRow label={t("clients.portal")}>
+                <span className="flex flex-wrap items-center gap-3">{data.portal_status ? t(`clients.portal.${data.portal_status}`) : empty}<Button variant="secondary" onClick={sendPortal}>{t("clients.portalResend")}</Button></span>
+              </InsetRow>
               <InsetRow label={t("clients.notes")}>{data.notes ? <span className="whitespace-pre-line">{data.notes}</span> : empty}</InsetRow>
             </InsetList>
             <InsetList title={t("clients.sectionRecord")}>

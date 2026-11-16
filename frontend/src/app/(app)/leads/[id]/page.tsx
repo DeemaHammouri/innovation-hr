@@ -149,6 +149,12 @@ export default function LeadDetailPage() {
           {note ? <p className="text-label font-normal text-ink-2">{note}</p> : null}
         </Card>
       </div>
+      {data.client_id ? (
+        <p role="status" className="mb-4 rounded-control border border-primary-line bg-primary-tint p-3.5 text-label font-medium text-primary-hover">
+          {t("lead.converted")}{" "}
+          {can(user, "client.manage") ? <Link href={`/clients/${data.client_id}`} className="underline">{t("lead.openClient")}</Link> : null}
+        </p>
+      ) : null}
       <RecordTabs
         target={`lead:${data.id}`}
         canAttach={p.can_log || p.can_edit}

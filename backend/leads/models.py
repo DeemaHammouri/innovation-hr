@@ -3,6 +3,7 @@ import re
 from django.conf import settings
 from django.db import models
 
+from core.fields import UpdatedAtField
 from core.models import Archivable, TimeStamped
 
 from .normalize import normalize_email, normalize_phone
@@ -139,14 +140,19 @@ class LeadStatusChange(models.Model):
         indexes = [models.Index(fields=["lead", "changed_at"])]
 
 
-class MonthlyTarget(models.Model):
-    """How many new leads the company wants added in a calendar month (company time zone)."""
+class LeadTarget(models.Model):
+    """A number of leads a Marketing employee is asked to add from one date to another (both included, company time zone).
+    `user` empty means the whole Marketing team (used for targets converted from the old monthly company target)."""
 
-    year = models.PositiveSmallIntegerField()
-    month = models.PositiveSmallIntegerField()
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="lead_targets", null=True, blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField()
     target = models.PositiveIntegerField()
     set_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = UpdatedAtField()
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["year", "month"], name="uniq_target_month")]
+        ordering = ["start_date", "id"]
+        constraints = [models.CheckConstraint(condition=models.Q(end_date__gte=models.F("start_date")), name="target_end_after_start")]
+        indexes = [models.Index(fields=["user", "start_date", "end_date"])]

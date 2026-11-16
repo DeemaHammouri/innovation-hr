@@ -317,12 +317,11 @@ class StateMachineTests(LeadCase):
         lead = self.mk(assigned=self.member)
         self.log(lead, user=self.member, outcome="waiting", next_follow_up=self.day(1))
         self.log(lead, user=self.member, outcome="accepted")
-        self.assertEqual(self.actions(lead), ["interaction", "contacted", "outcome_waiting", "appointment_created", "interaction", "outcome_qualified", "followups_cancelled"])
+        self.assertEqual(self.actions(lead), ["interaction", "contacted", "outcome_waiting", "appointment_created", "interaction", "outcome_qualified", "followups_cancelled", "converted"])
         self.as_role("commercial_member")
         timeline = self.client.get(f"/api/activity/?target=lead:{lead.pk}").data["results"]
-        self.assertEqual(timeline[0]["action"], "followups_cancelled")
-        self.assertEqual(timeline[1]["action"], "outcome_qualified")
-        self.assertEqual(timeline[1]["actor_name"], self.member.full_name)
+        self.assertEqual([timeline[0]["action"], timeline[1]["action"], timeline[2]["action"]], ["converted", "followups_cancelled", "outcome_qualified"])
+        self.assertEqual(timeline[2]["actor_name"], self.member.full_name)
 
 
 class CreateAndDuplicateTests(LeadCase):

@@ -58,7 +58,7 @@ def onboard(actor, contract):
     """On handover: create the client (or link the existing one with the same name) and copy the CEO's checklist template."""
     lead = contract.lead
     with transaction.atomic():
-        client = Client.objects.filter(company_name__iexact=lead.company_name).first()
+        client = Client.objects.filter(lead=lead).first() or Client.objects.filter(company_name__iexact=lead.company_name).first()
         created = client is None
         if created:
             client = Client.objects.create(
@@ -71,6 +71,9 @@ def onboard(actor, contract):
         if not client.checklist.exists():
             for pos, t in enumerate(ChecklistTemplateItem.objects.filter(is_active=True).order_by("sort_order", "id")):
                 ChecklistItem.objects.create(client=client, template_item=t, name_en=t.name_en, name_ar=t.name_ar, required=t.required, position=pos)
+        if client.status == "prospect":  # converted from a lead earlier; the handover is what starts onboarding
+            client.status = "onboarding"
+            client.save(update_fields=["status", "updated_at"])
         record(actor, client, "contract_linked", to_value=contract.ref)
         if client.status == "onboarding":
             recompute_status(actor, client)

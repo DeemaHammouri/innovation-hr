@@ -164,7 +164,7 @@ class RoleListView(ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        qs = Role.objects.exclude(key="super_admin")
+        qs = Role.objects.exclude(key__in=["super_admin", "client"])
         department = self.request.query_params.get("department")
         return qs.filter(department_id=int(department)) if department and department.isdigit() else qs
 
@@ -178,7 +178,7 @@ class UserViewSet(
 ):
     required_capabilities = {"*": ["user.manage"]}
     denied_message = "Only the CEO can do this."
-    queryset = User.objects.select_related("department", "role_ref").filter(is_superuser=False).exclude(role_ref__key="super_admin")
+    queryset = User.objects.select_related("department", "role_ref").filter(is_superuser=False).exclude(role_ref__key__in=["super_admin", "client"])
     filter_backends = [SearchFilter]
     search_fields = ["full_name", "email", "department__name"]
     http_method_names = ["get", "post", "patch", "head", "options"]

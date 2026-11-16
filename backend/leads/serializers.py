@@ -12,6 +12,7 @@ class LeadSerializer(serializers.ModelSerializer):
     batch_ref = serializers.CharField(source="batch.ref", default=None, read_only=True)
     rejection_reason_en = serializers.CharField(source="rejection_reason.name_en", default=None, read_only=True)
     rejection_reason_ar = serializers.CharField(source="rejection_reason.name_ar", default=None, read_only=True)
+    client_id = serializers.IntegerField(source="client.pk", default=None, read_only=True)
     follow_up_overdue = serializers.SerializerMethodField()
     first_contact_overdue = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
@@ -25,7 +26,7 @@ class LeadSerializer(serializers.ModelSerializer):
             "assigned_to", "assigned_to_name", "assigned_at", "batch", "batch_ref", "created_by", "created_by_name", "created_at",
             "next_follow_up", "rejection_reason", "rejection_reason_en", "rejection_reason_ar", "rejection_note",
             "first_contacted_at", "last_contacted_at", "qualified_at", "rejected_at", "archived_at", "archive_reason",
-            "follow_up_overdue", "first_contact_overdue", "permissions", "quotation", "contract", "skipped_quotation_at", "updated_at",
+            "follow_up_overdue", "first_contact_overdue", "permissions", "quotation", "contract", "skipped_quotation_at", "client_id", "updated_at",
         ]
         read_only_fields = fields
 
@@ -43,7 +44,10 @@ class LeadSerializer(serializers.ModelSerializer):
         return sla.first_contact_overdue(lead, now, setting)
 
     def get_permissions(self, lead):
-        return access.flags(self.context["request"].user, lead)
+        flags = access.flags(self.context["request"].user, lead)
+        if getattr(lead, "client", None) is not None:  # converted: the lead is frozen, so nothing on it is offered
+            flags.update(can_edit=False, can_assign=False, can_log=False, can_reopen=False, can_archive=False, can_restore=False)
+        return flags
 
     def get_quotation(self, lead):
         """The lead's newest quotation (from the prefetched list), so the lead page can link to it."""

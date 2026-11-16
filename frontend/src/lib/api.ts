@@ -10,7 +10,8 @@ export type RoleKey =
   | "hr_member"
   | "operation_head"
   | "operation_member"
-  | "super_admin";
+  | "super_admin"
+  | "client";
 
 export type Permissions = { manage_users: boolean; manage_clients: boolean };
 
@@ -49,6 +50,10 @@ export type Department = { id: number; name: string };
 
 export type Client = {
   id: number;
+  status?: "prospect" | "onboarding" | "active" | "inactive";
+  lead?: number | null;
+  lead_ref?: string | null;
+  portal_status?: "" | "sent" | "no_email" | "email_in_use" | "failed";
   company_name: string;
   contact_person: string;
   phone: string;
@@ -242,7 +247,9 @@ export type LeadPermissions = {
   can_skip_quotation: boolean;
   can_request_contract: boolean;
 };
+export type PortalMe = { client: { id: number; company_name: string; contact_person: string; phone: string; email: string; address: string } };
 export type Lead = {
+  client_id: number | null;
   position: string;
   location: string;
   id: number;
@@ -685,16 +692,20 @@ export type LeadsDashboard = {
   by_source: { source: string; count: number }[];
   top_contributors: { id: number; name: string; count: number }[];
 };
-export type TargetProgress = {
-  year: number;
-  month: number;
+export type LeadTargetProgress = {
+  id: number;
+  user: number | null;
+  user_name: string | null;
+  start_date: string;
+  end_date: string;
   target: number;
-  set: boolean;
-  set_by: string | null;
+  set_by: number;
+  set_by_name: string;
+  state: "upcoming" | "active" | "ended";
   added: number;
   remaining: number;
   percent: number;
-  days_in_month: number;
+  days_in_range: number;
   days_elapsed: number;
   days_left: number;
   expected_by_today: number;

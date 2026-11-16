@@ -18,9 +18,9 @@ from core.pagination import StandardPagination
 
 from audit.models import record
 
-from . import access, importer, insights, services
+from . import access, importer, insights, services, targets
 from .filters import LeadFilter, LeadSearch
-from .models import ImportBatch, Lead, MonthlyTarget
+from .models import ImportBatch, Lead, LeadTarget
 from .serializers import ContactInputSerializer, ImportBatchSerializer, InteractionSerializer, LeadSerializer, StatusChangeSerializer
 from .sla import sla_now
 
@@ -72,7 +72,7 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
     def get_queryset(self):
         return (
             Lead.objects.filter(access.visible_q(self.request.user))
-            .select_related("assigned_to", "created_by", "batch", "rejection_reason")
+            .select_related("assigned_to", "created_by", "batch", "rejection_reason", "client")
             .prefetch_related("quotations", "contracts")
         )
 
@@ -252,33 +252,54 @@ class DashboardView(APIView):
         return Response(insights.dashboard(request.user))
 
 
-class TargetView(APIView):
-    """GET ?month=YYYY-MM (this month by default): progress. PUT {month, target}: set it."""
+class TargetListView(APIView):
+    """GET: the targets you may see (a manager sees everyone's; a Marketing employee sees their own), current and upcoming by default,
+    `?all=1` adds ended ones, `?user=<id>` narrows for a manager. POST: a manager gives a Marketing employee a target."""
 
-    required_capabilities = {"get": ["lead.dashboard"], "put": ["lead.target_manage"]}
-    denied_message = {"get": "You do not have access to the leads dashboard.", "put": "Only the CEO or the Commercial head can set the target."}
-
-    @staticmethod
-    def month_of(value):
-        today = timezone.localdate()
-        if not value:
-            return today.year, today.month
-        try:
-            y, m = (int(x) for x in str(value).split("-"))
-            assert 2000 <= y <= 2100 and 1 <= m <= 12
-        except (ValueError, AssertionError):
-            raise ValidationError({"month": ["Use a month like 2026-11."]})
-        return y, m
+    required_capabilities = {"get": ["lead.dashboard"], "post": ["lead.target_manage"]}
+    denied_message = {"get": "You do not have access to the leads dashboard.", "post": "Only the CEO or the Commercial head can set targets."}
 
     def get(self, request):
-        return Response(insights.progress(*self.month_of(request.query_params.get("month"))))
+        today = timezone.localdate()
+        qs = LeadTarget.objects.select_related("user", "set_by")
+        if not request.user.has_capability("lead.target_manage"):
+            qs = qs.filter(Q(user=request.user))
+        elif request.query_params.get("user", "").isdigit():
+            qs = qs.filter(user_id=int(request.query_params["user"]))
+        if request.query_params.get("all") != "1":
+            qs = qs.filter(end_date__gte=today)
+        return Response([insights.progress(t, today) for t in qs])
 
-    def put(self, request):
-        y, m = self.month_of(request.data.get("month"))
-        value = request.data.get("target")
-        if isinstance(value, bool) or not str(value).isdigit() or not (1 <= int(value) <= 100000):
-            raise ValidationError({"target": ["Enter a whole number between 1 and 100000."]})
-        with transaction.atomic():
-            row, _ = MonthlyTarget.objects.update_or_create(year=y, month=m, defaults={"target": int(value), "set_by": request.user})
-            record(request.user, row, "target_set", to_value=f"{y}-{m:02d}: {value}")
-        return Response(insights.progress(y, m))
+    def post(self, request):
+        row = targets.create(request.user, request.data)
+        return Response(insights.progress(LeadTarget.objects.select_related("user", "set_by").get(pk=row.pk)), status=status.HTTP_201_CREATED)
+
+
+class TargetDetailView(APIView):
+    required_capabilities = {"get": ["lead.dashboard"], "patch": ["lead.target_manage"], "delete": ["lead.target_manage"]}
+    denied_message = {"get": "You do not have access to the leads dashboard.", "patch": "Only the CEO or the Commercial head can change targets.", "delete": "Only the CEO or the Commercial head can remove targets."}
+
+    def row(self, request, pk):
+        qs = LeadTarget.objects.select_related("user", "set_by")
+        if not request.user.has_capability("lead.target_manage"):
+            qs = qs.filter(user=request.user)
+        return get_object_or_404(qs, pk=pk)
+
+    def get(self, request, pk):
+        return Response(insights.progress(self.row(request, pk)))
+
+    def patch(self, request, pk):
+        row = targets.update(request.user, self.row(request, pk), request.data)
+        return Response(insights.progress(LeadTarget.objects.select_related("user", "set_by").get(pk=row.pk)))
+
+    def delete(self, request, pk):
+        targets.remove(request.user, self.row(request, pk))
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TargetAssigneesView(APIView):
+    required_capabilities = ["lead.target_manage"]
+    denied_message = "Only the CEO or the Commercial head can set targets."
+
+    def get(self, request):
+        return Response([{"id": u.pk, "full_name": u.full_name} for u in targets.marketing_people()])

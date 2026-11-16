@@ -463,7 +463,7 @@ class SalaryTests(PayrollCase):
         self.client.put(f"/api/hr/salaries/{self.mem.pk}/", {"base_salary": "9876.54"}, format="json")
         actions = list(AuditEntry.objects.filter(action__startswith="salary").values_list("action", flat=True))
         self.assertIn("salary_changed", actions)
-        blob = json.dumps(list(AuditEntry.objects.values()), default=str)
+        blob = json.dumps(list(AuditEntry.objects.values("action", "from_value", "to_value", "comment")), default=str)  # not created_at: its microseconds can spell a needle (a false alarm seen once in 20 runs)
         self.assertNotIn("9876", blob)
 
 

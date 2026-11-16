@@ -4,7 +4,7 @@ import { useAuth } from "./auth";
 import { can, canAny } from "@/lib/can";
 
 /** Add a key here, then its icon in navIcons.tsx and its label (nav.<key>) in both locale files. */
-export type NavKey = "home" | "users" | "clients" | "leads" | "dashboard" | "appointments" | "pipeline" | "quotations" | "contracts" | "approvals" | "operation" | "payments" | "attendance" | "leave" | "payroll" | "reports" | "settings";
+export type NavKey = "home" | "users" | "clients" | "portal" | "leads" | "dashboard" | "appointments" | "pipeline" | "quotations" | "contracts" | "approvals" | "operation" | "payments" | "attendance" | "leave" | "payroll" | "reports" | "settings";
 export type NavItem = { key: NavKey; href: string };
 
 /**
@@ -14,6 +14,7 @@ export type NavItem = { key: NavKey; href: string };
  */
 export function useNavItems(): NavItem[] {
   const { user } = useAuth();
+  if (user?.role_key === "client") return [{ key: "portal", href: "/portal" }];  // a client has one page, and it is not the staff home
   const items: NavItem[] = [{ key: "home", href: "/" }];
   if (can(user, "user.manage")) items.push({ key: "users", href: "/users" });
   if (can(user, "client.manage")) items.push({ key: "clients", href: "/clients" });

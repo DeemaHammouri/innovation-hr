@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { StatusPage } from "@/components/StatusPage";
 import { AppShell } from "@/components/shell/AppShell";
@@ -13,13 +13,15 @@ import { useT } from "@/lib/i18n";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, sessionExpired, offline, retry } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const t = useT();
 
   useEffect(() => {
     if (loading || offline) return;
     if (!user) router.replace(sessionExpired ? "/session-expired" : "/login");
     else if (user.must_change_password) router.replace("/set-password");
-  }, [loading, offline, user, sessionExpired, router]);
+    else if (user.role_key === "client" && !pathname.startsWith("/portal") && !pathname.startsWith("/profile")) router.replace("/portal");
+  }, [loading, offline, user, sessionExpired, router, pathname]);
 
   if (offline && !loading) return <StatusPage kind="offline" href="/" action={t("common.tryAgain")} onAction={retry} />;
   if (loading || !user || user.must_change_password) {
