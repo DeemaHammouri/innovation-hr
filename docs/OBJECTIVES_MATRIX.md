@@ -23,7 +23,7 @@ Baseline audit, 16 Nov 2026, against commit `c1c68ef`. Source of truth for requi
 | 10 | Lead statuses and history | 2 | 4 | 0 | 0 | 0 |
 | 11 | Appointments and notifications | 2 | 5 (scheduler: written, not verified here) | 0 | 0 | 0 |
 | 12 | Targets and leads dashboard | 2 | 5 | 0 | 0 | 0 |
-| 13 | Conversion and client portal | 3 | 0 | 1 | 0 | 4 |
+| 13 | Conversion and client portal | 3 | 5 | 0 | 0 | 0 |
 | 14 | Quotation state machine | 3 | 1 | 3 | 0 | 2 |
 | 15 | Document rendering (PDF and Word) | 3 | 0 | 1 | 0 | 4 |
 | 16 | Meeting reports and contracts | 3 | 0 | 3 | 0 | 3 |
@@ -193,11 +193,11 @@ Definitions (shown in the code header of `insights.py`): contact rate is leads e
 ### 13. Conversion and portal
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Initial acceptance converts to a Client and locks the lead (409 `lead_converted`) | Partly | lead and client models exist; lock and error code to confirm | build and test |
-| Client portal account, emailed temporary password | Missing | no portal | build, console email backend |
-| Missing email and email already in use handled | Missing | | build |
-| Client changes password, lands on `/portal`, sees only own data | Missing | | build |
-| Client accounts hidden from user management | Missing | | build |
+| Initial acceptance converts to a Client and locks the lead (409 `lead_converted`) | Done | `clients/services.convert_lead` runs in the same transaction as the outcome (`test_a_failure_while_converting_rolls_the_acceptance_back`); edit, assign, archive, restore, log, outcome and reopen all answer 409 `lead_converted` (`test_the_lead_is_locked_with_409_lead_converted`); browser: PATCH, archive and log return 409 `lead_converted`, the lead page shows the converted banner with no edit control; `qa/browser/phase3-obj13/` (EN and AR at 375, 768, 1280; script `qa/browser/phase3a.js`) | the lead has no DELETE endpoint at all (archive is the only removal and it is locked too) |
+| Client portal account, emailed temporary password | Done | role `client`, capability `portal.access`; `test_account_is_made_and_the_temporary_password_is_emailed` (the password is never written to the audit trail); mail backend from settings (console in development, SMTP variables in `.env.example`) | production needs real SMTP settings: written, not verified here |
+| Missing email and email already in use handled | Done | `no_email`, `email_in_use`, `failed` (mail server down) all still convert the lead and say so on the client record; staff can fix the email and press "Send portal login" (resets and re-sends the temporary password); tests `test_missing_email_*`, `test_email_already_in_use_*`, `test_a_mail_server_failure_*`, `test_staff_can_open_the_portal_*`; browser screenshots `client-no_email`, `client-email_in_use` | none |
+| Client changes password, lands on `/portal`, sees only own data | Done | first sign-in is held at `/set-password` (`test_first_sign_in_forces_a_new_password`); afterwards `/portal/me/` returns only their client (`test_a_client_sees_only_their_own_company`); a client reaches no endpoint guarded by a staff capability (`test_a_client_can_reach_nothing_a_staff_capability_guards` walks every endpoint); browser: temporary password, set password, lands on `/portal`, another client's company never shown, `/leads` and another client's URL redirect back, API returns 403 or 404 | none |
+| Client accounts hidden from user management | Done | excluded from the users queryset and the role list; `test_client_accounts_never_appear_in_user_management`; browser: users page and `/users/` API list no client | none |
 
 ### 14. Quotation state machine
 | Row | Status | Evidence | Work needed |

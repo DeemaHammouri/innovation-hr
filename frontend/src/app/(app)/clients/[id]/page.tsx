@@ -31,8 +31,9 @@ export default function ClientDetailPage() {
 
   async function sendPortal() {
     try {
-      await api(`/clients/${id}/portal/`, { method: "POST" });
-      toast.success(t("clients.portalSent"));
+      const res = await api<{ portal_status: NonNullable<Client["portal_status"]> }>(`/clients/${id}/portal/`, { method: "POST" });
+      if (res.portal_status === "sent") toast.success(t("clients.portalSent"));
+      else toast.error(t(`clients.portal.${res.portal_status}`));
       reload();
     } catch {
       toast.error(t("lead.saveFailed"));
