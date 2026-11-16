@@ -1,6 +1,7 @@
 "use client";
 
 import { CurrencyCircleDollar, MagnifyingGlass } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { NoAccess } from "@/components/NoAccess";
@@ -24,7 +25,7 @@ const KEYS = ["q", "filter", "page"] as const;
 export default function PaymentsPage() {
   const { user } = useAuth();
   if (!user) return null;
-  if (user.role_key !== "ceo" && user.role_key !== "commercial_head") return <NoAccess />;
+  if (!can(user, "payment.view")) return <NoAccess />;
   return <Overview />;
 }
 

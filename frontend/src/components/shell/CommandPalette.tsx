@@ -1,5 +1,6 @@
 "use client";
 
+import { can } from "@/lib/can";
 import {
   Buildings,
   ClockCounterClockwise,
@@ -70,8 +71,8 @@ function PaletteDialog({ closing, onClose }: { closing: boolean; onClose: () => 
   const panel = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const listId = useId();
-  const canUsers = !!user?.permissions.manage_users;
-  const canClients = !!user?.permissions.manage_clients;
+  const canUsers = can(user, "user.manage");
+  const canClients = can(user, "client.manage");
 
   useDialog(!closing, onClose, panel);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { DotsThreeVertical, Eye, FunnelSimple, Kanban, ListBullets, MagnifyingGlass, Megaphone, Pencil } from "@phosphor-icons/react";
+import { can, canAny } from "@/lib/can";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -36,8 +37,8 @@ export function LeadsBrowser({ board, action }: { board: boolean; action?: React
   const [params, setParams] = useUrlParams(KEYS);
   const [search, setSearch] = useState(params.q);
   const debounced = useDebounced(search);
-  const isHead = user?.role_key === "commercial_head";
-  const isMember = user?.role_key === "commercial_member";
+  const isHead = can(user, "lead.manage");
+  const isMember = can(user, "lead.work_assigned") && !isHead;
   // Phones start on the list: a board is wider than the screen. The choice is in the address bar once made.
   const [narrow] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
   const view = board ? (params.view === "list" || (!params.view && narrow) ? "list" : "board") : "list";
@@ -82,7 +83,7 @@ export function LeadsBrowser({ board, action }: { board: boolean; action?: React
   const assigneeOptions = [
     { value: "", label: t("lead.allAssignees") },
     ...(isMember ? [] : [{ value: "me", label: t("lead.mine") }]),
-    ...(isHead || user?.role_key === "ceo" ? [{ value: "none", label: t("lead.unassigned") }] : []),
+    ...(isHead || can(user, "lead.view_all") ? [{ value: "none", label: t("lead.unassigned") }] : []),
     ...(people ?? []).filter((p) => p.id !== user?.id).map((p) => ({ value: String(p.id), label: p.full_name })),
   ];
 
@@ -135,8 +136,8 @@ export function LeadsBrowser({ board, action }: { board: boolean; action?: React
     ) : (
       <EmptyState
         icon={<Megaphone size={24} aria-hidden />}
-        title={t(board || (user?.role_key ?? "").startsWith("commercial") ? "lead.emptyCommercialTitle" : "lead.emptyTitle")}
-        description={t(board || (user?.role_key ?? "").startsWith("commercial") ? "lead.emptyCommercial" : "lead.emptyText")}
+        title={t(board || canAny(user, "lead.manage", "lead.work_assigned") ? "lead.emptyCommercialTitle" : "lead.emptyTitle")}
+        description={t(board || canAny(user, "lead.manage", "lead.work_assigned") ? "lead.emptyCommercial" : "lead.emptyText")}
         action={action}
       />
     )

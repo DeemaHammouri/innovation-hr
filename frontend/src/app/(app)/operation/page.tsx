@@ -1,6 +1,7 @@
 "use client";
 
 import { ListChecks, MagnifyingGlass } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { NoAccess } from "@/components/NoAccess";
@@ -20,15 +21,14 @@ import { useI18n } from "@/lib/i18n";
 import { useDebounced, useQuery } from "@/lib/useQuery";
 import { useUrlParams } from "@/lib/useUrlParams";
 
-const ROLES = ["ceo", "commercial_head", "commercial_member", "operation_head", "operation_member"];
 const SIZE = 25;
 const KEYS = ["tab", "q", "status", "mine", "show", "page"] as const;
 
 export default function OperationPage() {
   const { user } = useAuth();
   if (!user) return null;
-  if (!ROLES.includes(user.role_key ?? "")) return <NoAccess />;
-  return <OperationView isOp={user.role_key === "operation_head" || user.role_key === "operation_member"} />;
+  if (!can(user, "operation.access")) return <NoAccess />;
+  return <OperationView isOp={can(user, "operation.work")} />;
 }
 
 function OperationView({ isOp }: { isOp: boolean }) {

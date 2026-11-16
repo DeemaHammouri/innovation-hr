@@ -1,6 +1,7 @@
 "use client";
 
 import { Pencil } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect } from "react";
@@ -21,7 +22,7 @@ export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { t, formatDateTime } = useI18n();
-  const allowed = !!user?.permissions.manage_clients;
+  const allowed = can(user, "client.manage");
   const { data, error, loading, reload } = useFetch<Client>(allowed ? `/clients/${id}/` : null);
   const showSkeleton = useDelayed(loading);
 

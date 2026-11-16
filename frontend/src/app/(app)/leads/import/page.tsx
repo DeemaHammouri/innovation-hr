@@ -1,6 +1,7 @@
 "use client";
 
 import { DownloadSimple, FileCsv, UploadSimple } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -40,7 +41,7 @@ export default function ImportLeadsPage() {
   const [dupMode, setDupMode] = useState<"skip" | "import">("skip");
 
   if (!user) return null;
-  if (user.role_key !== "marketing") return <NoAccess />;
+  if (!can(user, "lead.import")) return <NoAccess />;
 
   function form(extra?: Record<string, string>) {
     const f = new FormData();

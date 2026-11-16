@@ -1,6 +1,7 @@
 "use client";
 
 import { SealCheck } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { ContractStatusPill } from "@/components/contracts/contractUi";
 import { NoAccess } from "@/components/NoAccess";
@@ -18,7 +19,7 @@ import { useQuery } from "@/lib/useQuery";
 export default function ApprovalsPage() {
   const { user } = useAuth();
   if (!user) return null;
-  if (user.role_key !== "ceo") return <NoAccess />;
+  if (!can(user, "contract.sign")) return <NoAccess />;
   return <Inbox />;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { Buildings, DotsThreeVertical, Eye, MagnifyingGlass, Pencil, Plus } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -23,7 +24,7 @@ import { useUrlParams } from "@/lib/useUrlParams";
 export default function ClientsPage() {
   const { user } = useAuth();
   if (!user) return null;
-  if (!user.permissions.manage_clients) return <NoAccess />;
+  if (!can(user, "client.manage")) return <NoAccess />;
   return <ClientsView />;
 }
 

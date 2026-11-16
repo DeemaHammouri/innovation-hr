@@ -1,6 +1,7 @@
 "use client";
 
 import { CaretLeft, CaretRight, Plus } from "@phosphor-icons/react";
+import { can, canAny } from "@/lib/can";
 import { useState } from "react";
 import { LeavePill, RejectSheet, RequestSheet, TypeSheet, isoDate, useTypeName } from "@/components/hr/LeaveSheets";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -27,14 +28,13 @@ export default function LeavePage() {
   const { t } = useI18n();
   const [params, setParams] = useUrlParams(KEYS);
   if (!user) return null;
-  const role = user.role_key ?? "";
-  const decides = role === "hr_head" || role === "ceo";
-  const canRequest = role !== "ceo";
+  const decides = canAny(user, "hr.manage", "hr.leave_decide_hr_head");
+  const canRequest = can(user, "hr.leave_request");
   const tabs: { value: Tab; label: string }[] = [
     ...(canRequest ? [{ value: "mine" as Tab, label: t("leave.tab.mine") }] : []),
     ...(decides ? [{ value: "requests" as Tab, label: t("leave.tab.requests") }] : []),
     { value: "calendar", label: t("leave.tab.calendar") },
-    ...(role === "hr_head" ? [{ value: "types" as Tab, label: t("leave.tab.types") }] : []),
+    ...(can(user, "hr.manage") ? [{ value: "types" as Tab, label: t("leave.tab.types") }] : []),
   ];
   const tab = (tabs.find((x) => x.value === params.tab)?.value ?? tabs[0].value) as Tab;
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { MagnifyingGlass, Receipt } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FollowUpChip } from "@/components/leads/leadUi";
@@ -20,14 +21,13 @@ import { useI18n } from "@/lib/i18n";
 import { useDebounced, useQuery } from "@/lib/useQuery";
 import { useUrlParams } from "@/lib/useUrlParams";
 
-const ROLES = ["ceo", "commercial_head", "commercial_member", "hr_head", "hr_member"];
 const SIZE = 25;
 const KEYS = ["q", "status", "overdue", "page"] as const;
 
 export default function QuotationsPage() {
   const { user } = useAuth();
   if (!user) return null;
-  if (!ROLES.includes(user.role_key ?? "")) return <NoAccess />;
+  if (!can(user, "quotation.access")) return <NoAccess />;
   return <QuotationsView />;
 }
 

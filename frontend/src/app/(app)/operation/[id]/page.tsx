@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarCheck, PencilSimple, Plus } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -46,7 +47,7 @@ export default function OperationClientPage() {
       </>
     );
   }
-  if (!["ceo", "commercial_head", "commercial_member", "operation_head", "operation_member"].includes(user.role_key ?? "")) return <NoAccess />;
+  if (!can(user, "operation.access")) return <NoAccess />;
   const { can_work: work, can_manage: manage } = data.permissions;
   const refresh = () => {
     setSheet(null);

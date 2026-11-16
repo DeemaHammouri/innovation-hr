@@ -1,6 +1,7 @@
 "use client";
 
 import { Archive, ArrowCounterClockwise, DotsThreeVertical, Pencil, UserSwitch } from "@phosphor-icons/react";
+import { canAny } from "@/lib/can";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -39,7 +40,7 @@ export default function LeadDetailPage() {
   const [sheet, setSheet] = useState<Sheet>(null);
 
   if (!user) return null;
-  const commercial = (user.role_key ?? "").startsWith("commercial");
+  const commercial = canAny(user, "lead.manage", "lead.work_assigned");
   const back = { href: commercial ? "/pipeline" : "/leads", label: t(commercial ? "lead.pipelineTitle" : "lead.title") };
   if (error) return <><PageHeader title={t("lead.title")} back={back} /><ErrorState message={error} onRetry={reload} /></>;
   if (!data) {

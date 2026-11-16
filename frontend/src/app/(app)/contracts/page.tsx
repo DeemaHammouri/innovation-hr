@@ -1,6 +1,7 @@
 "use client";
 
 import { MagnifyingGlass, Signature } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CONTRACT_STATUSES, ContractStatusPill } from "@/components/contracts/contractUi";
@@ -25,7 +26,7 @@ const KEYS = ["q", "status", "page"] as const;
 export default function ContractsPage() {
   const { user } = useAuth();
   if (!user) return null;
-  if (!user.role_key || user.role_key === "marketing") return <NoAccess />;
+  if (!can(user, "contract.access")) return <NoAccess />;
   return <ContractsView />;
 }
 

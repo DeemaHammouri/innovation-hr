@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { can } from "@/lib/can";
 import { NoAccess } from "@/components/NoAccess";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorState, Skeleton, useDelayed } from "@/components/ui/States";
@@ -14,7 +15,7 @@ export default function EditUserPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const t = useT();
-  const allowed = !!user?.permissions.manage_users;
+  const allowed = can(user, "user.manage");
   const { data, error, loading, reload } = useFetch<User>(allowed ? `/users/${id}/` : null);
   const showSkeleton = useDelayed(loading);
   if (!user) return null;

@@ -1,6 +1,7 @@
 "use client";
 
 import { DotsThreeVertical, Eye, LockKey, Pencil, Plus, SlidersHorizontal, UserMinus, Users as UsersIcon, X, MagnifyingGlass, UserCheck } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -25,7 +26,7 @@ import { useUrlParams } from "@/lib/useUrlParams";
 export default function UsersPage() {
   const { user } = useAuth();
   if (!user) return null;
-  if (!user.permissions.manage_users) return <NoAccess />;
+  if (!can(user, "user.manage")) return <NoAccess />;
   return <UsersView me={user} />;
 }
 

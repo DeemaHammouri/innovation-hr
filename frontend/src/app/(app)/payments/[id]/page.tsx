@@ -1,6 +1,7 @@
 "use client";
 
 import { DotsThreeVertical, DownloadSimple, Paperclip, Plus } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { NoAccess } from "@/components/NoAccess";
@@ -40,7 +41,7 @@ export default function StatementPage() {
 
   if (!user) return null;
   const back = { href: "/payments", label: t("pay.title") };
-  if (user.role_key !== "ceo" && user.role_key !== "commercial_head") return <NoAccess />;
+  if (!can(user, "payment.view")) return <NoAccess />;
   if (error) return <><PageHeader title={t("pay.title")} back={back} /><ErrorState message={error} onRetry={reload} /></>;
   if (!st) {
     return (

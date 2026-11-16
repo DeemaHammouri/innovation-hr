@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, DownloadSimple } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import { useMemo } from "react";
 import { Stat } from "@/components/payments/payUi";
 import { Button } from "@/components/ui/Button";
@@ -28,7 +29,7 @@ export default function AttendancePage() {
   const { t } = useI18n();
   const [params, setParams] = useUrlParams(KEYS);
   if (!user) return null;
-  const report = ["ceo", "hr_head", "hr_member"].includes(user.role_key ?? "");
+  const report = can(user, "hr.attendance_all");
   const tab = report && params.tab === "report" ? "report" : "mine";
   return (
     <>

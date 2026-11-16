@@ -1,6 +1,7 @@
 "use client";
 
 import { DotsThreeVertical, Prohibit } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -130,7 +131,7 @@ export default function ContractDetailPage() {
             ) : null}
             <ContractDocuments contract={data} onChanged={reload} />
             <InsetList title={t("qt.sectionClient")}>
-              <InsetRow label={t("lead.company")}>{["ceo", "marketing", "commercial_head", "commercial_member"].includes(user?.role_key ?? "") ? <Link href={`/leads/${data.lead}`} className="text-primary-strong underline underline-offset-2">{data.lead_company}</Link> : data.lead_company}</InsetRow>
+              <InsetRow label={t("lead.company")}>{can(user, "lead.access") ? <Link href={`/leads/${data.lead}`} className="text-primary-strong underline underline-offset-2">{data.lead_company}</Link> : data.lead_company}</InsetRow>
               <InsetRow label={t("lead.reference")}><Ltr>{data.lead_ref}</Ltr></InsetRow>
               <InsetRow label={t("lead.contactName")}>{data.lead_contact || empty}</InsetRow>
               <InsetRow label={t("lead.assignee")}>{data.assigned_to_name ?? empty}</InsetRow>

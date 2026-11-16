@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Wallet } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useState } from "react";
 import { NewRunSheet, RunPill, SalarySheet } from "@/components/hr/PayrollSheets";
@@ -28,7 +29,7 @@ export default function PayrollPage() {
   const { t } = useI18n();
   const [params, setParams] = useUrlParams(KEYS);
   if (!user) return null;
-  const manager = user.role_key === "hr_head" || user.role_key === "ceo";
+  const manager = can(user, "hr.payroll_view");
   const tabs: { value: Tab; label: string }[] = [
     { value: "payslips", label: t("payroll.tab.payslips") },
     ...(manager ? [{ value: "runs" as Tab, label: t("payroll.tab.runs") }, { value: "salaries" as Tab, label: t("payroll.tab.salaries") }] : []),
@@ -39,8 +40,8 @@ export default function PayrollPage() {
       <PageHeader title={t("payroll.title")} description={t(manager ? "payroll.descriptionManager" : "payroll.description")} />
       {tabs.length > 1 ? <Segmented label={t("payroll.tabs")} mode="tablist" value={tab} onChange={(v) => setParams({ tab: v, page: "" })} segments={tabs} className="mb-5 w-full md:w-fit" /> : null}
       {tab === "payslips" ? <Payslips /> : null}
-      {tab === "runs" ? <Runs canCreate={user.role_key === "hr_head"} page={Math.max(1, Number(params.page) || 1)} setPage={(p) => setParams({ page: p > 1 ? String(p) : "" })} /> : null}
-      {tab === "salaries" ? <Salaries canEdit={user.role_key === "hr_head"} /> : null}
+      {tab === "runs" ? <Runs canCreate={can(user, "hr.manage")} page={Math.max(1, Number(params.page) || 1)} setPage={(p) => setParams({ page: p > 1 ? String(p) : "" })} /> : null}
+      {tab === "salaries" ? <Salaries canEdit={can(user, "hr.manage")} /> : null}
     </>
   );
 }

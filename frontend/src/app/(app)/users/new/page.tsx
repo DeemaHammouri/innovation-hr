@@ -1,6 +1,7 @@
 "use client";
 
 import { NoAccess } from "@/components/NoAccess";
+import { can } from "@/lib/can";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { UserForm } from "@/components/users/UserForm";
 import { useAuth } from "@/lib/auth";
@@ -10,7 +11,7 @@ export default function NewUserPage() {
   const { user } = useAuth();
   const t = useT();
   if (!user) return null;
-  if (!user.permissions.manage_users) return <NoAccess />;
+  if (!can(user, "user.manage")) return <NoAccess />;
   return (
     <>
       <PageHeader title={t("users.add")} back={{ href: "/users", label: t("users.title") }} />

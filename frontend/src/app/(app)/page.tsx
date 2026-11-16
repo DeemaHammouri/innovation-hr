@@ -1,6 +1,7 @@
 "use client";
 
 import { Buildings, Plus, UserPlus } from "@phosphor-icons/react";
+import { can, canAny } from "@/lib/can";
 import Link from "next/link";
 import { FunnelStrip } from "@/components/home/FunnelStrip";
 import { MyWorkSection } from "@/components/home/MyWorkSection";
@@ -288,10 +289,10 @@ export default function HomePage() {
       <PageHeader title={t("home.greeting", { greeting: greeting(), name: firstName })} description={formatLongDate(new Date())} />
       <TodayHero />
       <MyWorkSection />
-      {user.role_key === "ceo" || user.role_key === "commercial_head" || user.role_key === "marketing" ? (
+      {canAny(user, "report.funnel") ? (
         <div className="mb-4 space-y-4 lg:mb-6 lg:space-y-6">
           <FunnelStrip />
-          {user.role_key !== "marketing" ? <RevenueCard /> : null}
+          {can(user, "report.revenue") ? <RevenueCard /> : null}
         </div>
       ) : null}
       {error ? (

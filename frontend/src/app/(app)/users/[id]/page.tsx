@@ -1,6 +1,7 @@
 "use client";
 
 import { LockKey, Pencil, UserCheck, UserMinus } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect } from "react";
@@ -21,7 +22,7 @@ export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user: me } = useAuth();
   const { t, dept, role } = useI18n();
-  const allowed = !!me?.permissions.manage_users;
+  const allowed = can(me, "user.manage");
   const { data, error, loading, reload } = useFetch<User>(allowed ? `/users/${id}/` : null);
   const showSkeleton = useDelayed(loading);
   const actions = useUserActions(reload);

@@ -1,6 +1,7 @@
 "use client";
 
 import { PencilSimple, Plus, SlidersHorizontal } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import { useState } from "react";
 import { NoAccess } from "@/components/NoAccess";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -244,7 +245,7 @@ export default function LookupsPage() {
   const { t } = useI18n();
   const [section, setSection] = useState<Section>("reasons");
   if (!user) return null;
-  if (user.role_key !== "ceo") return <NoAccess />;
+  if (!can(user, "settings.manage")) return <NoAccess />;
 
   const options = SECTIONS.map((s) => ({ value: s, label: t(`lookups.section.${s}`) }));
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowsClockwise, CheckCircle, DownloadSimple, PencilSimple } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { NoAccess } from "@/components/NoAccess";
@@ -23,7 +24,7 @@ export default function PayrollRunPage() {
   const { t, msg, formatDateTime } = useI18n();
   const money = useMoney();
   const toast = useToast();
-  const allowed = user?.role_key === "hr_head" || user?.role_key === "ceo";
+  const allowed = can(user, "hr.payroll_view");
   const { data, error, loading, reload } = useFetch<PayrollRun>(user && allowed ? `/hr/payroll/runs/${id}/` : null);
   const show = useDelayed(loading);
   const [entry, setEntry] = useState<PayrollEntry | null>(null);

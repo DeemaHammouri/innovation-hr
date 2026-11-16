@@ -1,6 +1,7 @@
 "use client";
 
 import { FileCsv, Plus } from "@phosphor-icons/react";
+import { can } from "@/lib/can";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { BatchesPanel } from "@/components/leads/BatchesPanel";
@@ -12,16 +13,15 @@ import { Segmented } from "@/components/ui/Segmented";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 
-const ROLES = ["ceo", "marketing", "commercial_head", "commercial_member"];
 
 export default function LeadsPage() {
   const { user } = useAuth();
   const { t } = useI18n();
   const search = useSearchParams();
   if (!user) return null;
-  if (!ROLES.includes(user.role_key ?? "")) return <NoAccess />;
-  const marketing = user.role_key === "marketing";
-  const canSeeBatches = marketing || user.role_key === "ceo";
+  if (!can(user, "lead.access")) return <NoAccess />;
+  const marketing = can(user, "lead.create");
+  const canSeeBatches = can(user, "lead.batches");
   const tab = canSeeBatches && search.get("tab") === "imports" ? "imports" : "leads";
 
   const actions = marketing ? (

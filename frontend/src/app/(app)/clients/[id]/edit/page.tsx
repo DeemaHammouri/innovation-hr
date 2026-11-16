@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { can } from "@/lib/can";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { NoAccess } from "@/components/NoAccess";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -14,7 +15,7 @@ export default function EditClientPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const t = useT();
-  const allowed = !!user?.permissions.manage_clients;
+  const allowed = can(user, "client.manage");
   const { data, error, loading, reload } = useFetch<Client>(allowed ? `/clients/${id}/` : null);
   const showSkeleton = useDelayed(loading);
   if (!user) return null;
