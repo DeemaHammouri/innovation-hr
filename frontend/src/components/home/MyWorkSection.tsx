@@ -7,6 +7,7 @@ import { StatusPill } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/States";
 import { useI18n } from "@/lib/i18n";
 import { useMyWork } from "@/lib/mywork";
+import { byUrgency, HERO_ITEMS } from "./TodayHero";
 
 const SHOWN = 6;
 
@@ -14,12 +15,14 @@ const SHOWN = 6;
 export function MyWorkSection() {
   const { t, formatDate, formatNumber } = useI18n();
   const { data } = useMyWork();
+  const rest = data ? byUrgency(data.items).slice(HERO_ITEMS) : [];
+  if (data && rest.length === 0) return null;
 
   return (
-    <Card as="section" aria-labelledby="my-work" className="mb-4 overflow-hidden lg:mb-6">
+    <Card as="section" id="attention" aria-labelledby="my-work" className="mb-4 overflow-hidden lg:mb-6">
       <div className="flex items-center justify-between gap-3 p-5 pb-3">
         <h2 id="my-work" className="text-section text-ink">
-          {t("mywork.title")}
+          {t("home.attention")}
         </h2>
         {data && data.total > 0 ? <StatusPill tone={data.items.some((i) => i.overdue) ? "danger" : "primary"}>{t("mywork.count", { count: formatNumber(data.total) })}</StatusPill> : null}
       </div>
@@ -28,7 +31,7 @@ export function MyWorkSection() {
           <Skeleton className="h-12" />
           <Skeleton className="h-12" />
         </div>
-      ) : data.items.length === 0 ? (
+      ) : rest.length === 0 ? (
         <div className="flex items-center gap-3 px-5 pb-5">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success-bg text-success-ink">
             <CheckCircle size={22} weight="fill" aria-hidden />
@@ -40,7 +43,7 @@ export function MyWorkSection() {
         </div>
       ) : (
         <ul className="divide-y divide-line border-t border-line">
-          {data.items.slice(0, SHOWN).map((item) => (
+          {rest.slice(0, SHOWN).map((item) => (
             <li key={`${item.kind}-${item.ref}-${item.link}`}>
               <Link href={item.link} className="flex min-h-14 items-center gap-3 px-5 py-2.5 hover:bg-canvas">
                 <span className="min-w-0 flex-1">

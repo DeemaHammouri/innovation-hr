@@ -1601,5 +1601,16 @@
   "status.error.title": "Something went wrong",
   "status.error.text": "The page couldn't be shown. Your work is safe. Try again, and tell your administrator if it keeps happening.",
   "status.error.retry": "Try again",
-  "p8.api.0": "Too many sign-in attempts. Wait 15 minutes and try again."
+  "p8.api.0": "Too many sign-in attempts. Wait 15 minutes and try again.",
+  "home.today": "Today",
+  "home.open": "Open",
+  "home.overdueCount": "{count} overdue",
+  "home.moreWaiting": "{count} more waiting below",
+  "home.funnel": "Sales funnel",
+  "home.last90": "Last 90 days",
+  "home.revenue": "Revenue",
+  "home.last6": "Last 6 months",
+  "home.expected": "Expected",
+  "home.received": "Received",
+  "home.attention": "Needs attention"
 }

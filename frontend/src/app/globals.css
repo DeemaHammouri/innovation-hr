@@ -224,6 +224,13 @@ input[type="search"]::-webkit-search-cancel-button {
   display: none;
 }
 
+/* Draw-in for bars: once, on first paint. Disabled by the reduced-motion rule below. */
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes grow-y { from { transform: scaleY(0); } to { transform: none; } }
+.grow-bar { transform-origin: left; animation: grow-x var(--dur-slow) var(--ease-out) both; }
+[dir="rtl"] .grow-bar { transform-origin: right; }
+.rise-bar { transform-origin: bottom; animation: grow-y var(--dur-slow) var(--ease-out) both; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

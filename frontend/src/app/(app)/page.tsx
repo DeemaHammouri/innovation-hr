@@ -2,7 +2,10 @@
 
 import { Buildings, Plus, UserPlus } from "@phosphor-icons/react";
 import Link from "next/link";
+import { FunnelStrip } from "@/components/home/FunnelStrip";
 import { MyWorkSection } from "@/components/home/MyWorkSection";
+import { RevenueCard } from "@/components/home/RevenueCard";
+import { TodayHero } from "@/components/home/TodayHero";
 import { Avatar } from "@/components/ui/Avatar";
 import { buttonClass } from "@/components/ui/Button";
 import { Card, InsetList, InsetRow } from "@/components/ui/Card";
@@ -283,7 +286,14 @@ export default function HomePage() {
   return (
     <>
       <PageHeader title={t("home.greeting", { greeting: greeting(), name: firstName })} description={formatLongDate(new Date())} />
+      <TodayHero />
       <MyWorkSection />
+      {user.role_key === "ceo" || user.role_key === "commercial_head" || user.role_key === "marketing" ? (
+        <div className="mb-4 space-y-4 lg:mb-6 lg:space-y-6">
+          <FunnelStrip />
+          {user.role_key !== "marketing" ? <RevenueCard /> : null}
+        </div>
+      ) : null}
       {error ? (
         <ErrorState message={error} onRetry={reload} />
       ) : data ? (
