@@ -243,6 +243,8 @@ export type LeadPermissions = {
   can_request_contract: boolean;
 };
 export type Lead = {
+  position: string;
+  location: string;
   id: number;
   ref: string;
   company_name: string;
@@ -289,6 +291,16 @@ export type Interaction = {
   created_by_name: string;
   created_at: string;
 };
+export type SkipRow = {
+  row: number;
+  state: "error" | "duplicate";
+  company_name: string;
+  phone: string;
+  email: string;
+  errors: { field: string; message: string }[];
+  duplicate_of: string | null;
+  duplicate_in_file: number | null;
+};
 export type ImportBatch = {
   id: number;
   ref: string;
@@ -298,6 +310,7 @@ export type ImportBatch = {
   imported_count: number;
   skipped_errors: number;
   skipped_duplicates: number;
+  skip_report: SkipRow[];
   created_by: number;
   created_by_name: string;
   created_at: string;
@@ -309,6 +322,8 @@ export type PreviewRow = {
   row: number;
   company_name: string;
   contact_name: string;
+  position: string;
+  location: string;
   phone: string;
   email: string;
   source: string;

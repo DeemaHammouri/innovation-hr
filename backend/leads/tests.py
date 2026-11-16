@@ -149,7 +149,7 @@ class AccessTests(LeadCase):
         self.assertEqual(self.client.patch(f"/api/leads/{lead.pk}/", body, format="json").status_code, 403)
         self.as_role("commercial_member")
         self.assertEqual(self.client.patch(f"/api/leads/{lead.pk}/", {"phone": "0795556677"}, format="json").status_code, 200)
-        self.assertEqual(Lead.objects.get(pk=lead.pk).phone_key, "795556677")
+        self.assertEqual(Lead.objects.get(pk=lead.pk).phone_key, "+962795556677")
 
     def test_server_tells_the_screen_what_is_allowed(self):
         lead = self.mk(assigned=self.member)
@@ -368,11 +368,13 @@ class CreateAndDuplicateTests(LeadCase):
         self.post()
         self.assertEqual(self.post(company_name="Other", phone="", email=" SAM@ACME.example ").status_code, 400)
 
-    def test_duplicate_can_be_confirmed_on_purpose(self):
+    def test_a_duplicate_cannot_be_forced_in(self):
+        """The database holds one open lead per phone and per email, so there is no "create anyway"."""
         self.post()
         res = self.post(company_name="Same person, second company", allow_duplicate=True)
-        self.assertEqual(res.status_code, 201)
-        self.assertEqual(Lead.objects.count(), 2)
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("duplicate", res.data)
+        self.assertEqual(Lead.objects.count(), 1)
 
     def test_archived_leads_do_not_block_a_new_one(self):
         first = self.post().data["id"]
@@ -409,10 +411,10 @@ class ImportTests(LeadCase):
 
     def test_template_downloads_and_imports_cleanly(self):
         self.as_role("marketing")
-        res = self.client.get("/api/leads/import/template/")
+        res = self.client.get("/api/leads/import/template/?file=csv")
         self.assertIn("attachment", res["Content-Disposition"])
         body = res.content.decode("utf-8-sig")
-        self.assertTrue(body.startswith("company_name,contact_name,phone,email,source,notes"))
+        self.assertTrue(body.startswith("Company,Name,Position,Phone,Email,Location,Source,Notes"))
         out = self.preview(body)
         self.assertEqual(out.data["summary"], {"total": 2, "ok": 2, "errors": 0, "duplicates": 0})
 
@@ -458,7 +460,7 @@ class ImportTests(LeadCase):
 
     def test_file_level_problems(self):
         cases = {
-            "wrong extension": (self.preview(self.GOOD, name="leads.xlsx"), importer.MSG_EXT),
+            "wrong extension": (self.preview(self.GOOD, name="leads.pdf"), importer.MSG_EXT),
             "no company column": (self.preview("name_only,phone\nA,0791000001\n".replace("name_only", "city")), importer.MSG_COLUMNS),
             "only a header": (self.preview(CSV_HEADER), importer.MSG_EMPTY),
             "empty file": (self.preview(""), importer.MSG_EMPTY),
@@ -505,9 +507,9 @@ class ImportTests(LeadCase):
         text = CSV_HEADER + "Dup,,0791000001,,,\nBad,,,,,\nGood,,0791000005,,,\n"
         batch = ImportBatch.objects.get(pk=self.confirm(text).data["id"])
         self.assertEqual((batch.imported_count, batch.skipped_errors, batch.skipped_duplicates), (1, 1, 1))
-        batch2 = ImportBatch.objects.get(pk=self.confirm(text, duplicates="import").data["id"])
-        self.assertEqual(batch2.imported_count, 2)  # the duplicate of the original and the earlier "Good" row both come in
-        self.assertEqual(batch2.skipped_errors, 1)
+        res = self.confirm(text, duplicates="import")  # asking to import duplicates changes nothing: the database refuses them
+        self.assertEqual(res.status_code, 400)  # now every importable row is already in
+        self.assertEqual(Lead.objects.count(), 2)
 
     def test_confirm_with_nothing_importable_is_refused(self):
         res = self.confirm(CSV_HEADER + "Bad,,,,,\n")

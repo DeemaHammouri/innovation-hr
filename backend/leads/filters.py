@@ -45,3 +45,16 @@ class LeadFilter(django_filters.FilterSet):
         if not self.data.get("archived"):
             qs = qs.filter(archived_at__isnull=True)
         return qs
+
+
+from rest_framework.filters import SearchFilter  # noqa: E402
+
+from .normalize import normalize_phone  # noqa: E402
+
+
+class LeadSearch(SearchFilter):
+    """Search as usual, but a typed phone number (0797707154, 00962 79 770 7154) is compared in its stored E.164 form."""
+
+    def get_search_terms(self, request):
+        terms = super().get_search_terms(request)
+        return [normalize_phone(t) or t if sum(c.isdigit() for c in t) >= 7 else t for t in terms]

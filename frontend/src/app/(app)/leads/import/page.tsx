@@ -10,7 +10,6 @@ import { Button, buttonClass } from "@/components/ui/Button";
 import { Card, StatusPill } from "@/components/ui/Card";
 import { Ltr } from "@/components/ui/Ltr";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Segmented } from "@/components/ui/Segmented";
 import { useToast } from "@/components/ui/Toast";
 import { ApiError, downloadFile, errorMessage, type ImportBatch, type PreviewResult, type PreviewRow, upload } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -29,7 +28,7 @@ const TONE = { ok: "success", error: "danger", duplicate: "warning" } as const;
 
 export default function ImportLeadsPage() {
   const { user } = useAuth();
-  const { t, msg, formatNumber } = useI18n();
+  const { t, msg, formatNumber, lang } = useI18n();
   const toast = useToast();
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
@@ -38,7 +37,7 @@ export default function ImportLeadsPage() {
   const [problem, setProblem] = useState("");
   const [checking, setChecking] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [dupMode, setDupMode] = useState<"skip" | "import">("skip");
+  const [finished, setFinished] = useState<ImportBatch | null>(null);
 
   if (!user) return null;
   if (!can(user, "lead.import")) return <NoAccess />;
@@ -67,7 +66,7 @@ export default function ImportLeadsPage() {
     setChecking(false);
   }
 
-  const ready = preview ? preview.summary.ok + (dupMode === "import" ? preview.summary.duplicates : 0) : 0;
+  const ready = preview ? preview.summary.ok : 0;
 
   async function confirm() {
     setProblem("");
@@ -77,9 +76,13 @@ export default function ImportLeadsPage() {
     }
     setImporting(true);
     try {
-      const batch = await upload<ImportBatch>("/leads/import/confirm/", form({ duplicates: dupMode }));
+      const batch = await upload<ImportBatch>("/leads/import/confirm/", form());
       toast.success(t("lead.import.done", { count: formatNumber(batch.imported_count) }));
-      router.push("/leads?tab=imports");
+      if (batch.skip_report.length === 0) router.push("/leads?tab=imports");
+      else {
+        setFinished(batch);
+        setImporting(false);
+      }
     } catch (err) {
       setProblem(err instanceof ApiError && err.status === 400 ? (err.fieldErrors().file ?? err.message) : errorMessage(err, "lead.saveFailed"));
       setImporting(false);
@@ -93,15 +96,62 @@ export default function ImportLeadsPage() {
     return "";
   }
 
+  if (finished) {
+    return (
+      <>
+        <PageHeader title={t("lead.import.reportTitle")} description={t("lead.import.reportText", { imported: formatNumber(finished.imported_count), skipped: formatNumber(finished.skip_report.length) })} back={{ href: "/leads", label: t("lead.title") }} />
+        <div className="max-w-3xl space-y-4 md:space-y-6">
+          <Step title={t("lead.import.skippedHeading")}>
+            <div className="max-h-96 overflow-auto rounded-control border border-line">
+              <table className="w-full min-w-[34rem] text-start text-label">
+                <caption className="sr-only">{t("lead.import.skippedHeading")}</caption>
+                <thead className="sticky top-0 bg-canvas">
+                  <tr className="text-ink-2">
+                    <th scope="col" className="px-3 py-2 text-start font-semibold">{t("lead.import.row")}</th>
+                    <th scope="col" className="px-3 py-2 text-start font-semibold">{t("lead.company")}</th>
+                    <th scope="col" className="px-3 py-2 text-start font-semibold">{t("lead.import.state")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {finished.skip_report.map((r) => (
+                    <tr key={r.row}>
+                      <td className="tnum px-3 py-2 align-top text-ink-2">{formatNumber(r.row)}</td>
+                      <td className="max-w-48 px-3 py-2 align-top"><span className="block truncate font-medium text-ink">{r.company_name || "—"}</span></td>
+                      <td className="px-3 py-2 align-top">
+                        <StatusPill tone={TONE[r.state]}>{t(`lead.import.state.${r.state}`)}</StatusPill>
+                        <p className="mt-1 font-normal text-ink-2">{describe({ ...r, contact_name: "", position: "", location: "", source: "", notes: "" })}</p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Link href="/leads?tab=imports" className={buttonClass("primary")}>{t("lead.import.reportDone")}</Link>
+          </Step>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader title={t("lead.import.title")} description={t("lead.import.description")} back={{ href: "/leads", label: t("lead.title") }} />
       <div className="max-w-3xl space-y-4 md:space-y-6">
         <Step title={t("lead.import.step1")}>
           <p className="text-body text-ink-2">{t("lead.import.templateText")}</p>
-          <Button variant="secondary" icon={<DownloadSimple size={20} aria-hidden />} onClick={() => downloadFile("/leads/import/template/", "leads-template.csv").catch(() => toast.error(t("lead.saveFailed")))}>
-            {t("lead.import.template")}
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            {(
+              [
+                ["lead.import.templateEnXlsx", "?lang=en", "leads-template-en.xlsx"],
+                ["lead.import.templateArXlsx", "?lang=ar", "leads-template-ar.xlsx"],
+                ["lead.import.templateCsv", `?file=csv&lang=${lang}`, `leads-template-${lang}.csv`],
+              ] as const
+            ).map(([label, query, name]) => (
+              <Button key={label} variant="secondary" icon={<DownloadSimple size={20} aria-hidden />} onClick={() => downloadFile(`/leads/import/template/${query}`, name).catch(() => toast.error(t("lead.saveFailed")))}>
+                {t(label)}
+              </Button>
+            ))}
+          </div>
         </Step>
 
         <Step title={t("lead.import.step2")}>
@@ -109,7 +159,7 @@ export default function ImportLeadsPage() {
             ref={input}
             id="field-file"
             type="file"
-            accept=".csv,text/csv"
+            accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             className="sr-only"
             onChange={(e) => {
               setFile(e.target.files?.[0] ?? null);
@@ -165,19 +215,7 @@ export default function ImportLeadsPage() {
                 </tbody>
               </table>
             </div>
-            {preview.summary.duplicates > 0 ? (
-              <Segmented
-                label={t("lead.import.dupMode")}
-                value={dupMode}
-                onChange={setDupMode}
-                segments={[
-                  { value: "skip", label: t("lead.import.dupSkip") },
-                  { value: "import", label: t("lead.import.dupImport") },
-                ]}
-                className="w-full md:w-fit"
-              />
-            ) : null}
-            {preview.summary.errors > 0 ? <p className="text-label font-normal text-ink-2">{t("lead.import.skippedNote")}</p> : null}
+            {preview.summary.errors + preview.summary.duplicates > 0 ? <p className="text-label font-normal text-ink-2">{t("lead.import.skippedNote")}</p> : null}
             {problem ? <p role="alert" className="rounded-control border border-danger/25 bg-danger-bg p-3.5 text-label font-medium text-danger-ink">{msg(problem)}</p> : null}
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Link href="/leads" className={buttonClass("secondary")}>{t("common.cancel")}</Link>

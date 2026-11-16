@@ -1,0 +1,43 @@
+"""One place that decides what a phone number or an email "is", so the form, the import, the duplicate check and the database agree.
+
+Phones become E.164 (+9627...). Jordan is the default country: 07xxxxxxxx -> +9627xxxxxxxx. 00 means "+". Arabic-Indic digits are read as digits.
+"""
+import re
+
+import phonenumbers
+
+DEFAULT_REGION = "JO"
+_ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+
+
+def ascii_digits(text):
+    return str(text or "").translate(_ARABIC_DIGITS)
+
+
+def normalize_phone(raw):
+    """E.164 string, or "" when the text has fewer than 7 digits."""
+    text = ascii_digits(raw).strip()
+    digits = re.sub(r"\D", "", text)
+    if len(digits) < 7:
+        return ""
+    candidate = text
+    if digits.startswith("00"):
+        candidate = "+" + digits[2:]
+    elif text.startswith("+"):
+        candidate = "+" + digits
+    elif digits.startswith("962"):
+        candidate = "+" + digits
+    try:
+        number = phonenumbers.parse(candidate, DEFAULT_REGION)
+        if phonenumbers.is_possible_number(number):
+            return phonenumbers.format_number(number, phonenumbers.PhoneNumberFormat.E164)
+    except phonenumbers.NumberParseException:
+        pass
+    # Not a number the library knows: still give a stable form, so the same digits always match each other.
+    if candidate.startswith("+"):
+        return "+" + digits.lstrip("0") if candidate.startswith("+") else ""
+    return "+962" + digits.lstrip("0") if digits.startswith("0") else "+" + digits
+
+
+def normalize_email(raw):
+    return str(raw or "").strip().lower()

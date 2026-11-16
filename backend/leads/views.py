@@ -14,7 +14,7 @@ from accounts.models import User
 from core.pagination import StandardPagination
 
 from . import access, importer, services
-from .filters import LeadFilter
+from .filters import LeadFilter, LeadSearch
 from .models import ImportBatch, Lead
 from .serializers import ContactInputSerializer, ImportBatchSerializer, InteractionSerializer, LeadSerializer
 from .sla import sla_now
@@ -57,10 +57,10 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
     }
     serializer_class = LeadSerializer
     pagination_class = StandardPagination
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, LeadSearch, OrderingFilter]
     filterset_class = LeadFilter
-    search_fields = ["ref", "company_name", "contact_name", "phone", "email"]
-    ordering_fields = ["created_at", "updated_at", "next_follow_up", "company_name"]
+    search_fields = ["ref", "company_name", "contact_name", "position", "phone", "email", "location"]
+    ordering_fields = ["created_at", "updated_at", "next_follow_up", "company_name", "contact_name", "status", "ref"]
     ordering = ["-created_at", "-id"]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
 
@@ -183,12 +183,18 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
         require_head(request.user)
         return self.out(services.restore(request.user, self.get_object()))
 
-    # ---- CSV import ----
+    # ---- Excel / CSV import ----
     @action(detail=False, methods=["get"], url_path="import/template")
     def import_template(self, request):
+        """?format=xlsx (default) or csv, ?lang=en or ar."""
         require_marketing(request.user)
-        res = HttpResponse(importer.template_csv(), content_type="text/csv; charset=utf-8")
-        res["Content-Disposition"] = 'attachment; filename="leads-template.csv"'
+        lang = "ar" if request.query_params.get("lang") == "ar" else "en"
+        if request.query_params.get("file", "xlsx") == "csv":
+            res = HttpResponse(importer.template_csv(lang), content_type="text/csv; charset=utf-8")
+            res["Content-Disposition"] = f'attachment; filename="leads-template-{lang}.csv"'
+            return res
+        res = HttpResponse(importer.template_xlsx(lang), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        res["Content-Disposition"] = f'attachment; filename="leads-template-{lang}.xlsx"'
         return res
 
     @action(detail=False, methods=["post"], url_path="import/preview")
@@ -199,8 +205,7 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
     @action(detail=False, methods=["post"], url_path="import/confirm")
     def import_confirm(self, request):
         require_marketing(request.user)
-        mode = "import" if request.data.get("duplicates") == "import" else "skip"
-        batch = importer.confirm(request.user, request.FILES.get("file"), duplicates=mode)
+        batch = importer.confirm(request.user, request.FILES.get("file"))
         return Response(ImportBatchSerializer(batch, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 

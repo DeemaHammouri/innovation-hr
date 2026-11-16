@@ -21,7 +21,7 @@ class LeadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
         fields = [
-            "id", "ref", "company_name", "contact_name", "phone", "email", "source", "notes", "status",
+            "id", "ref", "company_name", "contact_name", "position", "phone", "email", "location", "source", "notes", "status",
             "assigned_to", "assigned_to_name", "assigned_at", "batch", "batch_ref", "created_by", "created_by_name", "created_at",
             "next_follow_up", "rejection_reason", "rejection_reason_en", "rejection_reason_ar", "rejection_note",
             "first_contacted_at", "last_contacted_at", "qualified_at", "rejected_at", "archived_at", "archive_reason",
@@ -91,7 +91,7 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = ImportBatch
         fields = [
-            "id", "ref", "filename", "status", "total_rows", "imported_count", "skipped_errors", "skipped_duplicates",
+            "id", "ref", "filename", "status", "total_rows", "imported_count", "skipped_errors", "skipped_duplicates", "skip_report",
             "created_by", "created_by_name", "created_at", "undone_at", "contacted_count", "can_undo",
         ]
         read_only_fields = fields

@@ -13,7 +13,7 @@ import { useI18n } from "@/lib/i18n";
 import { isEmail, useForm } from "@/lib/useForm";
 
 const DRAFT = "innovation.draft.lead";
-const FIELDS = ["company_name", "contact_name", "phone", "email", "source", "notes"] as const;
+const FIELDS = ["company_name", "contact_name", "position", "phone", "email", "location", "source", "notes"] as const;
 
 function readDraft(): Record<string, string> | null {
   try {
@@ -71,13 +71,13 @@ export function LeadForm({ editing }: { editing: Lead | null }) {
     writeDraft(FIELDS.some((f) => form.values[f]) ? form.values : null);
   }, [form.values, editing]);
 
-  async function save(allowDuplicate: boolean) {
+  async function save() {
     setFormError("");
     setDuplicates([]);
     if (!form.check()) return;
     setSaving(true);
     try {
-      const body = { ...form.values, ...(allowDuplicate ? { allow_duplicate: true } : {}), ...(editing ? { expected_updated_at: editing.updated_at } : {}) };
+      const body = { ...form.values, ...(editing ? { expected_updated_at: editing.updated_at } : {}) };
       const saved = await api<Lead>(editing ? `/leads/${editing.id}/` : "/leads/", { method: editing ? "PATCH" : "POST", body });
       if (!editing) writeDraft(null);
       toast.success(t(editing ? "lead.saved" : "lead.created"));
@@ -103,7 +103,7 @@ export function LeadForm({ editing }: { editing: Lead | null }) {
   }
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); void save(false); }} noValidate className="max-w-2xl space-y-4 md:space-y-6">
+    <form onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate className="max-w-2xl space-y-4 md:space-y-6">
       {formError ? (
         <p role="alert" className="rounded-control border border-danger/25 bg-danger-bg p-3.5 text-label font-medium text-danger-ink">{msg(formError)}</p>
       ) : null}
@@ -114,7 +114,6 @@ export function LeadForm({ editing }: { editing: Lead | null }) {
           <div className="min-w-0">
             <p className="text-body font-semibold">{t("lead.duplicateTitle")}</p>
             <p className="mt-1 text-label font-normal">{t("lead.duplicateText", { refs: duplicates.join(", ") })}</p>
-            <Button variant="secondary" className="mt-3" loading={saving} onClick={() => void save(true)}>{t("lead.addAnyway")}</Button>
           </div>
         </div>
       ) : null}
@@ -125,11 +124,15 @@ export function LeadForm({ editing }: { editing: Lead | null }) {
       </Section>
 
       <Section title={t("lead.sectionContact")}>
-        <Input label={t("lead.contactName")} autoComplete="off" {...form.field("contact_name")} />
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input label={t("lead.contactName")} autoComplete="off" {...form.field("contact_name")} />
+          <Input label={t("lead.position")} autoComplete="off" {...form.field("position")} />
+        </div>
         <div className="grid gap-5 sm:grid-cols-2">
           <Input label={t("common.phone")} type="tel" autoComplete="off" {...form.field("phone")} />
           <Input label={t("common.email")} type="email" autoComplete="off" {...form.field("email")} />
         </div>
+        <Input label={t("lead.location")} autoComplete="off" {...form.field("location")} />
       </Section>
 
       <Section title={t("lead.sectionNotes")}>

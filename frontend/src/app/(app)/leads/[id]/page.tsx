@@ -173,6 +173,8 @@ export default function LeadDetailPage() {
             </InsetList>
             <InsetList title={t("lead.sectionContact")}>
               <InsetRow label={t("lead.contactName")}>{data.contact_name || empty}</InsetRow>
+              <InsetRow label={t("lead.position")}>{data.position || empty}</InsetRow>
+              <InsetRow label={t("lead.location")}>{data.location || empty}</InsetRow>
               <InsetRow label={t("common.phone")} ltr={!!data.phone}>{data.phone || empty}</InsetRow>
               <InsetRow label={t("common.email")} ltr={!!data.email}>{data.email || empty}</InsetRow>
               <InsetRow label={t("lead.notes")}>{data.notes ? <span className="whitespace-pre-line">{data.notes}</span> : empty}</InsetRow>

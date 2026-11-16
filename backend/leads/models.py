@@ -5,15 +5,16 @@ from django.db import models
 
 from core.models import Archivable, TimeStamped
 
+from .normalize import normalize_email, normalize_phone
+
 
 def phone_key(raw):
-    """Digits only, compared by their last 9 digits so +962 79 123 4567 and 0791234567 match. Too-short numbers never match."""
-    digits = re.sub(r"\D", "", raw or "")
-    return digits[-9:] if len(digits) >= 7 else ""
+    """The phone as E.164. 0797707154, 962797707154 and +962 79 770 7154 are all the same key."""
+    return normalize_phone(raw)
 
 
 def email_key(raw):
-    return (raw or "").strip().lower()
+    return normalize_email(raw)
 
 
 class ImportBatch(TimeStamped):
@@ -29,6 +30,7 @@ class ImportBatch(TimeStamped):
     imported_count = models.PositiveIntegerField(default=0)
     skipped_errors = models.PositiveIntegerField(default=0)
     skipped_duplicates = models.PositiveIntegerField(default=0)
+    skip_report = models.JSONField(default=list, blank=True)  # one entry per row that did not come in, with its reasons
     undone_at = models.DateTimeField(null=True, blank=True)
     undone_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+", null=True, blank=True)
 
@@ -46,13 +48,15 @@ class Lead(TimeStamped, Archivable):
 
     ref = models.CharField(max_length=12, unique=True)
     company_name = models.CharField(max_length=200)
-    contact_name = models.CharField(max_length=150, blank=True)
+    contact_name = models.CharField(max_length=150, blank=True)  # the contact person's name
+    position = models.CharField(max_length=150, blank=True)
+    location = models.CharField(max_length=200, blank=True)
     phone = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)
     source = models.CharField(max_length=150, blank=True)
     notes = models.TextField(blank=True)
-    phone_key = models.CharField(max_length=20, blank=True, db_index=True)
-    email_key = models.CharField(max_length=254, blank=True, db_index=True)
+    phone_key = models.CharField(max_length=20, blank=True, db_index=True)  # E.164; unique among open leads
+    email_key = models.CharField(max_length=254, blank=True, db_index=True)  # lower-case; unique among open leads
 
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.NEW, db_index=True)
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="leads_assigned", null=True, blank=True)
@@ -73,6 +77,11 @@ class Lead(TimeStamped, Archivable):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+        constraints = [
+            # Archived leads are out of the way (an undone import can be imported again), so they do not hold a number or an email.
+            models.UniqueConstraint(fields=["phone_key"], condition=models.Q(archived_at__isnull=True) & ~models.Q(phone_key=""), name="uniq_open_lead_phone"),
+            models.UniqueConstraint(fields=["email_key"], condition=models.Q(archived_at__isnull=True) & ~models.Q(email_key=""), name="uniq_open_lead_email"),
+        ]
         indexes = [models.Index(fields=["created_at"], name="lead_created_idx"), models.Index(fields=["status", "next_follow_up"]), models.Index(fields=["assigned_to", "status"])]
 
     def __str__(self):
@@ -81,6 +90,9 @@ class Lead(TimeStamped, Archivable):
     def save(self, *args, **kwargs):
         self.phone_key = phone_key(self.phone)
         self.email_key = email_key(self.email)
+        if self.phone_key:
+            self.phone = self.phone_key  # stored as typed-then-normalised: always +<country><number>
+        self.email = self.email_key
         super().save(*args, **kwargs)
 
 

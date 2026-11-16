@@ -1,7 +1,7 @@
 """Everything that changes a lead goes through here: state machine, audit line and notifications in one transaction."""
 from datetime import date, timedelta
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -13,7 +13,7 @@ from lookups.models import RejectionReason
 from notifications.service import notify
 
 from .models import Interaction, Lead, email_key, phone_key
-from .validation import clean_lead_fields
+from .validation import FIELDS, clean_lead_fields
 
 L = Lead.Status
 
@@ -31,6 +31,7 @@ MSG_REOPEN_NOTE = "Write a note explaining why you are reopening it."
 MSG_ASSIGNEE = "Choose someone from the Commercial team."
 MSG_ARCHIVE_REASON = "Write why you are archiving this lead."
 MSG_RESTORE = "This lead isn't archived."
+MSG_RESTORE_DUPLICATE = "Another open lead already has this phone or email, so this one can't be restored."
 MSG_ARCHIVE_DONE = "This lead is already archived."
 MSG_TYPE = "Choose how you were in touch."
 
@@ -57,16 +58,25 @@ def find_duplicate(phone, email, exclude_pk=None):
     return qs.first()
 
 
-def create_lead(actor, data, *, allow_duplicate=False):
+def _duplicate_error(cleaned, exclude_pk=None):
+    dup = find_duplicate(cleaned["phone"], cleaned["email"], exclude_pk)
+    return ValidationError({"duplicate": [dup.ref if dup else ""]})
+
+
+def create_lead(actor, data, **_ignored):
+    """Two people adding the same phone or email can not both succeed: the database refuses the second, and the answer is the same
+    clean "duplicate" error the pre-check gives (naming the lead that already holds the number)."""
     cleaned, errors = clean_lead_fields(data)
     if errors:
         raise ValidationError({k: [v] for k, v in errors.items()})
-    dup = find_duplicate(cleaned["phone"], cleaned["email"])
-    if dup and not allow_duplicate:
-        raise ValidationError({"duplicate": [dup.ref]})
-    with transaction.atomic():
-        lead = Lead.objects.create(ref=Sequence.next_ref("LD"), created_by=actor, **cleaned)
-        record(actor, lead, "created")
+    if find_duplicate(cleaned["phone"], cleaned["email"]):
+        raise _duplicate_error(cleaned)
+    try:
+        with transaction.atomic():
+            lead = Lead.objects.create(ref=Sequence.next_ref("LD"), created_by=actor, **cleaned)
+            record(actor, lead, "created")
+    except IntegrityError:
+        raise _duplicate_error(cleaned)
     head = commercial_head()
     if head:
         notify(head, "leads_new", link="/pipeline", count=1, name=lead.company_name)
@@ -74,17 +84,22 @@ def create_lead(actor, data, *, allow_duplicate=False):
 
 
 def update_lead(actor, lead, data):
-    cleaned, errors = clean_lead_fields({**{k: getattr(lead, k) for k in ("company_name", "contact_name", "phone", "email", "source", "notes")}, **data})
+    cleaned, errors = clean_lead_fields({**{k: getattr(lead, k) for k in FIELDS}, **data})
     if errors:
         raise ValidationError({k: [v] for k, v in errors.items()})
     changed = [k for k, v in cleaned.items() if getattr(lead, k) != v]
     if not changed:
         return lead
-    with transaction.atomic():
-        for k in changed:
-            setattr(lead, k, cleaned[k])
-        lead.save()
-        record(actor, lead, "updated", to_value=", ".join(changed))
+    if ("phone" in changed or "email" in changed) and find_duplicate(cleaned["phone"], cleaned["email"], exclude_pk=lead.pk):
+        raise _duplicate_error(cleaned, lead.pk)
+    try:
+        with transaction.atomic():
+            for k in changed:
+                setattr(lead, k, cleaned[k])
+            lead.save()
+            record(actor, lead, "updated", to_value=", ".join(changed))
+    except IntegrityError:
+        raise _duplicate_error(cleaned, lead.pk)
     return lead
 
 
@@ -241,11 +256,16 @@ def archive(actor, lead, reason):
 def restore(actor, lead):
     if not lead.archived_at:
         raise ValidationError({"detail": MSG_RESTORE})
-    with transaction.atomic():
-        lead.archived_at = None
-        lead.archive_reason = ""
-        lead.save()
-        record(actor, lead, "restored")
+    if find_duplicate(lead.phone, lead.email, exclude_pk=lead.pk):
+        raise ValidationError({"detail": MSG_RESTORE_DUPLICATE})
+    try:
+        with transaction.atomic():
+            lead.archived_at = None
+            lead.archive_reason = ""
+            lead.save()
+            record(actor, lead, "restored")
+    except IntegrityError:
+        raise ValidationError({"detail": MSG_RESTORE_DUPLICATE})
     return lead
 
 
