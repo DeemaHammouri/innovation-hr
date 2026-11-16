@@ -31,6 +31,21 @@ class ChecklistTemplateItem(Bilingual):
     has_expiry = models.BooleanField(default=False)  # the document runs out (a licence, a certificate): verifying it asks for the expiry date
 
 
+class Holiday(models.Model):
+    """A public holiday in the company calendar. Recurring tasks that fall on one are due on the next working day.
+    Only the CEO edits the calendar, and an edit only affects tasks generated afterwards."""
+
+    date = models.DateField(unique=True)
+    name_en = models.CharField(max_length=120)
+    name_ar = models.CharField(max_length=120)
+
+    class Meta:
+        ordering = ["date"]
+
+    def __str__(self):
+        return f"{self.date} {self.name_en}"
+
+
 class Singleton(models.Model):
     class Meta:
         abstract = True

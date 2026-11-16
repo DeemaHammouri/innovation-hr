@@ -87,6 +87,8 @@ CAPABILITIES = {
     "operation.access": ("Open the Operation area", [_CEO, _CH, _CM, _OH, _OM]),
     "operation.work": ("Work on clients, checklists and tasks", [_OH, _OM]),
     "operation.manage": ("Manage the Operation team's work", [_OH]),
+    "operation.review": ("Approve or return tasks that were submitted", [_CEO, _OH]),
+    "operation.monitor": ("See the monitoring view of Operation tasks", [_CEO, _OH]),
     "operation.view_all_clients": ("See every client in Operation", [_CEO, _OH, _OM]),
     "operation.view_own_deals": ("See clients from your own deals", [_CH, _CM]),
     "client.manage": ("Create and edit clients", [_CEO, _OH]),

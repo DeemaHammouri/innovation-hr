@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
-import { api, type OpAssignee, type OpClient, type QAMeeting, type RecurringTask, type TaskInstance } from "@/lib/api";
+import { RecordTabs } from "@/components/records/RecordTabs";
+import { ApiError, api, errorMessage, type OpAssignee, type OpClient, type Page, type QAMeeting, type RecordFile, type RecurringTask, type TaskInstance } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useFetch } from "@/lib/useFetch";
 import { FREQUENCIES } from "./opUi";
@@ -105,6 +106,111 @@ export function ExpirySheet({ itemId, name, onClose, onDone }: { itemId: number;
         <FormError message={action.formError} />
         <p className="text-label font-normal text-ink-2">{name}</p>
         <Input name="expires_on" label={t("op.expiry.date")} type="date" required value={day} onChange={(e) => setDay(e.target.value)} error={action.errors.expires_on} />
+      </div>
+    </Sheet>
+  );
+}
+
+const REASON_KIND = {
+  wait: { path: "wait", field: "reason", title: "op.task.wait", text: "op.task.waitText", question: "op.task.waitQuestion", confirm: "op.task.waitSave", done: "op.task.waitDone", empty: "op.task.err.wait" },
+  block: { path: "block", field: "reason", title: "op.task.block", text: "op.task.blockText", question: "op.task.blockQuestion", confirm: "op.task.blockSave", done: "op.task.blockDone", empty: "op.task.err.block" },
+  return: { path: "return", field: "comment", title: "op.task.return", text: "op.task.returnText", question: "op.task.returnQuestion", confirm: "op.task.returnSave", done: "op.task.returned", empty: "op.task.err.return" },
+  escalate: { path: "escalate", field: "reason", title: "op.task.escalate", text: "op.task.escalateText", question: "op.task.escalateQuestion", confirm: "op.task.escalateSave", done: "op.task.escalated", empty: "op.task.err.escalate" },
+} as const;
+
+/** Wait, block, send back and escalate all ask for one written reason. */
+export function TaskReasonSheet({ kind, task, onClose, onDone }: { kind: keyof typeof REASON_KIND; task: TaskInstance; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n();
+  const k = REASON_KIND[kind];
+  return (
+    <ReasonSheet<TaskInstance>
+      path={`/operations/tasks/${task.id}/${k.path}/`}
+      onClose={onClose}
+      onDone={onDone}
+      field={k.field}
+      title={t(k.title)}
+      intro={`${task.title} · ${task.client_name}\n${t(k.text)}`}
+      question={t(k.question)}
+      confirm={t(k.confirm)}
+      done={t(k.done)}
+      emptyKey={k.empty}
+    />
+  );
+}
+
+export function ProgressSheet({ task, onClose, onDone }: { task: TaskInstance; onClose: () => void; onDone: () => void }) {
+  const { t, formatNumber } = useI18n();
+  const toast = useToast();
+  const [value, setValue] = useState(task.progress);
+  const [note, setNote] = useState("");
+  const action = useAction(["progress"]);
+  async function save() {
+    const ok = await action.run(() => api(`/operations/tasks/${task.id}/progress/`, { method: "POST", body: { progress: value, note: note.trim() } }));
+    if (ok) {
+      toast.success(t("op.task.progressSaved"));
+      onDone();
+    }
+  }
+  return (
+    <Sheet open onClose={onClose} title={t("op.task.progressTitle")} footer={<><Button variant="secondary" onClick={onClose}>{t("common.cancel")}</Button><Button loading={action.saving} onClick={save}>{t("common.save")}</Button></>}>
+      <div className="space-y-4">
+        <FormError message={action.formError} />
+        <p className="text-body text-ink-2">{task.title} · {task.client_name}</p>
+        <label className="block">
+          <span className="mb-1.5 flex items-center justify-between text-label font-medium text-ink"><span>{t("op.task.progressLabel")}</span><span className="tnum">{formatNumber(value)}%</span></span>
+          <input type="range" min={0} max={100} step={5} value={value} onChange={(e) => setValue(Number(e.target.value))} className="h-11 w-full accent-[var(--color-primary-strong)]" />
+        </label>
+        <Textarea name="note" label={t("op.task.progressNote")} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+      </div>
+    </Sheet>
+  );
+}
+
+/** Notes, files and history of one task. The people who may write can add notes and attach the files the client will receive. */
+export function TaskDetailSheet({ task, onClose }: { task: TaskInstance; onClose: () => void }) {
+  const { t } = useI18n();
+  return (
+    <Sheet open onClose={onClose} title={task.title} footer={<Button onClick={onClose}>{t("common.done")}</Button>}>
+      <RecordTabs target={`task:${task.id}`} canAttach={task.can_work} overview={<p className="text-body text-ink-2">{task.client_name} · {t(`op.task.status.${task.status}`)}</p>} />
+    </Sheet>
+  );
+}
+
+/** Choose a file attached to the task and show it to the client, with a title they will recognise. */
+export function DeliverSheet({ task, onClose, onDone }: { task: TaskInstance; onClose: () => void; onDone: () => void }) {
+  const { t, msg } = useI18n();
+  const toast = useToast();
+  const files = useFetch<Page<RecordFile>>(`/files/?target=${encodeURIComponent(`task:${task.id}`)}&page_size=100`);
+  const [file, setFile] = useState("");
+  const [title, setTitle] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    const next: Record<string, string> = {};
+    if (!file) next.attachment = "op.task.err.file";
+    if (!title.trim()) next.title = "op.task.err.title";
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setBusy(true);
+    try {
+      await api(`/operations/tasks/${task.id}/publish/`, { method: "POST", body: { attachment: Number(file), title } });
+      toast.success(t("op.task.delivered"));
+      onDone();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 400) setErrors(e.fieldErrors());
+      else toast.error(msg(errorMessage(e)));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const options = (files.data?.results ?? []).filter((f) => !f.archived_at).map((f) => ({ value: String(f.id), label: f.original_name }));
+  return (
+    <Sheet open onClose={onClose} title={t("op.task.deliver")} footer={<><Button variant="secondary" onClick={onClose}>{t("common.cancel")}</Button><Button loading={busy} onClick={save}>{t("op.task.deliverSave")}</Button></>}>
+      <div className="space-y-4">
+        <p className="text-label font-normal text-ink-2">{t("op.task.deliverText")}</p>
+        {options.length === 0 && files.data ? <p className="text-body text-ink">{t("op.task.deliverNoFiles")}</p> : null}
+        <Select name="attachment" label={t("op.task.deliverFile")} value={file} placeholder={t("op.task.deliverPick")} options={options} onChange={(e) => setFile(e.target.value)} error={errors.attachment} />
+        <Input name="title" label={t("op.task.deliverTitle")} value={title} onChange={(e) => setTitle(e.target.value)} error={errors.title} />
       </div>
     </Sheet>
   );

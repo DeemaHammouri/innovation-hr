@@ -1,0 +1,13 @@
+﻿report,series,label,value,unit,based_on_records
+operations,clients,onboarding,43,count,43
+operations,clients,active,10,count,10
+operations,clients,inactive,0,count,0
+operations,onboarding_hours,created_to_active,,hours,0
+operations,tasks,done,0,count,0
+operations,tasks,skipped,0,count,0
+operations,tasks,open,17,count,17
+operations,tasks,overdue,20,count,20
+operations,tasks,submitted,0,count,0
+operations,tasks_on_time,done_on_time,,percent,0
+operations,qa,meetings_held,0,count,0
+operations,qa,clients_overdue,0,count,0

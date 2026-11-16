@@ -45,7 +45,7 @@ export default function ReportsPage() {
 }
 
 function Section({ section, from, to, setPeriod }: { section: string; from: string; to: string; setPeriod: (p: { from?: string; to?: string }) => void }) {
-  const { t, msg, formatDate, formatNumber } = useI18n();
+  const { t, lang, msg, formatDate, formatNumber } = useI18n();
   const toast = useToast();
   const money = useMoney();
   const days = section === "forecast" ? 365 : 90;
@@ -55,9 +55,9 @@ function Section({ section, from, to, setPeriod }: { section: string; from: stri
   const qs = `from=${start}&to=${end}`;
   const { data, error, loading, reload } = useFetch<Report>(`/reports/${section}/?${qs}`);
   const show = useDelayed(loading);
-  async function exportCsv() {
+  async function exportAs(kind: "csv" | "xlsx" | "pdf") {
     try {
-      await downloadFile(`/reports/${section}/export/?${qs}`, `report-${section}-${start}-${end}.csv`);
+      await downloadFile(`/reports/${section}/export/?${qs}&fmt=${kind}&lang=${lang}`, `report-${section}-${start}-${end}.${kind}`);
     } catch (err) {
       toast.error(msg(errorMessage(err)));
     }
@@ -68,7 +68,9 @@ function Section({ section, from, to, setPeriod }: { section: string; from: stri
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1 sm:flex-none"><Input name="from" label={t("rep.from")} type="date" max={end} value={start} onChange={(e) => e.target.value && setPeriod({ from: e.target.value })} /></div>
         <div className="min-w-0 flex-1 sm:flex-none"><Input name="to" label={t("rep.to")} type="date" min={start} max={iso(today)} value={end} onChange={(e) => e.target.value && setPeriod({ to: e.target.value })} /></div>
-        <Button variant="secondary" icon={<DownloadSimple size={18} aria-hidden />} onClick={exportCsv} disabled={!data}>{t("rep.export")}</Button>
+        <Button variant="secondary" icon={<DownloadSimple size={18} aria-hidden />} onClick={() => exportAs("csv")} disabled={!data}>{t("rep.export")}</Button>
+        <Button variant="secondary" icon={<DownloadSimple size={18} aria-hidden />} onClick={() => exportAs("xlsx")} disabled={!data}>{t("rep.exportXlsx")}</Button>
+        <Button variant="secondary" icon={<DownloadSimple size={18} aria-hidden />} onClick={() => exportAs("pdf")} disabled={!data}>{t("rep.exportPdf")}</Button>
       </div>
       {error ? (
         <ErrorState message={error} onRetry={reload} />

@@ -42,6 +42,8 @@ class RecurringTask(TimeStamped):
         WEEKLY = "weekly", "Weekly"
         BIWEEKLY = "biweekly", "Every 2 weeks"
         MONTHLY = "monthly", "Monthly"
+        QUARTERLY = "quarterly", "Every 3 months"
+        SEMIANNUAL = "semiannual", "Every 6 months"
         YEARLY = "yearly", "Yearly"
         CUSTOM = "custom", "Every N days"
 
@@ -49,6 +51,7 @@ class RecurringTask(TimeStamped):
     title = models.CharField(max_length=150)
     description = models.TextField(blank=True)
     frequency = models.CharField(max_length=10, choices=Frequency.choices)
+    version = models.PositiveIntegerField(default=1)  # a new schedule starts a new version; tasks already made keep theirs
     interval_days = models.PositiveSmallIntegerField(null=True, blank=True)
     start_date = models.DateField()
     occurrences = models.PositiveIntegerField(default=0)  # how many due dates have been passed so far (created or skipped over)
@@ -68,26 +71,50 @@ class RecurringTask(TimeStamped):
 
 class TaskInstance(TimeStamped):
     class Status(models.TextChoices):
-        OPEN = "open", "Open"
+        OPEN = "open", "Open"  # created, nobody has started
+        IN_PROGRESS = "in_progress", "In progress"
+        WAITING = "waiting", "Waiting"  # for the client or someone else, with a reason
+        BLOCKED = "blocked", "Blocked"  # something stops the work, with a reason
+        SUBMITTED = "submitted", "Submitted"  # the assignee says it is finished; the manager decides
         DONE = "done", "Done"
         SKIPPED = "skipped", "Skipped"
+
+    ACTIVE = ("open", "in_progress", "waiting", "blocked")  # still on someone's plate (and can become overdue)
 
     recurring = models.ForeignKey(RecurringTask, on_delete=models.PROTECT, related_name="instances")
     client = models.ForeignKey("clients.Client", on_delete=models.PROTECT, related_name="tasks")
     title = models.CharField(max_length=150)
     due_date = models.DateField(db_index=True)
+    rule_version = models.PositiveIntegerField(default=1)
+    period = models.DateField()  # the stretch of time this task covers (see operations/recurrence.py)
     assignee = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    status = models.CharField(max_length=8, choices=Status.choices, default=Status.OPEN, db_index=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.OPEN, db_index=True)
+    progress = models.PositiveSmallIntegerField(default=0)  # 0 to 100, set by the assignee
+    started_at = models.DateTimeField(null=True, blank=True)
+    status_reason = models.TextField(blank=True)  # why it is waiting or blocked
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)  # the manager's note when sending it back
     completion_note = models.TextField(blank=True)
     skip_reason = models.TextField(blank=True)
     closed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     closed_at = models.DateTimeField(null=True, blank=True)
 
+    def save(self, *args, **kwargs):
+        if self.period is None:  # a task made by hand (or by an older caller) is its own period
+            from .recurrence import period
+
+            self.period = period(self.recurring.frequency, self.due_date)
+        super().save(*args, **kwargs)
+
     class Meta:
         ordering = ["due_date", "id"]
         constraints = [
-            models.UniqueConstraint(fields=["recurring", "due_date"], name="task_one_instance_per_due_date"),
+            models.UniqueConstraint(fields=["recurring", "rule_version", "period"], name="task_one_instance_per_rule_version_period"),
             models.CheckConstraint(condition=~Q(status="skipped") | ~Q(skip_reason=""), name="task_skip_needs_reason"),
+            models.CheckConstraint(condition=Q(progress__lte=100), name="task_progress_at_most_100"),
+            models.CheckConstraint(condition=~Q(status__in=["waiting", "blocked"]) | ~Q(status_reason=""), name="task_wait_or_block_needs_reason"),
         ]
 
 
@@ -213,3 +240,43 @@ class ProjectStaff(models.Model):
             models.UniqueConstraint(fields=["project", "user"], condition=Q(ended_at__isnull=True), name="project_person_once_while_active"),
             models.CheckConstraint(condition=Q(ended_at__isnull=True) | ~Q(end_reason=""), name="project_staff_end_needs_reason"),
         ]
+
+
+class Escalation(models.Model):
+    """A task that needs someone above the assignee. Level 1 goes to the Operation head, level 2 to the CEO. One row per task and
+    level, enforced by the database, so a task is never escalated to the same level twice however many times the job runs."""
+
+    class Level(models.IntegerChoices):
+        HEAD = 1, "Operation head"
+        CEO = 2, "CEO"
+
+    task = models.ForeignKey(TaskInstance, on_delete=models.CASCADE, related_name="escalations")
+    level = models.PositiveSmallIntegerField(choices=Level.choices)
+    reason = models.TextField(blank=True)
+    by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")  # empty: raised by the system (overdue)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["task_id", "level"]
+        constraints = [
+            models.UniqueConstraint(fields=["task", "level"], name="escalation_one_per_task_and_level"),
+            models.CheckConstraint(condition=Q(level__in=[1, 2]), name="escalation_level_is_1_or_2"),
+        ]
+
+
+class Deliverable(models.Model):
+    """A finished piece of work (a report, a filing) the client may see. Operation attaches the file to the task and publishes it;
+    the client's portal lists it and the client acknowledges receipt. Nothing here carries prices."""
+
+    task = models.ForeignKey(TaskInstance, on_delete=models.PROTECT, related_name="deliverables")
+    client = models.ForeignKey("clients.Client", on_delete=models.PROTECT, related_name="deliverables")
+    attachment = models.ForeignKey("files.Attachment", on_delete=models.PROTECT, related_name="+")
+    title = models.CharField(max_length=150)
+    published_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    published_at = models.DateTimeField(auto_now_add=True)
+    acknowledged_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-published_at", "-id"]
+        constraints = [models.UniqueConstraint(fields=["attachment"], name="deliverable_published_once")]

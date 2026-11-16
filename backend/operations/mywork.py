@@ -15,7 +15,7 @@ def operation_items(user):
     manager = user.has_capability("operation.manage")
     today = timezone.localdate()
     out = []
-    tasks = TaskInstance.objects.filter(status="open", due_date__lte=today).select_related("client").order_by("due_date")
+    tasks = TaskInstance.objects.filter(status__in=TaskInstance.ACTIVE, due_date__lte=today).select_related("client").order_by("due_date")
     tasks = tasks.filter(assignee__in=[user, None]) | tasks.filter(assignee__isnull=True) if manager else tasks.filter(assignee=user)
     for t in tasks.distinct()[:CAP]:
         out.append({"kind": "op_task", "section": "operation", "ref": t.title, "title": t.client.company_name, "link": "/operation?tab=tasks", "due": t.due_date.isoformat(), "overdue": t.due_date < today})

@@ -18,12 +18,13 @@ from clients.models import Client
 from quotations import access as quote_access
 from quotations.models import Quotation
 
-from . import access
+from . import access, exports
 from .builders import BUILDERS
 from .series import csv_rows
 
 MSG_DATES = "Choose valid dates."
 MSG_RANGE = "Choose a period of up to 2 years."
+MSG_FORMAT = "Choose csv, xlsx or pdf."
 MSG_FORBIDDEN = "You don't have access to this report."
 MAX_DAYS = 731
 DEFAULT_DAYS = {"forecast": 365}
@@ -78,7 +79,17 @@ class ReportExport(Base):
     def get(self, request, section):
         report = self.build(request, section)
         p = report["period"]
-        return csv_response(f"report-{section}-{p['from']}-{p['to']}.csv", ["report", "series", "label", "value", "unit", "based_on_records"], csv_rows(report))
+        rows = csv_rows(report)
+        fmt = request.query_params.get("fmt", "csv")  # not "format": DRF keeps that name for content negotiation
+        base = f"report-{section}-{p['from']}-{p['to']}"
+        if fmt == "xlsx":
+            return exports.xlsx_response(f"{base}.xlsx", rows)
+        if fmt == "pdf":
+            lang = "ar" if request.query_params.get("lang") == "ar" else "en"
+            return exports.pdf_response(f"{base}.pdf", section, p, rows, lang)
+        if fmt != "csv":
+            raise ValidationError({"detail": MSG_FORMAT})
+        return csv_response(f"{base}.csv", ["report", "series", "label", "value", "unit", "based_on_records"], rows)
 
 
 class SearchView(APIView):

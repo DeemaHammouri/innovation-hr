@@ -1,0 +1,105 @@
+{
+ "section": "operations",
+ "series": [
+  {
+   "key": "clients",
+   "unit": "count",
+   "kind": "bar",
+   "points": [
+    {
+     "key": "onboarding",
+     "value": 43,
+     "n": 43
+    },
+    {
+     "key": "active",
+     "value": 10,
+     "n": 10
+    },
+    {
+     "key": "inactive",
+     "value": 0,
+     "n": 0
+    }
+   ]
+  },
+  {
+   "key": "onboarding_hours",
+   "unit": "hours",
+   "kind": "bar",
+   "points": [
+    {
+     "key": "created_to_active",
+     "value": null,
+     "n": 0
+    }
+   ]
+  },
+  {
+   "key": "tasks",
+   "unit": "count",
+   "kind": "bar",
+   "points": [
+    {
+     "key": "done",
+     "value": 0,
+     "n": 0
+    },
+    {
+     "key": "skipped",
+     "value": 0,
+     "n": 0
+    },
+    {
+     "key": "open",
+     "value": 15,
+     "n": 15
+    },
+    {
+     "key": "overdue",
+     "value": 20,
+     "n": 20
+    },
+    {
+     "key": "submitted",
+     "value": 0,
+     "n": 0
+    }
+   ]
+  },
+  {
+   "key": "tasks_on_time",
+   "unit": "percent",
+   "kind": "bar",
+   "points": [
+    {
+     "key": "done_on_time",
+     "value": null,
+     "n": 0
+    }
+   ]
+  },
+  {
+   "key": "qa",
+   "unit": "count",
+   "kind": "bar",
+   "points": [
+    {
+     "key": "meetings_held",
+     "value": 0,
+     "n": 0
+    },
+    {
+     "key": "clients_overdue",
+     "value": 0,
+     "n": 0
+    }
+   ]
+  }
+ ],
+ "records": 35,
+ "period": {
+  "from": "2026-08-19",
+  "to": "2026-11-16"
+ }
+}

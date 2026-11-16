@@ -1,6 +1,8 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .handover_api import HandoverViewSet, ProjectViewSet
+from .monitoring import MonitoringView
 from .views import AssigneeViewSet, ChecklistViewSet, MeetingViewSet, OpClientViewSet, RecurringViewSet, TaskViewSet
 
 router = DefaultRouter()
@@ -13,4 +15,4 @@ router.register("operations/meetings", MeetingViewSet, basename="op-meeting")
 router.register("handovers", HandoverViewSet, basename="handover")
 router.register("projects", ProjectViewSet, basename="project")
 
-urlpatterns = router.urls
+urlpatterns = [path("operations/monitoring/", MonitoringView.as_view()), *router.urls]

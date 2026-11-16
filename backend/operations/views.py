@@ -14,6 +14,7 @@ from core.pagination import StandardPagination
 from leads.sla import sla_now
 
 from . import access, services
+from . import lifecycle
 from .models import ChecklistItem, QAMeeting, RecurringTask, TaskInstance
 from .serializers import (
     ChecklistItemSerializer, MeetingSerializer, OpClientDetailSerializer, OpClientSerializer, RecurringSerializer, TaskSerializer,
@@ -60,8 +61,8 @@ class OpClientViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, Base):
         qs = (
             Client.objects.filter(access.visible_clients_q(self.request.user))
             .annotate(
-                open_tasks=Count("tasks", filter=Q(tasks__status="open"), distinct=True),
-                overdue_tasks=Count("tasks", filter=Q(tasks__status="open", tasks__due_date__lt=today), distinct=True),
+                open_tasks=Count("tasks", filter=Q(tasks__status__in=TaskInstance.ACTIVE), distinct=True),
+                overdue_tasks=Count("tasks", filter=Q(tasks__status__in=TaskInstance.ACTIVE, tasks__due_date__lt=today), distinct=True),
                 required_total=Count("checklist", filter=Q(checklist__required=True, checklist__archived_at__isnull=True), distinct=True),
                 required_done=Count(
                     "checklist", filter=Q(checklist__required=True, checklist__archived_at__isnull=True, checklist__status__in=["verified", "not_applicable"]), distinct=True
@@ -163,12 +164,12 @@ class TaskViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, Base):
     filterset_fields = ["client", "status"]
 
     def get_queryset(self):
-        qs = TaskInstance.objects.filter(client__in=Client.objects.filter(access.visible_clients_q(self.request.user))).select_related("client", "assignee", "closed_by")
+        qs = TaskInstance.objects.filter(client__in=Client.objects.filter(access.visible_clients_q(self.request.user))).select_related("client", "assignee", "closed_by").prefetch_related("escalations", "deliverables")
         p = self.request.query_params
         if p.get("mine") == "1":
             qs = qs.filter(assignee=self.request.user)
         if p.get("overdue") == "1":
-            qs = qs.filter(status="open", due_date__lt=sla_now()[0])
+            qs = qs.filter(status__in=TaskInstance.ACTIVE, due_date__lt=sla_now()[0])
         return qs
 
     def task(self):
@@ -184,9 +185,52 @@ class TaskViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, Base):
 
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
+        """Closes a task straight away, without a review. Only the Operation head may; everyone else submits it for review."""
         task = self.task()
-        self.guard(task)
+        self.need_head()
         return self.respond(services.complete_task(request.user, task, request.data.get("note")))
+
+    @action(detail=True, methods=["post"])
+    def start(self, request, pk=None):
+        return self.respond(lifecycle.start(request.user, self.task()))
+
+    @action(detail=True, methods=["post"])
+    def progress(self, request, pk=None):
+        return self.respond(lifecycle.set_progress(request.user, self.task(), request.data.get("progress"), request.data.get("note")))
+
+    @action(detail=True, methods=["post"])
+    def wait(self, request, pk=None):
+        return self.respond(lifecycle.wait(request.user, self.task(), request.data.get("reason")))
+
+    @action(detail=True, methods=["post"])
+    def block(self, request, pk=None):
+        return self.respond(lifecycle.block(request.user, self.task(), request.data.get("reason")))
+
+    @action(detail=True, methods=["post"])
+    def resume(self, request, pk=None):
+        return self.respond(lifecycle.resume(request.user, self.task()))
+
+    @action(detail=True, methods=["post"])
+    def submit(self, request, pk=None):
+        return self.respond(lifecycle.submit(request.user, self.task(), request.data.get("note")))
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        return self.respond(lifecycle.approve(request.user, self.task()))
+
+    @action(detail=True, methods=["post"], url_path="return")
+    def send_back(self, request, pk=None):
+        return self.respond(lifecycle.send_back(request.user, self.task(), request.data.get("comment")))
+
+    @action(detail=True, methods=["post"])
+    def escalate(self, request, pk=None):
+        lifecycle.escalate(request.user, self.task(), request.data.get("reason"))
+        return self.respond(self.task())
+
+    @action(detail=True, methods=["post"])
+    def publish(self, request, pk=None):
+        lifecycle.publish(request.user, self.task(), request.data.get("attachment"), request.data.get("title"))
+        return self.respond(self.task())
 
     @action(detail=True, methods=["post"])
     def skip(self, request, pk=None):

@@ -1,0 +1,4 @@
+ar: 12 values in the JSON
+PASS CSV carries the same values, in the same order
+PASS Excel carries the same values, in the same order
+PASS PDF text contains every number

@@ -151,3 +151,14 @@ class StaffingTests(HCase):
         self.assertEqual([s["name"] for s in row["staff"]], [self.omem.full_name])
         self.assertTrue(row["can_staff"])
         self.assertTrue(Notification.objects.filter(user=self.omem, kind="project_assigned").exists())
+
+
+class TemplateExpiryTests(HCase):
+    def test_a_template_item_with_an_expiry_flag_makes_the_client_item_ask_for_a_date(self):
+        from lookups.models import ChecklistTemplateItem
+
+        ChecklistTemplateItem.objects.filter(pk=self.t1.pk).update(has_expiry=True)
+        client = self.new("Flagged Co").client
+        flags = dict(client.checklist.values_list("name_en", "expires_required"))
+        self.assertTrue(flags["Commercial register"])
+        self.assertFalse(flags["Tax certificate"])

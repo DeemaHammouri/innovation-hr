@@ -84,7 +84,7 @@ class DeclarationTests(RoleCase):
         in_rules = {
             "lead.view_all", "lead.view_assigned", "lead.view_created", "lead.work_assigned", "lead.edit_created",
             "quotation.view_all", "quotation.view_assigned", "contract.view_all", "contract.view_assigned",
-            "handover.view", "handover.write", "handover.decide", "project.view", "project.staff", "operation.work", "operation.manage", "operation.view_all_clients", "operation.view_own_deals",
+            "handover.view", "handover.write", "handover.decide", "project.view", "project.staff", "operation.review", "operation.monitor", "operation.work", "operation.manage", "operation.view_all_clients", "operation.view_own_deals",
             "payment.manage", "hr.staff", "hr.manage", "hr.leave_request", "hr.leave_decide_hr_head", "hr.payroll_approve",
             "contract.sign", "contract.draft", "quotation.prepare", "quotation.sign", "lead.manage", "report.funnel", "report.revenue",
             "appointment.view_all", "meeting_report.view_all", "report.forecast", "report.operations", "report.hr", "lead.create", "lead.import", "lead.batches_all",

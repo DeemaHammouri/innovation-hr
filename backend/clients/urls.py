@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .portal import PortalMeView, PortalQuotationDetailView, PortalQuotationDocumentView, PortalQuotationListView, PortalQuotationSignView
+from .portal import PortalDeliverableAcknowledgeView, PortalDeliverableDownloadView, PortalDeliverableListView, PortalMeView, PortalQuotationDetailView, PortalQuotationDocumentView, PortalQuotationListView, PortalQuotationSignView
 from .portal import PortalContractDetailView, PortalContractDocumentView, PortalContractListView, PortalContractSignView
 from .views import ClientViewSet
 
@@ -10,6 +10,9 @@ router.register("clients", ClientViewSet, basename="client")
 
 urlpatterns = [
     path("portal/me/", PortalMeView.as_view()),
+    path("portal/deliverables/", PortalDeliverableListView.as_view()),
+    path("portal/deliverables/<int:pk>/download/", PortalDeliverableDownloadView.as_view()),
+    path("portal/deliverables/<int:pk>/acknowledge/", PortalDeliverableAcknowledgeView.as_view()),
     path("portal/quotations/", PortalQuotationListView.as_view()),
     path("portal/quotations/<int:pk>/", PortalQuotationDetailView.as_view()),
     path("portal/quotations/<int:pk>/document/", PortalQuotationDocumentView.as_view()),

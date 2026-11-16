@@ -33,11 +33,12 @@ export default function OperationPage() {
 
 function OperationView({ isOp }: { isOp: boolean }) {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [params, setParams] = useUrlParams(KEYS);
   const tab = params.tab === "tasks" ? "tasks" : "clients";
   return (
     <>
-      <PageHeader title={t("op.title")} description={t("op.description")} />
+      <PageHeader title={t("op.title")} description={t("op.description")} action={user && can(user, "operation.monitor") ? <Link href="/operation/monitoring" className="inline-flex min-h-11 items-center rounded-control border border-line bg-surface px-4 text-body font-semibold text-ink hover:bg-canvas">{t("mon.open")}</Link> : null} />
       <Segmented
         label={t("op.tabs")}
         value={tab}

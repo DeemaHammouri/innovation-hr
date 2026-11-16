@@ -1,8 +1,9 @@
-from rest_framework import serializers, viewsets
+from rest_framework import mixins, serializers, viewsets
+from audit.models import record
 from rest_framework.generics import RetrieveUpdateAPIView
 
 
-from .models import ChecklistTemplateItem, RejectionReason, Service, SlaSetting, WorkHours
+from .models import ChecklistTemplateItem, Holiday, RejectionReason, Service, SlaSetting, WorkHours
 
 
 # Every signed-in person can read a lookup (forms need them). Only settings.manage can change one.
@@ -104,3 +105,43 @@ def singleton_view(model, fields):
 
 WorkHoursView = singleton_view(WorkHours, ["work_start", "work_end", "grace_minutes"])
 SlaView = singleton_view(SlaSetting, ["first_contact_hours", "follow_up_days"])
+
+
+class HolidaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Holiday
+        fields = ["id", "date", "name_en", "name_ar"]
+
+    def validate(self, attrs):
+        for key, label in (("name_en", "English"), ("name_ar", "Arabic")):
+            if key in attrs:
+                attrs[key] = attrs[key].strip()
+                if not attrs[key]:
+                    raise serializers.ValidationError({key: f"Enter the {label} name."})
+        if "date" in attrs and Holiday.objects.filter(date=attrs["date"]).exclude(pk=getattr(self.instance, "pk", None)).exists():
+            raise serializers.ValidationError({"date": "This date is already in the calendar."})
+        return attrs
+
+
+class HolidayViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    """The company holiday calendar. Everyone signed in can read it; only the CEO adds or removes days, and each change is logged.
+    Changes only affect recurring tasks generated afterwards."""
+
+    required_capabilities = {"list": [], "get": [], "create": ["settings.manage"], "post": ["settings.manage"], "destroy": ["settings.manage"], "delete": ["settings.manage"]}
+    denied_message = DENIED
+    serializer_class = HolidaySerializer
+    pagination_class = None
+    queryset = Holiday.objects.all()
+
+    def get_queryset(self):
+        qs = Holiday.objects.all()
+        year = self.request.query_params.get("year")
+        return qs.filter(date__year=int(year)) if year and year.isdigit() else qs
+
+    def perform_create(self, serializer):
+        h = serializer.save()
+        record(self.request.user, h, "holiday_added", to_value=f"{h.date} {h.name_en}")
+
+    def perform_destroy(self, instance):
+        record(self.request.user, instance, "holiday_removed", from_value=f"{instance.date} {instance.name_en}")
+        instance.delete()

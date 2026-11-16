@@ -25,6 +25,12 @@ Roles are derived from department and head/member: **CEO** (Administration head)
 | Contracts: sign (approve or return) | yes | no | no | no | no | no | no | no |
 | Clients and Operation: see | all | no | own deals, read-only | own deals, read-only | no | no | all | all |
 | Operation: checklist, tasks, QA meetings | no | no | no | no | no | no | write | write (tasks assigned to them; head customises) |
+| Tasks: start, progress, wait, block, submit | no | no | no | no | no | no | any task | own tasks |
+| Tasks: approve or send back (never your own work) | yes | no | no | no | no | no | yes | no |
+| Tasks: escalate (level 1 to the head, level 2 to the CEO) | no | no | no | no | no | no | both levels | level 1 on own tasks |
+| Tasks: show a file to the client | no | no | no | no | no | no | yes | own tasks |
+| Operation monitoring view | yes | no | no | no | no | no | yes | no |
+| Holiday calendar: read / change | read, change | read | read | read | read | read | read | read |
 | Handovers: see | all | no | own (the deals they prepared) | own | no | no | submitted, escalated, accepted and returned | read-only, same as head |
 | Handovers: fill in, submit | no | no | yes (own deals) | yes (own deals) | no | no | no | no |
 | Handovers: accept, return | yes | no | no | no | no | no | yes | no |
@@ -199,6 +205,9 @@ OpH / OpM = Operation head / member.
 | GET | `/api/v1/lookups/checklist-template/1/` | 401 | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 |
 | PATCH | `/api/v1/lookups/checklist-template/1/` | 401 | 200 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | PUT | `/api/v1/lookups/checklist-template/1/` | 401 | 405 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
+| GET | `/api/v1/lookups/holidays/` | 401 | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 |
+| POST | `/api/v1/lookups/holidays/` | 401 | 400 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
+| DELETE | `/api/v1/lookups/holidays/1/` | 401 | 404 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/lookups/rejection-reasons/` | 401 | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 |
 | POST | `/api/v1/lookups/rejection-reasons/` | 401 | 400 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | DELETE | `/api/v1/lookups/rejection-reasons/1/` | 401 | 405 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
@@ -240,6 +249,7 @@ OpH / OpM = Operation head / member.
 | POST | `/api/v1/operations/clients/1/checklist/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 404 | 403 |
 | GET | `/api/v1/operations/meetings/` | 401 | 200 | 403 | 200 | 200 | 403 | 403 | 200 | 200 |
 | POST | `/api/v1/operations/meetings/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 404 | 404 |
+| GET | `/api/v1/operations/monitoring/` | 401 | 200 | 403 | 403 | 403 | 403 | 403 | 200 | 403 |
 | GET | `/api/v1/operations/recurring/` | 401 | 200 | 403 | 200 | 200 | 403 | 403 | 200 | 200 |
 | POST | `/api/v1/operations/recurring/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 404 | 403 |
 | GET | `/api/v1/operations/recurring/1/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
@@ -247,8 +257,18 @@ OpH / OpM = Operation head / member.
 | PUT | `/api/v1/operations/recurring/1/` | 401 | 405 | 403 | 405 | 405 | 403 | 403 | 405 | 405 |
 | GET | `/api/v1/operations/tasks/` | 401 | 200 | 403 | 200 | 200 | 403 | 403 | 200 | 200 |
 | GET | `/api/v1/operations/tasks/1/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/operations/tasks/1/approve/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/operations/tasks/1/block/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
 | POST | `/api/v1/operations/tasks/1/complete/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/operations/tasks/1/escalate/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/operations/tasks/1/progress/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/operations/tasks/1/publish/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/operations/tasks/1/resume/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/operations/tasks/1/return/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
 | POST | `/api/v1/operations/tasks/1/skip/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/operations/tasks/1/start/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/operations/tasks/1/submit/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
+| POST | `/api/v1/operations/tasks/1/wait/` | 401 | 404 | 403 | 404 | 404 | 403 | 403 | 404 | 404 |
 | GET | `/api/v1/payments/clients/1/` | 401 | 404 | 403 | 404 | 403 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/payments/clients/1/export/` | 401 | 404 | 403 | 404 | 403 | 403 | 403 | 403 | 403 |
 | POST | `/api/v1/payments/clients/1/schedule/` | 401 | 403 | 403 | 404 | 403 | 403 | 403 | 403 | 403 |
@@ -261,6 +281,9 @@ OpH / OpM = Operation head / member.
 | GET | `/api/v1/portal/contracts/1/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/portal/contracts/1/document/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | POST | `/api/v1/portal/contracts/1/sign/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
+| GET | `/api/v1/portal/deliverables/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
+| POST | `/api/v1/portal/deliverables/1/acknowledge/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
+| GET | `/api/v1/portal/deliverables/1/download/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/portal/me/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/portal/quotations/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/portal/quotations/1/` | 401 | 403 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |

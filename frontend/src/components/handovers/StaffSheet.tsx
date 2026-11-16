@@ -27,6 +27,9 @@ export function StaffSheet({ project, onClose, onDone }: { project: Project; onC
     if (!who) return void a.setErrors({ user: "prj.err.person" });
     if (primary && !reason.trim()) return void a.setErrors({ reason: "prj.err.reason" });
     if (await a.run(() => call("primary", { user: Number(who), reason }))) {
+      a.setSaving(false); // the sheet stays open for the next change
+      setWho("");
+      setReason("");
       toast.success(t("prj.staffSaved"));
       onDone();
     }
@@ -34,12 +37,15 @@ export function StaffSheet({ project, onClose, onDone }: { project: Project; onC
   async function addSupport() {
     if (!sup) return void b.setErrors({ user: "prj.err.person" });
     if (await b.run(() => call("support", { user: Number(sup) }))) {
+      b.setSaving(false);
+      setSup("");
       toast.success(t("prj.staffSaved"));
       onDone();
     }
   }
   async function remove(user: number) {
     if (await b.run(() => call("remove", { user }))) {
+      b.setSaving(false);
       toast.success(t("prj.staffSaved"));
       onDone();
     }

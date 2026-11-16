@@ -173,7 +173,8 @@ def operations(user, start, end):
     on_time = sum(1 for d, c in done if c and timezone_date(c) <= d)
     out["series"].append(series("tasks", "count", [
         point("done", len(done)), point("skipped", tasks.filter(status="skipped").count()),
-        point("open", tasks.filter(status="open", due_date__gte=today).count()), point("overdue", tasks.filter(status="open", due_date__lt=today).count()),
+        point("open", tasks.filter(status__in=TaskInstance.ACTIVE, due_date__gte=today).count()), point("overdue", tasks.filter(status__in=TaskInstance.ACTIVE, due_date__lt=today).count()),
+        point("submitted", tasks.filter(status="submitted").count()),
     ]))
     out["series"].append(series("tasks_on_time", "percent", [point("done_on_time", pct(on_time, len(done)), len(done))]))
     overdue = 0

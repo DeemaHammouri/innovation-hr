@@ -72,6 +72,30 @@ CATALOG = {
         "en": ("You were taken off a project: {name}", "{ref}"),
         "ar": ("تمت إزالتك من مشروع: {name}", "{ref}"),
     },
+    "task_submitted": {
+        "en": ("Task submitted for review: {ref}", "{name}"),
+        "ar": ("مهمة بانتظار المراجعة: {ref}", "{name}"),
+    },
+    "task_approved": {
+        "en": ("Task approved: {ref}", "{name}"),
+        "ar": ("تمت الموافقة على المهمة: {ref}", "{name}"),
+    },
+    "task_returned": {
+        "en": ("Task sent back to you: {ref}", "{name}"),
+        "ar": ("أُعيدت إليك المهمة: {ref}", "{name}"),
+    },
+    "task_escalated": {
+        "en": ("Task escalated: {ref}", "{name}"),
+        "ar": ("تم تصعيد مهمة: {ref}", "{name}"),
+    },
+    "deliverable_published": {
+        "en": ("A new file is ready for you: {ref}", "{name}"),
+        "ar": ("ملف جديد جاهز لك: {ref}", "{name}"),
+    },
+    "deliverable_acknowledged": {
+        "en": ("The client confirmed receiving: {ref}", "{name}"),
+        "ar": ("أكد العميل استلام: {ref}", "{name}"),
+    },
     "task_due": {
         "en": ("Task due: {ref}", "{name}"),
         "ar": ("مهمة مستحقة: {ref}", "{name}"),

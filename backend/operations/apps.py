@@ -8,7 +8,7 @@ class OperationsConfig(AppConfig):
         from core import access as registry
 
         from . import access, mywork, reminders, services  # noqa: F401  (importing registers the My Work provider and the daily job)
-        from .models import ChecklistItem, Handover, Project
+        from .models import ChecklistItem, Handover, Project, TaskInstance
 
         # Files on a checklist item: anyone who can see the client can read them; Operation can add them.
         registry.register(
@@ -18,6 +18,15 @@ class OperationsConfig(AppConfig):
             can_attach=lambda user, item, category="": access.is_op(user) and item.archived_at is None,
             label=lambda item: item.name_en, link=lambda item: f"/operation/{item.client_id}",
             after_attach=services.file_attached,
+        )
+
+        # Notes (comments), attachments and history on a task: whoever may see the client reads them; the person doing the task writes.
+        registry.register(
+            "task", TaskInstance,
+            can_view=lambda user, t: access.can_view_client(user, t.client),
+            can_write=lambda user, t: access.can_work_task(user, t) or user.has_capability("operation.review"),
+            can_attach=lambda user, t, category="": access.can_work_task(user, t) and t.status in TaskInstance.ACTIVE + ("submitted",),
+            label=lambda t: t.title, link=lambda t: "/operation?tab=tasks",
         )
 
         from .handover_api import visible_q

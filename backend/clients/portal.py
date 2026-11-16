@@ -176,3 +176,52 @@ class PortalContractSignView(APIView):
         c = get_object_or_404(_my_contracts(request), pk=pk)
         contract_services.client_sign(request.user, c, request.data.get("signature"))
         return Response(PortalContractSerializer(get_object_or_404(_my_contracts(request), pk=pk)).data)
+
+
+# ---------- files Operation published to the client ----------
+class PortalDeliverableSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    published_at = serializers.DateTimeField()
+    acknowledged_at = serializers.DateTimeField(allow_null=True)
+    filename = serializers.CharField(source="attachment.original_name")
+
+
+def _my_deliverables(request):
+    from operations.models import Deliverable
+
+    return Deliverable.objects.filter(client=my_client(request)).select_related("attachment")
+
+
+class PortalDeliverableListView(APIView):
+    required_capabilities = ["portal.access"]
+    denied_message = "This area is for clients."
+
+    def get(self, request):
+        return Response(PortalDeliverableSerializer(_my_deliverables(request), many=True).data)
+
+
+class PortalDeliverableDownloadView(APIView):
+    required_capabilities = ["portal.access"]
+    denied_message = "This area is for clients."
+
+    def get(self, request, pk):
+        from django.http import FileResponse
+
+        att = get_object_or_404(_my_deliverables(request), pk=pk).attachment
+        res = FileResponse(att.file.open("rb"), as_attachment=True, filename=att.original_name, content_type=att.content_type_header)
+        res["X-Content-Type-Options"] = "nosniff"
+        res["Cache-Control"] = "private, no-store"
+        return res
+
+
+class PortalDeliverableAcknowledgeView(APIView):
+    required_capabilities = {"post": ["portal.access"]}
+    denied_message = "This area is for clients."
+
+    def post(self, request, pk):
+        from operations import lifecycle
+
+        d = lifecycle.acknowledge(request.user, get_object_or_404(_my_deliverables(request), pk=pk))
+        return Response(PortalDeliverableSerializer(d).data)
+

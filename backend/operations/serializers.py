@@ -47,21 +47,49 @@ class TaskSerializer(serializers.ModelSerializer):
     closed_by_name = serializers.CharField(source="closed_by.full_name", default=None, read_only=True)
     overdue = serializers.SerializerMethodField()
     can_work = serializers.SerializerMethodField()
+    can_publish = serializers.SerializerMethodField()
+    escalation_level = serializers.SerializerMethodField()
+    can_review = serializers.SerializerMethodField()
+    can_escalate = serializers.SerializerMethodField()
+    can_complete = serializers.SerializerMethodField()
+    deliverables = serializers.SerializerMethodField()
 
     class Meta:
         model = TaskInstance
         fields = [
             "id", "client", "client_name", "recurring", "title", "due_date", "assignee", "assignee_name", "status", "completion_note", "skip_reason",
-            "closed_by_name", "closed_at", "overdue", "can_work",
+            "closed_by_name", "closed_at", "overdue", "can_work", "progress", "started_at", "status_reason", "submitted_at", "review_note", "escalation_level",
+            "can_review", "can_escalate", "can_complete", "can_publish", "deliverables",
         ]
         read_only_fields = fields
 
     def get_overdue(self, t):
         today = self.context.get("today")
-        return bool(t.status == "open" and today and t.due_date < today)
+        return bool(t.status in TaskInstance.ACTIVE and today and t.due_date < today)
 
     def get_can_work(self, t):
-        return t.status == "open" and access.can_work_task(self.context["request"].user, t)
+        return t.status in TaskInstance.ACTIVE and access.can_work_task(self.context["request"].user, t)
+
+    def get_can_publish(self, t):
+        """Matches lifecycle.publish: after submitting, the assignee (who can no longer 'work') and the reviewers may show a file to the client."""
+        u = self.context["request"].user
+        return t.status in ("submitted", "done") and (u.has_capability("operation.review") or access.can_work_task(u, t))
+
+    def get_escalation_level(self, t):
+        return max((e.level for e in t.escalations.all()), default=0)
+
+    def get_can_review(self, t):
+        u = self.context["request"].user
+        return t.status == "submitted" and u.has_capability("operation.review") and t.assignee_id != u.pk
+
+    def get_can_escalate(self, t):
+        return (t.status in TaskInstance.ACTIVE or t.status == "submitted") and access.can_work_task(self.context["request"].user, t) and self.get_escalation_level(t) < 2
+
+    def get_can_complete(self, t):
+        return t.status in TaskInstance.ACTIVE and self.context["request"].user.has_capability("operation.manage")
+
+    def get_deliverables(self, t):
+        return [{"id": d.pk, "title": d.title, "published_at": d.published_at, "acknowledged_at": d.acknowledged_at} for d in t.deliverables.all()]
 
 
 class MeetingSerializer(serializers.ModelSerializer):

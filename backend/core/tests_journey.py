@@ -95,7 +95,9 @@ class JourneyTests(RoleCase):
         # A recurring task appears today; it is completed with a note; a QA meeting is logged.
         self.post("operation_head", "/api/operations/recurring/", {"client": client.pk, "title": "Monthly reconciliation", "frequency": "monthly", "start_date": timezone.localdate().isoformat(), "assignee": self.users["operation_member"].pk}, expect=201)
         task = client.tasks.get()
-        self.post("operation_member", f"/api/operations/tasks/{task.pk}/complete/", {"note": "All matched"}, expect=200)
+        self.post("operation_member", f"/api/operations/tasks/{task.pk}/start/", {}, expect=200)
+        self.post("operation_member", f"/api/operations/tasks/{task.pk}/submit/", {"note": "All matched"}, expect=200)
+        self.post("operation_head", f"/api/operations/tasks/{task.pk}/approve/", {}, expect=200)
         self.post("operation_head", "/api/operations/meetings/", {"client": client.pk, "held_on": timezone.localdate().isoformat(), "notes": "Reviewed the books"}, expect=201)
 
         # Payments: the head schedules and records; the CEO reads; the Commercial member cannot see any of it.

@@ -1,0 +1,57 @@
+PASS ar 375 handover-new: no horizontal scroll
+PASS ar 375 handover-new: shows "Handover A AR7"
+PASS ar 375 handover-new: no console error
+PASS ar 375 handovers-list: no horizontal scroll
+PASS ar 375 handovers-list: no console error
+PASS ar 375 projects: no horizontal scroll
+PASS ar 375 projects: no console error
+PASS ar 375 kyc-checklist: no horizontal scroll
+PASS ar 375 kyc-checklist: shows "السجل التجاري"
+PASS ar 375 kyc-checklist: no console error
+PASS ar 768 handover-new: no horizontal scroll
+PASS ar 768 handover-new: shows "Handover A AR7"
+PASS ar 768 handover-new: no console error
+PASS ar 768 handovers-list: no horizontal scroll
+PASS ar 768 handovers-list: no console error
+PASS ar 768 projects: no horizontal scroll
+PASS ar 768 projects: no console error
+PASS ar 768 kyc-checklist: no horizontal scroll
+PASS ar 768 kyc-checklist: shows "السجل التجاري"
+PASS ar 768 kyc-checklist: no console error
+PASS ar 1280 handover-new: no horizontal scroll
+PASS ar 1280 handover-new: shows "Handover A AR7"
+PASS ar 1280 handover-new: no console error
+PASS ar 1280 handovers-list: no horizontal scroll
+PASS ar 1280 handovers-list: no console error
+PASS ar 1280 projects: no horizontal scroll
+PASS ar 1280 projects: no console error
+PASS ar 1280 kyc-checklist: no horizontal scroll
+PASS ar 1280 kyc-checklist: shows "السجل التجاري"
+PASS ar 1280 kyc-checklist: no console error
+PASS ar 1280 submitting an empty handover is refused
+PASS ar 1280 the handover shows what was written
+PASS ar 1280 submitted to Operation
+PASS ar 1280 Operation sees the handover with no price or payment words
+PASS ar 1280 return: an empty note is refused
+PASS ar 1280 Commercial sees the returned notes
+PASS ar 1280 Operation head cannot edit the handover
+PASS ar 1280 accepted: the project is created and linked
+PASS ar 1280 handover (Commercial): no console error
+PASS ar 1280 handover (Operation): no console error
+PASS ar 1280 Commercial cannot escalate
+PASS ar 1280 the CEO sees the escalation note
+PASS ar 1280 escalation: no console error
+PASS ar 1280 Operation menu has no Quotations, Contracts, Leads or Payments
+PASS ar 1280 typing /quotations does not show quotations
+PASS ar 1280 the API refuses Operation on quotations, contracts, payments and leads | 403,403,404,403
+PASS ar 1280 the handover API carries no price field
+PASS ar 1280 privacy: no console error
+PASS ar 1280 first primary employee needs no reason
+PASS ar 1280 replacing the primary without a reason is refused
+PASS ar 1280 staffing: no console error
+PASS ar 1280 the item says verifying needs the expiry date
+PASS ar 1280 verify without an expiry date is refused
+PASS ar 1280 verified, with the expiry date shown
+PASS ar 1280 the second verification makes version 2 and keeps version 1 as replaced | السجل التجاري إغلاق الإصدارات الإصدار 2 · ar-kyc-sample-2.pdf Demo Operation Head · 16‏/11‏/2026، 6:03 م · صالح حتى 16‏/11‏/2028 تم التحقق الإصدار 1 · ar-kyc-sa
+PASS ar 1280 KYC: no console error
+DONE ar: 0 failure(s)

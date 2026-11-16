@@ -1,0 +1,98 @@
+PASS en 375 client-tasks: no horizontal scroll
+PASS en 375 client-tasks: shows "Flow task"
+PASS en 375 client-tasks: no console error
+PASS en 375 monitoring: no horizontal scroll
+PASS en 375 monitoring: shows "Blocked old task"
+PASS en 375 monitoring: no console error
+PASS en 375 monitoring-ceo: no horizontal scroll
+PASS en 375 monitoring-ceo: shows "Blocked old task"
+PASS en 375 monitoring-ceo: no console error
+PASS en 375 portal: no horizontal scroll
+PASS en 375 portal: shows "Proof Client EN7"
+PASS en 375 portal: no console error
+PASS en 375 reports-operations: no horizontal scroll
+PASS en 375 reports-operations: no console error
+PASS en 375 settings: no horizontal scroll
+PASS en 375 settings: no console error
+PASS en 375 recurrence rule sheet opens with the frequency list
+PASS en 375 recurrence rule sheet has no horizontal scroll
+PASS en 375 recurrence sheet: no console error
+PASS en 768 client-tasks: no horizontal scroll
+PASS en 768 client-tasks: shows "Flow task"
+PASS en 768 client-tasks: no console error
+PASS en 768 monitoring: no horizontal scroll
+PASS en 768 monitoring: shows "Blocked old task"
+PASS en 768 monitoring: no console error
+PASS en 768 monitoring-ceo: no horizontal scroll
+PASS en 768 monitoring-ceo: shows "Blocked old task"
+PASS en 768 monitoring-ceo: no console error
+PASS en 768 portal: no horizontal scroll
+PASS en 768 portal: shows "Proof Client EN7"
+PASS en 768 portal: no console error
+PASS en 768 reports-operations: no horizontal scroll
+PASS en 768 reports-operations: no console error
+PASS en 768 settings: no horizontal scroll
+PASS en 768 settings: no console error
+PASS en 768 recurrence rule sheet opens with the frequency list
+PASS en 768 recurrence rule sheet has no horizontal scroll
+PASS en 768 recurrence sheet: no console error
+PASS en 1280 client-tasks: no horizontal scroll
+PASS en 1280 client-tasks: shows "Flow task"
+PASS en 1280 client-tasks: no console error
+PASS en 1280 monitoring: no horizontal scroll
+PASS en 1280 monitoring: shows "Blocked old task"
+PASS en 1280 monitoring: no console error
+PASS en 1280 monitoring-ceo: no horizontal scroll
+PASS en 1280 monitoring-ceo: shows "Blocked old task"
+PASS en 1280 monitoring-ceo: no console error
+PASS en 1280 portal: no horizontal scroll
+PASS en 1280 portal: shows "Proof Client EN7"
+PASS en 1280 portal: no console error
+PASS en 1280 reports-operations: no horizontal scroll
+PASS en 1280 reports-operations: no console error
+PASS en 1280 settings: no horizontal scroll
+PASS en 1280 settings: no console error
+PASS en 1280 recurrence rule sheet opens with the frequency list
+PASS en 1280 recurrence rule sheet has no horizontal scroll
+PASS en 1280 recurrence sheet: no console error
+PASS en 1280 the new rule is listed
+PASS en 1280 the edit is saved
+PASS en 1280 rule editor: no console error
+PASS en 1280 holiday: empty names are refused
+PASS en 1280 the holiday is added
+PASS en 1280 Operation can read the calendar
+PASS en 1280 the holiday is removed
+PASS en 1280 holidays: no console error
+PASS en 1280 start: the task is in progress
+PASS en 1280 progress: 40% saved
+PASS en 1280 waiting: an empty reason is refused
+PASS en 1280 waiting: shows the status and the reason
+PASS en 1280 blocked: shows the status
+PASS en 1280 the assignee has no Approve button
+PASS en 1280 submit: waiting for review
+PASS en 1280 assignee steps: no console error
+PASS en 1280 send back: an empty note is refused
+PASS en 1280 send back: back in progress with the note
+PASS en 1280 approve: done
+PASS en 1280 review steps: no console error
+PASS en 1280 escalation 1: shown as sent to the Operation head
+PASS en 1280 escalation 2: shown as sent to the CEO
+PASS en 1280 escalation 3 is not offered
+PASS en 1280 escalation: no console error
+PASS en 1280 deliverable: published, not confirmed yet
+PASS en 1280 portal: the client sees the file as new
+PASS en 1280 portal: the client downloads the file
+PASS en 1280 portal: confirmation recorded
+PASS en 1280 the task shows the client confirmation
+PASS en 1280 the client cannot open Operation tasks | 403
+PASS en 1280 portal: no console error
+PASS en 1280 deliverable: no console error
+PASS en 1280 monitoring lists the escalated and the blocked tasks
+PASS en 1280 monitoring shows no money
+PASS en 1280 monitoring: no console error
+PASS en 1280 export csv downloaded
+PASS en 1280 export xlsx downloaded
+PASS en 1280 export pdf downloaded
+PASS en 1280 Operation cannot export another department's report | 404
+PASS en 1280 reports: no console error
+DONE en: 0 failure(s)

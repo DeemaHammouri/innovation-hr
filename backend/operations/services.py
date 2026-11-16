@@ -4,7 +4,6 @@ Operation: onboarding a client, the KYC checklist, recurring tasks and follow-up
 A client created by a contract handover starts "onboarding" and becomes "active" the moment every required checklist item is
 verified (or marked not applicable with a reason). If a required item stops being satisfied later, it goes back to "onboarding".
 """
-import calendar
 from datetime import date, timedelta
 
 from django.db import transaction
@@ -16,9 +15,10 @@ from audit.models import record
 from clients.models import Client
 from core.access import content_type_for
 from files.models import Attachment
-from lookups.models import ChecklistTemplateItem
+from lookups.models import ChecklistTemplateItem, Holiday
 from notifications.service import notify, notify_many
 
+from . import recurrence
 from .models import ChecklistItem, ChecklistItemVersion, QAMeeting, RecurringTask, TaskInstance
 
 MSG_STATE = "That can't be done in the current state."
@@ -44,7 +44,7 @@ MSG_EXPIRY_PAST = "The expiry date must be after today."
 
 Item = ChecklistItem.Status
 Task = TaskInstance.Status
-FREQUENCIES = {c for c, _ in RecurringTask.Frequency.choices}
+FREQUENCIES = set(recurrence.FREQUENCIES)
 
 
 def operation_users():
@@ -239,25 +239,23 @@ def add_item(actor, client, name_en, name_ar, required=True):
 
 
 # ---------- recurring tasks ----------
-def add_months(d, n):
-    y, m = d.year + (d.month - 1 + n) // 12, (d.month - 1 + n) % 12 + 1
-    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
-
-
 def due_date(task, k):
-    """The k-th due date, always counted from the start date so a 31st does not drift to the 28th for good."""
-    f = task.frequency
-    if f == "daily":
-        return task.start_date + timedelta(days=k)
-    if f == "weekly":
-        return task.start_date + timedelta(weeks=k)
-    if f == "biweekly":
-        return task.start_date + timedelta(weeks=2 * k)
-    if f == "monthly":
-        return add_months(task.start_date, k)
-    if f == "yearly":
-        return add_months(task.start_date, 12 * k)
-    return task.start_date + timedelta(days=(task.interval_days or 1) * k)
+    """The k-th nominal date of the rule (before weekends and holidays move it), always counted from the start date."""
+    return recurrence.nominal(task.frequency, task.start_date, task.interval_days, k)
+
+
+def holidays():
+    return frozenset(Holiday.objects.values_list("date", flat=True))
+
+
+def due_on(task, k, days=None):
+    """The date the k-th task is actually due: the nominal date, moved to the next working day (Friday and Saturday are the weekend)."""
+    return recurrence.next_working_day(due_date(task, k), holidays() if days is None else days)
+
+
+def _skipped(task, k, days):
+    """A daily rule makes no task for a day nobody works; every other rule moves the task to the next working day instead."""
+    return task.frequency == "daily" and not recurrence.is_working_day(due_date(task, k), days)
 
 
 def _clean_task(data, creating):
@@ -324,30 +322,35 @@ def update_recurring(actor, task, data):
         if "active" in data:
             task.active = bool(data["active"])
         if schedule_changed:
-            # A new schedule counts from today: the next due date is the first one on or after today.
+            # A new schedule is a new version and counts from today: tasks already made keep their version and dates.
+            task.version += 1
             k = 0
             while due_date(task, k) < timezone.localdate():
                 k += 1
             task.occurrences = k
-        task.next_due = due_date(task, task.occurrences)
+        task.next_due = due_on(task, task.occurrences)
         task.save()
         record(actor, task.client, "recurring_updated", to_value=task.title)
     return task
 
 
 def generate_due(today=None, limit=12):
-    """Create the task instances that are due. Safe to run any number of times: one instance per task per due date."""
+    """Create the tasks that are due. Safe to run any number of times and from several workers: one task per (rule, version, period),
+    enforced by the database. Holidays are read now, so a calendar edit moves only tasks that have not been created yet."""
     today = today or timezone.localdate()
+    days = holidays()
     made = 0
     for task in RecurringTask.objects.filter(active=True, next_due__lte=today).select_related("client", "assignee"):
         with transaction.atomic():
             task = RecurringTask.objects.select_for_update().select_related("client", "assignee").get(pk=task.pk)
             k, created_here = task.occurrences, 0
-            while due_date(task, k) <= today:
-                if created_here < limit:
+            while due_on(task, k, days) <= today:
+                if created_here < limit and not _skipped(task, k, days):
                     assignee = task.assignee if task.assignee_id and task.assignee.is_active else None
+                    nominal_date = due_date(task, k)
                     inst, created = TaskInstance.objects.get_or_create(
-                        recurring=task, due_date=due_date(task, k), defaults={"client": task.client, "title": task.title, "assignee": assignee},
+                        recurring=task, rule_version=task.version, period=recurrence.period(task.frequency, nominal_date),
+                        defaults={"client": task.client, "title": task.title, "assignee": assignee, "due_date": due_on(task, k, days)},
                     )
                     if created:
                         made += 1
@@ -356,7 +359,7 @@ def generate_due(today=None, limit=12):
                             if who:
                                 notify(who, "task_due", link="/operation?tab=tasks", dedupe_key=f"task:{inst.pk}", ref=inst.title, name=task.client.company_name)
                 k += 1  # beyond the limit, long-missed dates are skipped over rather than flooding the list
-            task.occurrences, task.next_due = k, due_date(task, k)
+            task.occurrences, task.next_due = k, due_on(task, k, days)
             task.save(update_fields=["occurrences", "next_due", "updated_at"])
     return made
 
@@ -371,7 +374,7 @@ def complete_task(actor, task, note=""):
         raise ValidationError({"note": [MSG_NOTE_LONG]})
     with transaction.atomic():
         task = _locked_task(task)
-        if task.status != Task.OPEN:
+        if task.status not in TaskInstance.ACTIVE:
             raise ValidationError({"detail": MSG_TASK_CLOSED})
         task.status, task.completion_note, task.closed_by, task.closed_at = Task.DONE, note, actor, timezone.now()
         task.save(update_fields=["status", "completion_note", "closed_by", "closed_at", "updated_at"])
@@ -385,7 +388,7 @@ def skip_task(actor, task, reason):
         raise ValidationError({"reason": [MSG_SKIP]})
     with transaction.atomic():
         task = _locked_task(task)
-        if task.status != Task.OPEN:
+        if task.status not in TaskInstance.ACTIVE:
             raise ValidationError({"detail": MSG_TASK_CLOSED})
         task.status, task.skip_reason, task.closed_by, task.closed_at = Task.SKIPPED, reason[:1000], actor, timezone.now()
         task.save(update_fields=["status", "skip_reason", "closed_by", "closed_at", "updated_at"])

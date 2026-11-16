@@ -190,7 +190,7 @@ export type RecordFile = {
 
 export type Lookup = { id: number; name_en: string; name_ar: string; is_active: boolean; sort_order: number };
 export type ServiceLookup = Lookup & { default_unit_price: string | null; currency: string };
-export type ChecklistLookup = Lookup & { required: boolean };
+export type ChecklistLookup = Lookup & { required: boolean; has_expiry: boolean };
 export type WorkHours = { work_start: string; work_end: string; grace_minutes: number };
 export type SlaSettings = { first_contact_hours: number; follow_up_days: number };
 
@@ -539,7 +539,7 @@ export type ChecklistItem = {
   expires_on: string | null;
   versions: ChecklistVersion[];
 };
-export type Frequency = "daily" | "weekly" | "biweekly" | "monthly" | "yearly" | "custom";
+export type Frequency = "daily" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semiannual" | "yearly" | "custom";
 export type RecurringTask = {
   id: number;
   client: number;
@@ -554,6 +554,7 @@ export type RecurringTask = {
   assignee_name: string | null;
   active: boolean;
 };
+export type TaskStatus = "open" | "in_progress" | "waiting" | "blocked" | "submitted" | "done" | "skipped";
 export type TaskInstance = {
   id: number;
   client: number;
@@ -563,13 +564,24 @@ export type TaskInstance = {
   due_date: string;
   assignee: number | null;
   assignee_name: string | null;
-  status: "open" | "done" | "skipped";
+  status: TaskStatus;
   completion_note: string;
   skip_reason: string;
   closed_by_name: string | null;
   closed_at: string | null;
   overdue: boolean;
   can_work: boolean;
+  progress: number;
+  started_at: string | null;
+  status_reason: string;
+  submitted_at: string | null;
+  review_note: string;
+  escalation_level: number;
+  can_review: boolean;
+  can_escalate: boolean;
+  can_complete: boolean;
+  can_publish: boolean;
+  deliverables: { id: number; title: string; published_at: string; acknowledged_at: string | null }[];
 };
 export type QAMeeting = { id: number; client: number; held_on: string; notes: string; next_date: string | null; logged_by_name: string; created_at: string };
 export type OpClient = {

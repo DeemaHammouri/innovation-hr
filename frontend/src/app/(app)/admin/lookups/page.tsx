@@ -17,8 +17,8 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useFetch } from "@/lib/useFetch";
 
-type Section = "reasons" | "services" | "checklist" | "hours" | "sla";
-const SECTIONS: Section[] = ["reasons", "services", "checklist", "hours", "sla"];
+type Section = "reasons" | "services" | "checklist" | "hours" | "sla" | "holidays";
+const SECTIONS: Section[] = ["reasons", "services", "checklist", "hours", "sla", "holidays"];
 const LIST_PATH = { reasons: "rejection-reasons", services: "services", checklist: "checklist-template" } as const;
 
 type Row = Lookup & Partial<ServiceLookup> & Partial<ChecklistLookup>;
@@ -31,7 +31,7 @@ function LookupList({ section }: { section: "reasons" | "services" | "checklist"
   const { data, error, loading, reload } = useFetch<Row[]>(path);
   const show = useDelayed(loading);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
-  const [form, setForm] = useState({ name_en: "", name_ar: "", price: "", required: true });
+  const [form, setForm] = useState({ name_en: "", name_ar: "", price: "", required: true, has_expiry: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
@@ -40,8 +40,8 @@ function LookupList({ section }: { section: "reasons" | "services" | "checklist"
     setErrors({});
     setForm(
       row === "new"
-        ? { name_en: "", name_ar: "", price: "", required: true }
-        : { name_en: row.name_en, name_ar: row.name_ar, price: row.default_unit_price ?? "", required: row.required ?? true },
+        ? { name_en: "", name_ar: "", price: "", required: true, has_expiry: false }
+        : { name_en: row.name_en, name_ar: row.name_ar, price: row.default_unit_price ?? "", required: row.required ?? true, has_expiry: row.has_expiry ?? false },
     );
   }
 
@@ -53,7 +53,10 @@ function LookupList({ section }: { section: "reasons" | "services" | "checklist"
     if (Object.keys(next).length) return;
     const body: Record<string, unknown> = { name_en: form.name_en, name_ar: form.name_ar };
     if (section === "services") body.default_unit_price = form.price === "" ? null : form.price;
-    if (section === "checklist") body.required = form.required;
+    if (section === "checklist") {
+      body.required = form.required;
+      body.has_expiry = form.has_expiry;
+    }
     setBusy(true);
     try {
       if (editing === "new") await api(path, { method: "POST", body });
@@ -107,7 +110,7 @@ function LookupList({ section }: { section: "reasons" | "services" | "checklist"
                   <p className="truncate text-label font-normal text-ink-2">
                     {other(r)}
                     {section === "services" && r.default_unit_price ? ` · ${formatNumber(Number(r.default_unit_price))} ${r.currency}` : ""}
-                    {section === "checklist" ? ` · ${r.required ? t("lookups.required") : t("lookups.optional")}` : ""}
+                    {section === "checklist" ? ` · ${r.required ? t("lookups.required") : t("lookups.optional")}${r.has_expiry ? ` · ${t("lookups.hasExpiry")}` : ""}` : ""}
                   </p>
                 </div>
                 {r.is_active ? null : <StatusPill tone="neutral">{t("lookups.off")}</StatusPill>}
@@ -162,6 +165,92 @@ function LookupList({ section }: { section: "reasons" | "services" | "checklist"
               {t("lookups.requiredFlag")}
             </label>
           ) : null}
+          {section === "checklist" ? (
+            <label className="flex min-h-11 items-center gap-3 text-body text-ink">
+              <input type="checkbox" className="size-5 accent-[var(--color-primary-strong)]" checked={form.has_expiry} onChange={(e) => setForm({ ...form, has_expiry: e.target.checked })} />
+              {t("lookups.hasExpiryFlag")}
+            </label>
+          ) : null}
+        </div>
+      </Sheet>
+    </div>
+  );
+}
+
+type Holiday = { id: number; date: string; name_en: string; name_ar: string };
+
+/** The company holiday calendar. Recurring tasks that fall on a holiday (or on Friday or Saturday) are due on the next working day. */
+function HolidayList() {
+  const { t, lang, msg, formatDate } = useI18n();
+  const toast = useToast();
+  const { data, error, loading, reload } = useFetch<Holiday[]>("/lookups/holidays/");
+  const show = useDelayed(loading);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ date: "", name_en: "", name_ar: "" });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    const next: Record<string, string> = {};
+    if (!form.date) next.date = "Choose the date.";
+    if (!form.name_en.trim()) next.name_en = "Enter the English name.";
+    if (!form.name_ar.trim()) next.name_ar = "Enter the Arabic name.";
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setBusy(true);
+    try {
+      await api("/lookups/holidays/", { method: "POST", body: form });
+      setAdding(false);
+      setForm({ date: "", name_en: "", name_ar: "" });
+      reload();
+      toast.success(t("lookups.saved"));
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 400) setErrors(e.fieldErrors());
+      else toast.error(msg(errorMessage(e)));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(h: Holiday) {
+    try {
+      await api(`/lookups/holidays/${h.id}/`, { method: "DELETE" });
+      reload();
+      toast.success(t("lookups.holidays.removed"));
+    } catch (e) {
+      toast.error(msg(errorMessage(e)));
+    }
+  }
+  if (error) return <ErrorState message={error} onRetry={reload} />;
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="max-w-md text-label font-normal text-ink-2">{t("lookups.holidays.help")}</p>
+        <Button icon={<Plus size={20} aria-hidden />} onClick={() => setAdding(true)}>{t("lookups.add")}</Button>
+      </div>
+      {!data ? (
+        show ? <RowsSkeleton rows={4} /> : null
+      ) : data.length === 0 ? (
+        <Card><EmptyState compact icon={<SlidersHorizontal size={24} aria-hidden />} title={t("lookups.holidays.emptyTitle")} description={t("lookups.holidays.emptyText")} /></Card>
+      ) : (
+        <Card as="section" className="overflow-hidden">
+          <ul className="divide-y divide-line">
+            {data.map((h) => (
+              <li key={h.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-body text-ink">{lang === "ar" ? h.name_ar : h.name_en}</p>
+                  <p className="truncate text-label font-normal text-ink-2">{formatDate(h.date)}</p>
+                </div>
+                <Button variant="ghost" onClick={() => remove(h)}>{t("lookups.holidays.remove")}</Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+      <Sheet open={adding} title={t("lookups.holidays.add")} onClose={() => setAdding(false)} footer={<><Button variant="secondary" onClick={() => setAdding(false)}>{t("common.cancel")}</Button><Button onClick={save} loading={busy}>{t("lookups.save")}</Button></>}>
+        <div className="space-y-4">
+          <Input name="date" label={t("lookups.holidays.date")} type="date" value={form.date} error={errors.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          <Input name="name_en" label={t("lookups.nameEn")} lang="en" value={form.name_en} error={errors.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} />
+          <Input name="name_ar" label={t("lookups.nameAr")} lang="ar" value={form.name_ar} error={errors.name_ar} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} />
         </div>
       </Sheet>
     </div>
@@ -258,7 +347,7 @@ export default function LookupsPage() {
         <Segmented segments={options} value={section} onChange={setSection} label={t("lookups.sectionLabel")} mode="tablist" className="w-fit" />
       </div>
       <div className="max-w-2xl">
-        {section === "hours" || section === "sla" ? <SettingsForm key={section} section={section} /> : <LookupList key={section} section={section} />}
+        {section === "holidays" ? <HolidayList /> : section === "hours" || section === "sla" ? <SettingsForm key={section} section={section} /> : <LookupList key={section} section={section} />}
       </div>
     </>
   );

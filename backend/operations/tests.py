@@ -349,18 +349,20 @@ class TaskTests(OCase):
         r = RecurringTask.objects.create(client=c, title="Reconcile", frequency="daily", start_date=timezone.localdate(), next_due=timezone.localdate() + timedelta(days=30), created_by=self.ohead)
         return TaskInstance.objects.create(recurring=r, client=c, title="Reconcile", due_date=timezone.localdate() + timedelta(days=due), assignee=assignee)
 
-    def test_complete_by_assignee_with_note(self):
+    def test_complete_by_the_head_with_note(self):
+        # Since objective 21 a member submits for review; closing a task straight away is the head's shortcut.
         t = self.task(self.omem)
-        res = self.act(self.omem, f"tasks/{t.pk}/complete", {"note": "All matched"})
-        self.assertEqual((res.status_code, res.data["status"], res.data["completion_note"], res.data["closed_by_name"]), (200, "done", "All matched", self.omem.full_name))
-        self.assertEqual(self.act(self.omem, f"tasks/{t.pk}/complete").data["detail"], services.MSG_TASK_CLOSED)
+        self.assertEqual(self.act(self.omem, f"tasks/{t.pk}/complete", {"note": "All matched"}).status_code, 403)
+        res = self.act(self.ohead, f"tasks/{t.pk}/complete", {"note": "All matched"})
+        self.assertEqual((res.status_code, res.data["status"], res.data["completion_note"], res.data["closed_by_name"]), (200, "done", "All matched", self.ohead.full_name))
+        self.assertEqual(self.act(self.ohead, f"tasks/{t.pk}/complete").data["detail"], services.MSG_TASK_CLOSED)
         self.assertEqual(self.act(self.omem, f"tasks/{t.pk}/skip", {"reason": "x"}).status_code, 400)
         self.assertIn("task_completed", self.actions(t.client))
 
     def test_note_is_optional_but_bounded(self):
         t = self.task(self.omem)
-        self.assertIn("note", self.act(self.omem, f"tasks/{t.pk}/complete", {"note": "x" * 1001}).data)
-        self.assertEqual(self.act(self.omem, f"tasks/{t.pk}/complete").status_code, 200)
+        self.assertIn("note", self.act(self.ohead, f"tasks/{t.pk}/complete", {"note": "x" * 1001}).data)
+        self.assertEqual(self.act(self.ohead, f"tasks/{t.pk}/complete").status_code, 200)
 
     def test_skip_needs_a_reason(self):
         t = self.task(self.omem)
