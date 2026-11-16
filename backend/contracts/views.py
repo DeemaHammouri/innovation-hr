@@ -26,7 +26,7 @@ MSG_HEAD_ONLY = "Only the Commercial head can do this."
 MSG_CEO_ONLY = "Only the CEO can do this."
 MSG_NO_PIPELINE = "Only the Commercial head or the assigned member can do this."
 
-RELATED = ("lead", "lead__assigned_to", "quotation", "requested_by", "drafted_by", "meeting_by", "signed_by", "handed_over_by")
+RELATED = ("lead", "lead__assigned_to", "quotation", "requested_by", "drafted_by", "signed_by", "handed_over_by")
 
 
 class ContractViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):

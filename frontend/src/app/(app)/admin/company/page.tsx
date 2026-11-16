@@ -1,5 +1,6 @@
 "use client";
 
+import { announceStampChanged } from "@/components/company/StampNotice";
 import { useState } from "react";
 import { FormError, useAction } from "@/components/leads/LeadSheets";
 import { NoAccess } from "@/components/NoAccess";
@@ -44,6 +45,7 @@ function CompanyForm({ data, onSaved }: { data: CompanyProfile; onSaved: () => v
     const saved = await action.run(() => upload<CompanyProfile>("/company/", form, "PATCH"));
     if (saved) {
       toast.success(t("company.saved"));
+      announceStampChanged();
       onSaved();
     }
   }

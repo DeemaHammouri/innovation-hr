@@ -63,6 +63,15 @@ class CompanyView(APIView):
         return Response(as_json(p))
 
 
+class CompanySetupView(APIView):
+    """Is the company ready to sign documents? Any signed-in person may ask, so signing screens can say what is missing and who can fix it."""
+
+    required_capabilities = []
+
+    def get(self, request):
+        return Response({"has_stamp": bool(CompanyProfile.get().stamp), "can_manage": request.user.has_capability("company.manage")})
+
+
 class CompanyStampView(APIView):
     required_capabilities = ["company.manage"]
 

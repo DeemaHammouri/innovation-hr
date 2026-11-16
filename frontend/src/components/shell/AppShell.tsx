@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { StampBanner } from "@/components/company/StampNotice";
 import { MyWorkProvider } from "@/lib/mywork";
 import { ShellProvider, useShell } from "@/lib/shell";
 import { CommandPalette } from "./CommandPalette";
@@ -27,6 +28,7 @@ function Frame({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         <main className="mx-auto w-full max-w-page flex-1 px-4 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-12">
+          <StampBanner />
           {children}
         </main>
       </div>

@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import include, path
 from documents.views import ClientDocumentsView
 
-from core.company import CompanyStampView, CompanyView
+from core.company import CompanySetupView, CompanyStampView, CompanyView
 from core.views import HealthView, MyWorkView
 
 # Every API route, written once. They are served under /api/v1/ (the contract) and under /api/ (kept as an alias for one release).
@@ -25,6 +25,7 @@ api_patterns = [
     path("", include("hr.urls")),
     path("", include("reports.urls")),
     path("company/", CompanyView.as_view()),
+    path("company/setup/", CompanySetupView.as_view()),
     path("company/stamp/", CompanyStampView.as_view()),
     path("my-work/", MyWorkView.as_view()),
     path("health/", HealthView.as_view()),

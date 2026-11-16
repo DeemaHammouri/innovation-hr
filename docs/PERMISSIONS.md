@@ -97,6 +97,7 @@ OpH / OpM = Operation head / member.
 | POST | `/api/v1/comments/` | 401 | 400 | 400 | 400 | 400 | 400 | 400 | 400 | 400 |
 | GET | `/api/v1/company/` | 401 | 200 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | PATCH | `/api/v1/company/` | 401 | 200 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
+| GET | `/api/v1/company/setup/` | 401 | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 |
 | GET | `/api/v1/company/stamp/` | 401 | 200 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | GET | `/api/v1/contract-templates/` | 401 | 200 | 403 | 200 | 200 | 200 | 200 | 200 | 200 |
 | POST | `/api/v1/contract-templates/` | 401 | 400 | 403 | 403 | 403 | 400 | 403 | 403 | 403 |

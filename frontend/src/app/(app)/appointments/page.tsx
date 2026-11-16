@@ -1,11 +1,12 @@
 "use client";
 
-import { CalendarCheck, CalendarPlus, Check, DotsThreeVertical, Prohibit, Clock } from "@phosphor-icons/react";
+import { CalendarCheck, CalendarPlus, Check, DotsThreeVertical, FileText, NotePencil, Prohibit, Clock } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { NoAccess } from "@/components/NoAccess";
 import { FormError, useAction } from "@/components/leads/LeadSheets";
+import { WriteReportSheet } from "@/components/meetings/WriteReportSheet";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Card, StatusPill } from "@/components/ui/Card";
 import { Input, Select, Textarea } from "@/components/ui/Field";
@@ -159,6 +160,8 @@ function Content() {
   const [page, setPage] = useState(1);
   const [sheet, setSheet] = useState<"new" | null>(newLead ? "new" : null);
   const [target, setTarget] = useState<{ appt: Appointment; kind: "reschedule" | "cancel" } | null>(null);
+  const [writing, setWriting] = useState<Appointment | null>(null);
+  const router = useRouter();
   const qs = `/appointments/?status=${status}&scope=${scope}&page=${page}&page_size=${PAGE_SIZE}`;
   const { data, error, loading, reload } = useFetch<Page<Appointment>>(user ? qs : null);
   if (!user) return null;
@@ -224,6 +227,11 @@ function Content() {
                   </p>
                   {a.cancel_reason ? <p className="mt-1 text-label font-normal text-ink-2">{a.cancel_reason}</p> : null}
                 </div>
+                {a.permissions.can_write_report ? (
+                  <Button variant="secondary" icon={<NotePencil size={18} aria-hidden />} onClick={() => setWriting(a)}>{t("mr.write.short")}</Button>
+                ) : a.permissions.report_id ? (
+                  <Link href={`/meetings/${a.permissions.report_id}`} className="inline-flex items-center gap-1.5 text-label font-semibold text-primary-strong hover:underline"><FileText size={18} aria-hidden />{t("mr.open")}</Link>
+                ) : null}
                 {a.permissions.can_edit ? (
                   <Menu
                     label={t("common.actions")}
@@ -244,6 +252,7 @@ function Content() {
           <Pagination page={page} total={data.count} onPage={setPage} pageSize={PAGE_SIZE} />
         </Card>
       ) : null}
+      {writing ? <WriteReportSheet fixed={writing} onClose={() => setWriting(null)} onDone={(r) => { setWriting(null); router.push(`/meetings/${r.id}`); }} /> : null}
       {sheet === "new" ? <CreateSheet leadId={newLead} onClose={() => setSheet(null)} onDone={() => { setSheet(null); reload(); }} /> : null}
       {target?.kind === "reschedule" ? <RescheduleSheet appt={target.appt} onClose={() => setTarget(null)} onDone={() => { setTarget(null); reload(); }} /> : null}
       {target?.kind === "cancel" ? <CancelSheet appt={target.appt} onClose={() => setTarget(null)} onDone={() => { setTarget(null); reload(); }} /> : null}

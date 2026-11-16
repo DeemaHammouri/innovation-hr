@@ -34,7 +34,18 @@ class AppointmentSerializer(serializers.ModelSerializer):
     def get_permissions(self, a):
         user = self.context["request"].user
         open_ = a.status == "scheduled" and services.can_manage(user, a)
-        return {"can_edit": open_, "can_reschedule": open_, "can_complete": open_, "can_cancel": open_}
+        report = getattr(a, "report", None)
+        done_with_lead = a.status == "done" and a.lead_id is not None
+        writer = user.has_capability("meeting_report.write") and (services.can_manage(user, a) or user.has_capability("meeting_report.view_all"))
+        can_see = report is not None and (
+            user.has_capability("meeting_report.view_all") or report.author_id == user.pk
+            or (user.has_capability("lead.view_assigned") and a.lead is not None and a.lead.assigned_to_id == user.pk)
+        )
+        return {
+            "can_edit": open_, "can_reschedule": open_, "can_complete": open_, "can_cancel": open_,
+            "can_write_report": bool(done_with_lead and writer and report is None),
+            "report_id": report.pk if can_see else None,
+        }
 
 
 class AppointmentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
@@ -48,7 +59,7 @@ class AppointmentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixin
 
     def get_queryset(self):
         user = self.request.user
-        qs = Appointment.objects.select_related("lead", "owner", "created_by")
+        qs = Appointment.objects.select_related("lead", "owner", "created_by", "report")
         if not user.has_capability("appointment.view_all"):
             qs = qs.filter(Q(owner=user) | Q(created_by=user))
         return qs

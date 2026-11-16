@@ -443,7 +443,7 @@ export type PortalQuotation = {
 export type CompanyProfile = { name_en: string; name_ar: string; quotation_prefix: string; contract_prefix: string; has_stamp: boolean; updated_at: string };
 export type ServiceItem = { id: number; name_en: string; name_ar: string; default_unit_price: string | null; currency: string; is_active: boolean };
 
-export type ContractStatus = "requested" | "drafting" | "with_commercial" | "meeting_logged" | "confirmed" | "sent" | "ceo_review" | "returned" | "signed" | "handed_over" | "cancelled";
+export type ContractStatus = "requested" | "drafting" | "with_commercial" | "confirmed" | "sent" | "ceo_review" | "returned" | "signed" | "handed_over" | "cancelled";
 export type ContractPermissions = {
   can_start: boolean;
   can_edit: boolean;
@@ -733,7 +733,7 @@ export type Appointment = {
   closed_at: string | null;
   cancel_reason: string;
   overdue: boolean;
-  permissions: { can_edit: boolean; can_reschedule: boolean; can_complete: boolean; can_cancel: boolean };
+  permissions: { can_edit: boolean; can_reschedule: boolean; can_complete: boolean; can_cancel: boolean; can_write_report: boolean; report_id: number | null };
 };
 export type StatusChange = {
   id: number;

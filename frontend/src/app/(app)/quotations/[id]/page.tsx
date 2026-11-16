@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { DownloadSheet } from "@/components/documents/DownloadSheet";
+import { StampNotice, useStampStatus } from "@/components/company/StampNotice";
 import { FormError, useAction } from "@/components/leads/LeadSheets";
 import { QuotationEditor } from "@/components/quotations/QuotationEditor";
 import { CancelSheet, ChangesSheet, OutcomeSheet } from "@/components/quotations/QuotationSheets";
@@ -224,8 +225,10 @@ function SignSheet({ quotation, onClose, onDone }: { quotation: Quotation; onClo
   const action = useAction(["signature", "stamp"]);
   const [signature, setSignature] = useState("");
   const [local, setLocal] = useState("");
+  const stamp = useStampStatus();
   const v = quotation.versions?.[quotation.versions.length - 1];
   async function sign() {
+    if (stamp && !stamp.has_stamp) return setLocal("stamp.missing.title");
     if (!signature) return setLocal("sign.drawHere");
     setLocal("");
     const saved = await action.run(() => api<Quotation>(`/quotations/${quotation.id}/sign/`, { method: "POST", body: { signature } }));
@@ -251,7 +254,8 @@ function SignSheet({ quotation, onClose, onDone }: { quotation: Quotation; onClo
       <p className="text-body text-ink-2">{t("qt.sign.text", { version: v?.number ?? 1, total: v ? money(v.total, v.currency) : "", name: quotation.lead_company })}</p>
       <p className="mt-3 text-label font-normal text-ink-2">{t("qt.sign.note")}</p>
       <div className="mt-4">
-        <SignaturePad label={t("sign.pad")} onChange={(d) => { setSignature(d); setLocal(""); }} error={local ? t(local) : action.errors.signature ?? action.errors.stamp} />
+        <StampNotice status={stamp} />
+        <SignaturePad label={t("sign.pad")} onChange={(d) => { setSignature(d); setLocal(""); }} error={local ? t(local) : action.errors.signature} />
         <p className="mt-2 text-caption text-ink-2">{t("qt.sign.draw")}</p>
       </div>
     </Sheet>

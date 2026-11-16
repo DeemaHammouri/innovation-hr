@@ -5,19 +5,18 @@ from django.db.models import Q
 from core.models import TimeStamped
 from files.models import private_storage, stored_name
 
-OPEN = ["requested", "drafting", "with_commercial", "meeting_logged", "confirmed", "sent", "ceo_review", "returned", "signed"]
+OPEN = ["requested", "drafting", "with_commercial", "confirmed", "sent", "ceo_review", "returned", "signed"]
 
 
 class Contract(TimeStamped):
     """requested -> drafting (HR) -> with_commercial -> confirmed (Commercial head) -> sent (numbered) -> ceo_review (the client signed)
     -> signed (CEO, with signature and stamp or an uploaded final copy) -> handed_over.  The Commercial head can return it to HR from
-    with_commercial.  `meeting_logged` is the old flow's state: contracts that were in it are moved to with_commercial."""
+    with_commercial.  (The old flow's `meeting_logged` state and `meeting_*` fields were removed by migration 0005; see there.)"""
 
     class Status(models.TextChoices):
         REQUESTED = "requested", "Requested"
         DRAFTING = "drafting", "Drafting"
         WITH_COMMERCIAL = "with_commercial", "With Commercial"
-        MEETING_LOGGED = "meeting_logged", "Meeting logged"
         CONFIRMED = "confirmed", "Confirmed by Commercial"
         SENT = "sent", "Sent to client"
         CEO_REVIEW = "ceo_review", "Waiting for the CEO"
@@ -34,9 +33,6 @@ class Contract(TimeStamped):
     requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
     request_note = models.TextField(blank=True)
     drafted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
-    meeting_date = models.DateField(null=True, blank=True)
-    meeting_notes = models.TextField(blank=True)
-    meeting_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     submitted_to_ceo_at = models.DateTimeField(null=True, blank=True)
     ceo_comment = models.TextField(blank=True)
     signed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")

@@ -73,7 +73,7 @@ def contract_ready(user, lead):
     return bool(cleared) and not any(c.status in OPEN_CONTRACT for c in lead.contracts.all())
 
 
-OPEN_CONTRACT = ("requested", "drafting", "with_commercial", "meeting_logged", "confirmed", "sent", "ceo_review", "returned", "signed")
+OPEN_CONTRACT = ("requested", "drafting", "with_commercial", "confirmed", "sent", "ceo_review", "returned", "signed")
 OPEN_QUOTATION = ("requested", "in_preparation", "in_review", "changes_requested", "signed", "sent", "waiting")
 
 

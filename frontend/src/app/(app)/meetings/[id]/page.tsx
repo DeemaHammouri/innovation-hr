@@ -3,6 +3,7 @@
 import { FilePdf } from "@phosphor-icons/react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { StampNotice, useStampStatus } from "@/components/company/StampNotice";
 import { DownloadSheet } from "@/components/documents/DownloadSheet";
 import { FormError, ReasonSheet, useAction } from "@/components/leads/LeadSheets";
 import { reportTone } from "@/components/meetings/reportUi";
@@ -136,7 +137,9 @@ function SignSheet({ report, onClose, onDone }: { report: MeetingReport; onClose
   const action = useAction(["signature", "stamp"]);
   const [signature, setSignature] = useState("");
   const [local, setLocal] = useState("");
+  const stamp = useStampStatus();
   async function go() {
+    if (stamp && !stamp.has_stamp) return setLocal("stamp.missing.title");
     if (!signature) return setLocal("sign.drawHere");
     setLocal("");
     const saved = await action.run(() => api<MeetingReport>(`/meeting-reports/${report.id}/sign/`, { method: "POST", body: { signature } }));
@@ -149,7 +152,8 @@ function SignSheet({ report, onClose, onDone }: { report: MeetingReport; onClose
     <Sheet open alert onClose={onClose} title={t("mr.sign")} footer={<><Button variant="secondary" onClick={onClose}>{t("common.cancel")}</Button><Button loading={action.saving} onClick={go}>{t("mr.sign")}</Button></>}>
       <FormError message={action.formError} />
       <p className="mb-4 text-body text-ink-2">{t("mr.signText", { name: report.lead_company })}</p>
-      <SignaturePad label={t("sign.pad")} onChange={(d) => { setSignature(d); setLocal(""); }} error={local ? t(local) : action.errors.signature ?? action.errors.stamp} />
+      <StampNotice status={stamp} />
+      <SignaturePad label={t("sign.pad")} onChange={(d) => { setSignature(d); setLocal(""); }} error={local ? t(local) : action.errors.signature} />
     </Sheet>
   );
 }

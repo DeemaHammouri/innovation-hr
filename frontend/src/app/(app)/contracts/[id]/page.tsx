@@ -90,7 +90,7 @@ export default function ContractDetailPage() {
     : data.status === "ceo_review" ? t("ct.hint.withCeo")
     : data.status === "sent" ? t("ct.hint.withClient")
     : ["requested", "drafting", "returned"].includes(data.status) ? t("ct.hint.withHr")
-    : ["with_commercial", "meeting_logged", "confirmed"].includes(data.status) ? t("ct.hint.withCommercial")
+    : ["with_commercial", "confirmed"].includes(data.status) ? t("ct.hint.withCommercial")
     : data.status === "signed" ? t("ct.hint.signedWait")
     : "";
 

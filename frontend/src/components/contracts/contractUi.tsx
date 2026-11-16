@@ -11,7 +11,6 @@ const TONE: Record<ContractStatus, "neutral" | "primary" | "warning" | "success"
   requested: "neutral",
   drafting: "primary",
   with_commercial: "primary",
-  meeting_logged: "primary",
   confirmed: "primary",
   sent: "primary",
   ceo_review: "warning",
@@ -34,7 +33,6 @@ function stepIndex(status: ContractStatus) {
     case "drafting":
     case "returned": return 1;
     case "with_commercial":
-    case "meeting_logged":
     case "confirmed": return 2;
     case "sent": return 3;
     case "ceo_review": return 4;

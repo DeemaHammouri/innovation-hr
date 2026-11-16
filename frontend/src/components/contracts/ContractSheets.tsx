@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { FormError, ReasonSheet, useAction } from "@/components/leads/LeadSheets";
+import { StampNotice, useStampStatus } from "@/components/company/StampNotice";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { Sheet } from "@/components/ui/Sheet";
@@ -195,7 +196,9 @@ export function ApproveSheet({ contract, onClose, onDone }: { contract: Contract
   const [local, setLocal] = useState("");
   const action = useAction(["signature", "stamp", "file"]);
   const pad = useRef(null);
+  const stamp = useStampStatus();
   async function go() {
+    if (mode === "draw" && stamp && !stamp.has_stamp) return setLocal("stamp.missing.title");
     if (mode === "draw" && !signature) return setLocal("sign.drawHere");
     if (mode === "upload" && !file) return setLocal("ct.copy.error");
     setLocal("");
@@ -222,7 +225,10 @@ export function ApproveSheet({ contract, onClose, onDone }: { contract: Contract
       </div>
       <div className="mt-4" ref={pad}>
         {mode === "draw" ? (
-          <SignaturePad label={t("sign.pad")} onChange={(d) => { setSignature(d); setLocal(""); }} error={local ? t(local) : action.errors.signature ?? action.errors.stamp} />
+          <>
+            <StampNotice status={stamp} />
+            <SignaturePad label={t("sign.pad")} onChange={(d) => { setSignature(d); setLocal(""); }} error={local ? t(local) : action.errors.signature} />
+          </>
         ) : (
           <Input name="file" label={t("ct.approve.file")} type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files?.[0] ?? null)} error={local ? t(local) : action.errors.file} required />
         )}
