@@ -246,6 +246,7 @@ export type LeadPermissions = {
   can_request_quotation: boolean;
   can_skip_quotation: boolean;
   can_request_contract: boolean;
+  can_decide: boolean;
 };
 export type PortalMe = { client: { id: number; company_name: string; contact_person: string; phone: string; email: string; address: string } };
 export type Lead = {
@@ -442,12 +443,15 @@ export type PortalQuotation = {
 export type CompanyProfile = { name_en: string; name_ar: string; quotation_prefix: string; contract_prefix: string; has_stamp: boolean; updated_at: string };
 export type ServiceItem = { id: number; name_en: string; name_ar: string; default_unit_price: string | null; currency: string; is_active: boolean };
 
-export type ContractStatus = "requested" | "drafting" | "with_commercial" | "meeting_logged" | "ceo_review" | "returned" | "signed" | "handed_over" | "cancelled";
+export type ContractStatus = "requested" | "drafting" | "with_commercial" | "meeting_logged" | "confirmed" | "sent" | "ceo_review" | "returned" | "signed" | "handed_over" | "cancelled";
 export type ContractPermissions = {
   can_start: boolean;
+  can_edit: boolean;
   can_send: boolean;
-  can_log_meeting: boolean;
-  can_submit: boolean;
+  can_confirm: boolean;
+  can_return: boolean;
+  can_send_to_client: boolean;
+  can_upload_client_copy: boolean;
   can_review: boolean;
   can_handover: boolean;
   can_cancel: boolean;
@@ -455,6 +459,15 @@ export type ContractPermissions = {
 export type Contract = {
   id: number;
   ref: string;
+  number: string | null;
+  country: string;
+  template: number | null;
+  returned_comment: string;
+  confirmed_at: string | null;
+  sent_at: string | null;
+  client_signed_at: string | null;
+  client_signed_via: "" | "portal" | "upload";
+  signed_via: "" | "drawn" | "upload";
   lead: number;
   lead_ref: string;
   lead_company: string;
@@ -467,9 +480,6 @@ export type Contract = {
   requested_by_name: string;
   request_note: string;
   drafted_by_name: string | null;
-  meeting_date: string | null;
-  meeting_notes: string;
-  meeting_by_name: string | null;
   submitted_to_ceo_at: string | null;
   ceo_comment: string;
   signed_by_name: string | null;
@@ -480,7 +490,35 @@ export type Contract = {
   created_at: string;
   permissions: ContractPermissions;
   attachable: string[];
-  versions?: { id: number; number: number; note: string; created_by_name: string; created_at: string }[];
+  versions?: ContractVersion[];
+};
+export type ContractVersion = {
+  id: number; number: number; note: string; title: string; body_en: string; body_ar: string; currency: string; total: string; payment_terms: string;
+  start_date: string | null; end_date: string | null; services: { description: string; frequency: string; visits: number | null; line_total: string }[];
+  submitted_at: string | null; created_by_name: string; created_at: string;
+};
+export type ContractTemplate = { id: number; country: string; name_en: string; name_ar: string; body_en: string; body_ar: string; is_active: boolean; updated_at: string };
+export type ClientDecision = "confirm" | "waiting" | "rejection";
+export type MeetingReport = {
+  id: number; ref: string; appointment: number; appointment_title: string; lead: number; lead_company: string;
+  status: "draft" | "signed" | "approved" | "returned"; author_name: string; held_on: string; attendees: string; summary: string; decisions: string; next_steps: string;
+  signed_by_name: string | null; signed_at: string | null; ceo_by_name: string | null; ceo_at: string | null; ceo_comment: string; created_at: string; updated_at: string;
+  permissions: { can_edit: boolean; can_sign: boolean; can_approve: boolean; can_return: boolean };
+};
+export type PortalContract = {
+  id: number; number: string; status: ContractStatus; company: string; sent_at: string | null; client_signed_at: string | null; client_signed_via: string; signed_at: string | null; can_sign: boolean;
+  version: { number: number; title: string; currency: string; total: string; payment_terms: string; start_date: string | null; end_date: string | null; body_en: string; body_ar: string } | null;
+};
+export type DocumentItem = { kind: "quotation" | "contract" | "meeting_report"; id: number; ref: string; status: string; date: string; link: string; download: string; versions: { number: number; date: string; by: string | null; total?: string; currency?: string }[] };
+export type FeedEntry = { id: number; actor: number | null; actor_name: string | null; kind: string; object_id: number; action: string; from_value: string; to_value: string; comment: string; created_at: string };
+export type Tracking = {
+  generated_at: string; thresholds: { hr: number; commercial: number; appointment: number };
+  changed_today: FeedEntry[];
+  late_quotations: { id: number; ref: string; company: string; stage: "preparation" | "signature"; person: string | null; since: string; minutes_late: number }[];
+  missed_appointments: { id: number; title: string; owner: string; starts_at: string; lead: string | null }[];
+  overdue_follow_ups: { id: number; ref: string; company: string; due: string; owner: string | null }[];
+  pipeline: { leads: Record<string, number>; clients: Record<string, number> };
+  team: { id: number; name: string; today: number; week: number }[];
 };
 
 export type OpClientStatus = "onboarding" | "active" | "inactive";

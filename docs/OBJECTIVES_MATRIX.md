@@ -24,10 +24,10 @@ Baseline audit, 16 Nov 2026, against commit `c1c68ef`. Source of truth for requi
 | 11 | Appointments and notifications | 2 | 5 (scheduler: written, not verified here) | 0 | 0 | 0 |
 | 12 | Targets and leads dashboard | 2 | 5 | 0 | 0 | 0 |
 | 13 | Conversion and client portal | 3 | 5 | 0 | 0 | 0 |
-| 14 | Quotation state machine | 3 | 1 | 3 | 0 | 2 |
-| 15 | Document rendering (PDF and Word) | 3 | 0 | 1 | 0 | 4 |
-| 16 | Meeting reports and contracts | 3 | 0 | 3 | 0 | 3 |
-| 17 | Administration tracking and urgent alerts | 3 | 0 | 2 | 0 | 2 |
+| 14 | Quotation state machine | 3 | 6 | 0 | 0 | 0 |
+| 15 | Document rendering (PDF and Word) | 3 | 5 | 0 | 0 | 0 |
+| 16 | Meeting reports and contracts | 3 | 6 | 0 | 0 | 0 |
+| 17 | Administration tracking and urgent alerts | 3 | 3 (scheduler: written, not verified here) | 0 | 0 | 0 |
 | 18 | Handover, Operations privacy | 4 | 0 | 1 | 0 | 3 |
 | 19 | KYC, project staffing | 4 | 0 | 2 | 0 | 2 |
 | 20 | Recurrence engine, holidays | 4 | 0 | 2 | 0 | 2 |
@@ -202,38 +202,39 @@ Definitions (shown in the code header of `insights.py`): contact rate is leads e
 ### 14. Quotation state machine
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| HR Head assigns, HR prepares, submits | Done | `quotations/services.py`, QA journey (HR prepare, valid_until rule) | none |
-| Commercial Head signs or returns with notes | Done | `quotations/tests.py` (`test_the_ceo_cannot_sign`), QA journey | drawn signature and company stamp: Missing |
-| Drawn signature and stamp | Missing | | build |
-| Sending issues PREFIX/YYYY/M/NNNN, gapless under concurrency | Partly | `core/models.py: Sequence`; format and concurrency proof to check | align format, concurrency test |
-| Client signs on portal or staff upload a signed copy | Missing | | after objective 13 |
-| Illegal transitions rejected; returned notes shown | Done | quotation tests and QA (returned path) | keep |
+| HR Head assigns, HR prepares (services, frequency, visits, cost, any currency, payment terms), submits | Done | `quotations/services.py` (`assign`, `save_draft`, `submit`); `quotations/tests_phase3.py` (assignment, who may assign); browser (EN and AR, 1280/768/375, `qa/browser/phase3-obj14-17`, script `phase3b.js`): HR head assigns from the menu | none |
+| Commercial Head signs with a drawn signature and the company stamp, or returns with notes | Done | `test_sign_*` (blank canvas refused, stamp required, only the head); signature PNG and a copy of the stamp are stored on the quotation; browser: the pad is drawn on and the status becomes signed | the CEO uploads the stamp under Company details first |
+| Sending issues PREFIX/YYYY/M/NNNN, no gaps or duplicates under concurrency | Done | `core.models.YearSequence` (row lock, one counter per year and key); `test_numbers_are_sequential_and_safe_under_concurrency` (threads); the number is taken in the same transaction as the status; browser: `QT/2026/11/0005` shown on the page | PostgreSQL concurrency: Written, not verified here (SQLite serialises) |
+| Client signs on the portal, or staff upload a signed copy as the document of record | Done | `clients/portal.py` sign view, `quotations/services.client_sign`, `upload_signed_copy`; tests in `tests_phase3.py`; browser: the client signs on `/portal`; staff upload makes the quotation Confirmed and the PDF served is the upload | none |
+| Illegal transitions rejected; returned notes shown to the preparer | Done | `StateMachineTests` runs every action against every state; browser: returned notes visible to the preparer | none |
+| Commercial member keeps send and outcome | Done | `test_commercial_member_can_send_and_record_the_outcome` | none |
 
 ### 15. Document rendering
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| One shared rendering module, PDF and Word | Missing | browser print view only (`/quotations/N/print`) | server-side module (`reportlab`, `python-docx`, `arabic-reshaper`, `python-bidi`) |
-| DRAFT watermark | Missing | | build |
-| Uploaded signed copy overrides | Missing | | build |
-| Arabic shaping and RTL, inspected | Missing | | render and look at the files |
-| Permission-checked endpoints only | Partly | files served through `files/views.py` with checks | extend |
+| One shared rendering module: branded bilingual PDF and Word for quotations, meeting reports and contracts | Done | `backend/documents/` (`model.py` describes a document once; `pdf.py` and `word.py` render it; `builders.py` has `build_quotation`, `build_contract`, `build_meeting_report`); `documents/tests.py` 21 tests; browser: PDF and Word download in EN and AR from the quotation, contract and report pages | Word uses Arial (the brand font is embedded in PDF only) |
+| DRAFT watermark until signed (quotation, contract) or approved (meeting report) | Done | `WatermarkTests` (PDF and Word header), `test_a_signed_quotation_is_final_and_an_unsigned_one_is_a_draft`, `test_the_document_is_a_draft_until_approved` | none |
+| Uploaded signed copy overrides the generated PDF | Done | `test_the_uploaded_signed_copy_overrides_the_generated_pdf` (`X-Document-Source: signed-copy`); browser asserts the header after an upload | none |
+| Arabic shaping and RTL, inspected | Done | rendered PDFs read back with PyMuPDF: words are in joined presentation forms and run right to left (`ArabicShapingTests`); DOCX XML asserted (`w:bidi`, `w:rtl`, `bidiVisual`, schema order); sample pages looked at by eye (`scratchpad/docs_out`) | none |
+| Served only through permission-checked endpoints | Done | `/quotations|contracts|meeting-reports/<id>/document/`, `/portal/.../document/` (own records only, 404 otherwise); `test_only_people_who_may_see_the_quotation_can_download_it`, `test_the_client_downloads_only_their_own_sent_quotation`; no public file URL | none |
 
 ### 16. Meeting reports and contracts
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Client status after a follow-up meeting | Partly | meeting outcome exists (QA journey) | align with appointments |
-| Meeting report flow draft, Commercial signs, CEO approves | Partly | visit report exists (QA journey) | one per appointment, state machine |
-| Contract flow with own number sequence | Partly | `contracts/` module, QA journey | confirm sequence, templates per country |
-| Client Documents tab with versions | Missing | | build |
-| Sent contract blocks client status leaving Confirm (409) | Missing | | build |
-| Each signer acts only at their step | Done | contract tests (CEO signs, HR drafts) | keep |
+| Client status after a completed meeting: Confirm, Waiting (schedules a follow-up), Rejection (reason) | Done | `clients/decision.py`, `POST /clients/<id>/decide/`; `meetings/tests.py DecisionTests` (needs a completed meeting; Confirm starts the contract; Waiting books a follow-up appointment; Rejection needs a reason; only the people working the lead); browser: the decision sheet on the lead page | none |
+| Meeting report: draft, Commercial signs, CEO approves or returns; one per appointment | Done | `meetings/` app (`MeetingReport.appointment` is one-to-one); `ReportTests` (state machine, returned then signed again, visibility, drafts watermarked); browser: written by the member, signed with the pad by the head, approved by the CEO | none |
+| Contract flow: Confirm creates it prefilled from the signed quotation; HR prepares; Commercial confirms or returns; send with its own number; client signs; CEO signs and stamps or uploads the final copy | Done | `contracts/services.py` rewritten; `contracts/tests.py` 31 tests (prefill, country template, return with notes and a new version, confirm, own `CT/YYYY/M/NNNN` sequence, client signs on the portal, CEO drawn signature with stamp, CEO upload, hand-over, every illegal transition); browser: the full path in EN and AR | the old `meeting_logged` state was retired; contracts in it are moved to `with_commercial` by migration `contracts/0004` |
+| Templates per country | Done | `ContractTemplate` (country or `*` default), editor page `/admin/templates`, `ContractTemplate` tests (who may edit, country list); default template seeded by migration | none |
+| Client Documents tab with every document and version, filtered by permission | Done | `documents/views.py` (`GET /documents/?lead=`), `test_documents_tab_lists_what_each_person_may_see`; browser: Documents list on the lead page | shown on the lead page (the client's page is Operation's) |
+| A sent contract blocks the client's status leaving Confirm (409 `contract_sent`) | Done | `test_a_sent_contract_blocks_leaving_confirm_with_409`; an unsent contract is cancelled when the client changes their mind (`test_an_unsent_contract_is_cancelled_*`) | the browser run only checks the 200 path; the 409 is proven by the test |
+| Each signer acts only at their step | Done | `test_each_action_has_one_owner` for every action and role; `test_every_illegal_transition_is_refused` | none |
 
 ### 17. Administration tracking and alerts
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Process-tracking page | Partly | reports and "My work" exist | build page |
-| Urgent alerts at 60 minutes, once per case, settings-driven | Partly | `leads/sla.py`, `lookups: SlaSetting` for leads | extend to HR and Commercial, clock-shift tests |
-| Activity feed filterable | Missing | `audit/` log exists | build |
+| Process-tracking page: today's changes, late quotations, missed appointments, overdue follow-ups, client pipeline, team activity | Done | `audit/tracking.py`, `GET /admin/tracking/` (CEO only, `tracking.view`); `audit/tests_tracking.py TrackingPageTests`; browser: `/admin/tracking` in EN and AR at all three widths | none |
+| Activity feed filterable by employee and action type | Done | `GET /admin/activity/?actor=&action=&kind=&from=&to=`, `/admin/activity/filters/`; `test_the_feed_filters_by_employee_and_action`; browser: filter by employee | none |
+| Urgent alerts: HR 60 min after assignment without submitting, Commercial 60 min after submission without signing, appointment open 60 min after its time; thresholds from settings; once per case; reproducible by moving the clock | Done (scheduler: written, not verified here) | `notifications/urgent.py`, run by `process_notifications`; settings `URGENT_*_MINUTES` (also read from the environment); `audit/tests_tracking.py` moves the clock with `mock.patch` (59 min: nothing, 61 min: one alert, second run: none, re-assignment and reschedule are new cases, thresholds from settings); browser: the server was started with 0-minute thresholds and the HR member received `urgent_hr` | a real cron or scheduler must run `process_notifications` every few minutes (see DEPLOYMENT) |
 
 ---
 

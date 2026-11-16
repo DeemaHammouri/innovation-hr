@@ -9,7 +9,7 @@ class VersionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ContractVersion
-        fields = ["id", "number", "note", "created_by_name", "created_at"]
+        fields = ["id", "number", "note", "title", "body_en", "body_ar", "currency", "total", "payment_terms", "start_date", "end_date", "services", "submitted_at", "created_by_name", "created_at"]
         read_only_fields = fields
 
 
@@ -21,7 +21,6 @@ class ContractSerializer(serializers.ModelSerializer):
     quotation_ref = serializers.CharField(source="quotation.ref", default=None, read_only=True)
     requested_by_name = serializers.CharField(source="requested_by.full_name", read_only=True)
     drafted_by_name = serializers.CharField(source="drafted_by.full_name", default=None, read_only=True)
-    meeting_by_name = serializers.CharField(source="meeting_by.full_name", default=None, read_only=True)
     signed_by_name = serializers.CharField(source="signed_by.full_name", default=None, read_only=True)
     handed_over_by_name = serializers.CharField(source="handed_over_by.full_name", default=None, read_only=True)
     permissions = serializers.SerializerMethodField()
@@ -30,8 +29,8 @@ class ContractSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contract
         fields = [
-            "id", "ref", "lead", "lead_ref", "lead_company", "lead_contact", "assigned_to_name", "quotation", "quotation_ref", "client", "status",
-            "requested_by_name", "request_note", "drafted_by_name", "meeting_date", "meeting_notes", "meeting_by_name", "submitted_to_ceo_at",
+            "id", "ref", "number", "country", "template", "returned_comment", "confirmed_at", "sent_at", "client_signed_at", "client_signed_via", "signed_via", "lead", "lead_ref", "lead_company", "lead_contact", "assigned_to_name", "quotation", "quotation_ref", "client", "status",
+            "requested_by_name", "request_note", "drafted_by_name", "submitted_to_ceo_at",
             "ceo_comment", "signed_by_name", "signed_at", "handed_over_by_name", "handed_over_at", "cancel_reason", "created_at", "permissions", "attachable",
         ]
         read_only_fields = fields
@@ -42,7 +41,7 @@ class ContractSerializer(serializers.ModelSerializer):
     def get_attachable(self, c):
         """Which document slots this person may upload to right now. The server checks again on the upload itself."""
         user = self.context["request"].user
-        return [cat for cat in ("draft", "visit_report", "client_signed_copy", "final_signed", "") if access.can_attach(user, c, cat)]
+        return [cat for cat in ("draft", "client_signed_copy", "final_signed", "") if access.can_attach(user, c, cat)]
 
 
 class ContractDetailSerializer(ContractSerializer):

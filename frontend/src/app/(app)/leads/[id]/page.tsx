@@ -11,6 +11,8 @@ import { RequestContractSheet } from "@/components/contracts/ContractSheets";
 import { ContractStatusPill } from "@/components/contracts/contractUi";
 import { RequestQuotationSheet, SkipQuotationSheet } from "@/components/quotations/QuotationSheets";
 import { QuoteStatusPill } from "@/components/quotations/quoteUi";
+import { DecisionSheet } from "@/components/clients/DecisionSheet";
+import { ClientDocuments } from "@/components/documents/ClientDocuments";
 import { RecordTabs } from "@/components/records/RecordTabs";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -40,6 +42,7 @@ export default function LeadDetailPage() {
   const appts = useFetch<Page<Appointment>>(user && can(user, "appointment.access") ? `/appointments/?lead=${id}&status=scheduled` : null);
   const showSkeleton = useDelayed(loading);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [decide, setDecide] = useState(false);
 
   if (!user) return null;
   const commercial = canAny(user, "lead.manage", "lead.work_assigned");
@@ -153,6 +156,7 @@ export default function LeadDetailPage() {
         <p role="status" className="mb-4 rounded-control border border-primary-line bg-primary-tint p-3.5 text-label font-medium text-primary-hover">
           {t("lead.converted")}{" "}
           {can(user, "client.manage") ? <Link href={`/clients/${data.client_id}`} className="underline">{t("lead.openClient")}</Link> : null}
+          {p.can_decide ? <button type="button" className="ms-3 underline" onClick={() => setDecide(true)}>{t("client.decision.open")}</button> : null}
         </p>
       ) : null}
       <RecordTabs
@@ -200,6 +204,7 @@ export default function LeadDetailPage() {
                 {data.skipped_quotation_at ? <InsetRow label={t("qt.skippedLabel")}>{formatDateTime(data.skipped_quotation_at)}</InsetRow> : null}
               </InsetList>
             ) : null}
+            <ClientDocuments lead={data.id} />
             {data.contract ? (
               <InsetList title={t("ct.title")}>
                 <InsetRow label={data.contract.ref}>
@@ -285,6 +290,7 @@ export default function LeadDetailPage() {
       {sheet === "contract" ? <RequestContractSheet lead={data} onClose={() => setSheet(null)} onDone={(c) => { setSheet(null); router.push(`/contracts/${c.id}`); }} /> : null}
       {sheet === "skip" ? <SkipQuotationSheet lead={data} onClose={() => setSheet(null)} onDone={refresh} /> : null}
       {sheet === "archive" ? <ArchiveSheet lead={data} onClose={() => setSheet(null)} onDone={refresh} /> : null}
+      {decide && data.client_id ? <DecisionSheet clientId={data.client_id} onClose={() => setDecide(false)} onDone={() => { setDecide(false); reload(); }} /> : null}
     </>
   );
 }

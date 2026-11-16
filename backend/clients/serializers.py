@@ -11,9 +11,16 @@ class ClientSerializer(serializers.ModelSerializer):
         model = Client
         fields = [
             "id", "company_name", "contact_person", "phone", "email", "address", "notes",
-            "status", "lead", "lead_ref", "portal_status", "created_by", "created_by_name", "created_at", "updated_at",
+            "status", "country", "decision", "decision_at", "decision_follow_up", "decision_note", "lead", "lead_ref", "portal_status", "created_by", "created_by_name", "created_at", "updated_at",
         ]
-        read_only_fields = ["status", "lead", "portal_status", "created_by", "created_at", "updated_at"]
+        read_only_fields = ["status", "decision", "decision_at", "decision_follow_up", "decision_note", "lead", "portal_status", "created_by", "created_at", "updated_at"]
+
+    def validate_country(self, value):
+        from .countries import CODES
+
+        if value not in CODES:
+            raise serializers.ValidationError("Choose a country from the list.")
+        return value
 
     def validate_company_name(self, value):
         value = value.strip()

@@ -73,7 +73,7 @@ def contract_ready(user, lead):
     return bool(cleared) and not any(c.status in OPEN_CONTRACT for c in lead.contracts.all())
 
 
-OPEN_CONTRACT = ("requested", "drafting", "with_commercial", "meeting_logged", "ceo_review", "returned", "signed")
+OPEN_CONTRACT = ("requested", "drafting", "with_commercial", "meeting_logged", "confirmed", "sent", "ceo_review", "returned", "signed")
 OPEN_QUOTATION = ("requested", "in_preparation", "in_review", "changes_requested", "signed", "sent", "waiting")
 
 
@@ -83,6 +83,7 @@ def flags(user, lead):
         "can_edit": can_edit(user, lead),
         "can_assign": is_head(user) and not lead.archived_at,
         "can_log": can_pipeline_write(user, lead) and lead.status in ("new", "contacted", "waiting"),
+        "can_decide": user.has_capability("client.decide") and can_pipeline_write(user, lead) and hasattr(lead, "client"),
         "can_reopen": is_head(user) and not lead.archived_at and lead.status == "rejected",
         "can_archive": can_archive(user, lead),
         "can_restore": is_head(user) and bool(lead.archived_at),

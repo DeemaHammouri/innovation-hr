@@ -9,10 +9,10 @@ import { api, downloadFile, errorMessage, upload, type Contract, type Page, type
 import { useI18n } from "@/lib/i18n";
 import { useFetch } from "@/lib/useFetch";
 
-const SLOTS = ["draft", "visit_report", "client_signed_copy", "final_signed"] as const;
-const REQUIRED_BY: Record<(typeof SLOTS)[number], string> = { draft: "drafting", visit_report: "meeting_logged", client_signed_copy: "meeting_logged", final_signed: "signed" };
+const SLOTS = ["draft", "client_signed_copy", "final_signed"] as const;
+const REQUIRED_BY: Record<(typeof SLOTS)[number], string> = { draft: "never", client_signed_copy: "never", final_signed: "signed_upload" };
 
-/** The four documents a contract moves on: the draft, the visit report, the client-signed copy and the final signed contract. */
+/** The documents a contract keeps: an optional draft file, the copy the client signed on paper, and the CEO's uploaded final copy. */
 export function ContractDocuments({ contract, onChanged }: { contract: Contract; onChanged: () => void }) {
   const { t, formatDateTime, msg } = useI18n();
   const toast = useToast();
@@ -95,7 +95,7 @@ export function ContractDocuments({ contract, onChanged }: { contract: Contract;
                     </li>
                   ))}
                 </ul>
-              ) : contract.status === REQUIRED_BY[slot] || (slot === "draft" && contract.status === "returned") ? (
+              ) : contract.status === "signed" && contract.signed_via === "upload" && REQUIRED_BY[slot] === "signed_upload" ? (
                 <p className="mt-2 text-label font-medium text-warning-ink">{t("ct.doc.missing")}</p>
               ) : null}
             </li>

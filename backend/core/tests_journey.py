@@ -52,14 +52,12 @@ class JourneyTests(RoleCase):
         c = self.post("commercial_member", "/api/contracts/", {"lead": lead.pk, "request_note": "Standard terms"}, expect=201).data
         cid = c["id"]
         self.post("hr_head", f"/api/contracts/{cid}/start/", expect=200)
-        self.upload("hr_head", f"contract:{cid}", "draft")
+        self.post("hr_head", f"/api/contracts/{cid}/draft/", {"body_en": "Agreement text", "payment_terms": "Monthly"}, expect=200)
         self.post("hr_head", f"/api/contracts/{cid}/send/", {"note": "Draft 1"}, expect=200)
-        self.post("commercial_member", f"/api/contracts/{cid}/meeting/", {"meeting_date": timezone.localdate().isoformat(), "meeting_notes": "Agreed"}, expect=200)
-        self.upload("commercial_member", f"contract:{cid}", "visit_report")
-        self.upload("commercial_member", f"contract:{cid}", "client_signed_copy")
-        self.post("commercial_member", f"/api/contracts/{cid}/submit/", expect=200)
-        self.post("ceo", f"/api/contracts/{cid}/approve/", expect=200)
-        self.upload("hr_head", f"contract:{cid}", "final_signed")
+        self.post("commercial_head", f"/api/contracts/{cid}/confirm/", expect=200)
+        self.post("hr_head", f"/api/contracts/{cid}/send-to-client/", expect=200)
+        self.post("commercial_member", f"/api/contracts/{cid}/client-copy/", {"file": SimpleUploadedFile("signed.pdf", PDF, content_type="application/pdf")}, fmt="multipart", expect=200)
+        self.post("ceo", f"/api/contracts/{cid}/approve/", {"signature": png_signature()}, expect=200)
         done = self.post("hr_member", f"/api/contracts/{cid}/handover/", expect=200).data
         self.assertEqual(done["status"], "handed_over")
         return Contract.objects.get(pk=cid)

@@ -116,6 +116,42 @@ CATALOG = {
         "en": ("A quotation is waiting for your signature: {ref}", "{name}"),
         "ar": ("عرض سعر بانتظار توقيعك: {ref}", "{name}"),
     },
+    "urgent_hr": {
+        "en": ("Urgent: {ref} is still waiting for you", "{name}: assigned to you more than {minutes} minutes ago and not submitted."),
+        "ar": ("عاجل: {ref} ما زال بانتظارك", "{name}: أُسند إليك منذ أكثر من {minutes} دقيقة ولم يُرسل بعد."),
+    },
+    "urgent_commercial": {
+        "en": ("Urgent: {ref} needs your signature", "{name}: submitted more than {minutes} minutes ago and not signed."),
+        "ar": ("عاجل: {ref} بانتظار توقيعك", "{name}: أُرسل منذ أكثر من {minutes} دقيقة ولم يُوقَّع بعد."),
+    },
+    "urgent_appointment": {
+        "en": ("Urgent: this appointment is still open", "{name} was due at {when}. Complete it, reschedule it or cancel it."),
+        "ar": ("عاجل: الموعد ما زال مفتوحًا", "{name} كان موعده {when}. أنجزه أو أعد جدولته أو ألغِه."),
+    },
+    "contract_confirmed": {
+        "en": ("{ref} was confirmed: you can send it to the client", "{name}"),
+        "ar": ("تم تأكيد {ref}: يمكنك إرساله إلى العميل", "{name}"),
+    },
+    "contract_sent_client": {
+        "en": ("A contract is waiting for your signature: {ref}", "{name}"),
+        "ar": ("عقد بانتظار توقيعك: {ref}", "{name}"),
+    },
+    "contract_signed_client": {
+        "en": ("Your contract {ref} is signed by the company", "{name}"),
+        "ar": ("وقّعت الشركة عقدك {ref}", "{name}"),
+    },
+    "report_sign": {
+        "en": ("A meeting report is ready for you to sign: {ref}", "{name}"),
+        "ar": ("تقرير اجتماع بانتظار توقيعك: {ref}", "{name}"),
+    },
+    "report_approve": {
+        "en": ("A meeting report is waiting for your approval: {ref}", "{name}"),
+        "ar": ("تقرير اجتماع بانتظار اعتمادك: {ref}", "{name}"),
+    },
+    "report_approved": {
+        "en": ("Meeting report {ref} was approved", "{name}"),
+        "ar": ("تم اعتماد تقرير الاجتماع {ref}", "{name}"),
+    },
     "quotation_confirmed": {
         "en": ("{actor} confirmed {ref}", "{name}"),
         "ar": ("قام {actor} بتأكيد {ref}", "{name}"),

@@ -5,13 +5,15 @@ import { StatusPill } from "@/components/ui/Card";
 import type { Contract, ContractStatus } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
-export const CONTRACT_STATUSES: ContractStatus[] = ["requested", "drafting", "with_commercial", "meeting_logged", "ceo_review", "returned", "signed", "handed_over", "cancelled"];
+export const CONTRACT_STATUSES: ContractStatus[] = ["requested", "drafting", "with_commercial", "confirmed", "sent", "ceo_review", "returned", "signed", "handed_over", "cancelled"];
 
 const TONE: Record<ContractStatus, "neutral" | "primary" | "warning" | "success" | "danger"> = {
   requested: "neutral",
   drafting: "primary",
   with_commercial: "primary",
   meeting_logged: "primary",
+  confirmed: "primary",
+  sent: "primary",
   ceo_review: "warning",
   returned: "warning",
   signed: "success",
@@ -24,22 +26,24 @@ export function ContractStatusPill({ status }: { status: ContractStatus }) {
   return <StatusPill tone={TONE[status]}>{t(`ct.status.${status}`)}</StatusPill>;
 }
 
-const STEPS = ["request", "draft", "meeting", "review", "signed", "handover"] as const;
+const STEPS = ["request", "draft", "commercial", "sent", "ceo", "signed", "handover"] as const;
 
 function stepIndex(status: ContractStatus) {
   switch (status) {
     case "requested": return 0;
-    case "drafting": return 1;
+    case "drafting":
+    case "returned": return 1;
     case "with_commercial":
-    case "meeting_logged": return 2;
-    case "ceo_review":
-    case "returned": return 3;
-    case "signed": return 4;
-    default: return 5;
+    case "meeting_logged":
+    case "confirmed": return 2;
+    case "sent": return 3;
+    case "ceo_review": return 4;
+    case "signed": return 5;
+    default: return 6;
   }
 }
 
-/** Request → Draft → Meeting → CEO review → Signed → Handover. Shown on every contract page. */
+/** Request → Draft → Commercial → Sent → CEO → Signed → Handover. Shown on every contract page. */
 export function ContractStepper({ contract }: { contract: Pick<Contract, "status"> }) {
   const { t } = useI18n();
   const at = stepIndex(contract.status);
@@ -63,7 +67,7 @@ export function ContractStepper({ contract }: { contract: Pick<Contract, "status
             >
               {done && !cancelled ? <Check size={14} weight="bold" /> : i + 1}
             </span>
-            <span aria-hidden className={`hidden text-label lg:inline ${current || done ? "text-ink" : "text-ink-3"}`}>{label}</span>
+            <span aria-hidden className={`hidden text-label xl:inline ${current || done ? "text-ink" : "text-ink-3"}`}>{label}</span>
             {!last ? <span aria-hidden className={`h-px min-w-2 flex-1 ${i < at && !cancelled ? "bg-primary" : "bg-line"}`} /> : null}
           </li>
         );

@@ -19,10 +19,10 @@ def contract_items(user):
     if user.has_capability("contract.sign"):
         out += [item("contract_review", c) for c in qs.filter(status="ceo_review").order_by("submitted_to_ceo_at")[:CAP]]
     elif user.has_capability("contract.draft"):
-        kinds = {"requested": "contract_draft", "drafting": "contract_continue", "returned": "contract_redraft", "signed": "contract_handover"}
+        kinds = {"requested": "contract_draft", "drafting": "contract_continue", "returned": "contract_redraft", "confirmed": "contract_send", "signed": "contract_handover"}
         out += [item(kinds[c.status], c) for c in qs.filter(status__in=list(kinds)).order_by("created_at")[:CAP]]
     elif head or member:
         mine = qs if head else qs.filter(lead__assigned_to=user)
-        kinds = {"with_commercial": "contract_meeting", "returned": "contract_meeting", "meeting_logged": "contract_submit"}
+        kinds = {"with_commercial": "contract_confirm", "confirmed": "contract_send"}
         out += [item(kinds[c.status], c) for c in mine.filter(status__in=list(kinds)).order_by("created_at")[:CAP]]
     return out

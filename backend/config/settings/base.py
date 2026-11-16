@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "notifications",
     "files",
     "documents",
+    "meetings",
     "comments",
     "lookups",
     "leads",
@@ -167,6 +168,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Appointment reminders go out this long before the start (see notifications: process_notifications).
 APPOINTMENT_REMINDER_MINUTES = 60
+
+# Urgent alerts (notifications.urgent, run by process_notifications). Each is sent once per case, this many minutes after the trigger.
+URGENT_HR_MINUTES = int(os.environ.get("URGENT_HR_MINUTES", "60"))  # HR: a quotation was assigned to them and still isn't submitted
+URGENT_COMMERCIAL_MINUTES = int(os.environ.get("URGENT_COMMERCIAL_MINUTES", "60"))  # Commercial head: a quotation was submitted and still isn't signed
+URGENT_APPOINTMENT_MINUTES = int(os.environ.get("URGENT_APPOINTMENT_MINUTES", "60"))  # the owner: an appointment's time passed and it is still open
 
 # Email. Development prints messages in the terminal; production sets EMAIL_HOST (and friends) in the environment.
 EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")

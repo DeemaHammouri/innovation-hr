@@ -6,7 +6,7 @@ from rest_framework.filters import SearchFilter
 
 from audit.models import record
 
-from . import services
+from . import decision, services
 from .models import Client
 from .serializers import ClientSerializer
 
@@ -20,8 +20,8 @@ class ClientViewSet(
 ):
     """Create, read and edit. There is no delete in this version."""
 
-    required_capabilities = {"*": ["client.manage"]}
-    denied_message = "Only the Operation Manager and the CEO can manage clients."
+    required_capabilities = {"*": ["client.manage"], "decide": ["client.decide"]}
+    denied_message = {"*": "Only the Operation Manager and the CEO can manage clients.", "decide": "Only Commercial can record a client's decision."}
     queryset = Client.objects.select_related("created_by")
     serializer_class = ClientSerializer
     filter_backends = [SearchFilter]
@@ -44,3 +44,9 @@ class ClientViewSet(
         """Open the client's portal (after fixing the email), or send a new temporary password if the first email did not arrive."""
         client = self.get_object()
         return Response({"portal_status": services.ensure_portal(client, request.user)})
+
+    @action(detail=True, methods=["post"])
+    def decide(self, request, pk=None):
+        """Commercial records the client's decision after a completed meeting: confirm, waiting (+ next_follow_up) or rejection (+ reason)."""
+        client, contract = decision.decide(request.user, self.get_object(), request.data)
+        return Response({**ClientSerializer(client).data, "contract": contract.pk if contract else None})

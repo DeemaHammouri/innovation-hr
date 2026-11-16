@@ -6,6 +6,8 @@ def process():
     from appointments import reminders as appointment_reminders
     from leads import reminders as lead_reminders
 
-    counts = {"leads": lead_reminders.run(), "appointments": appointment_reminders.run()}
+    from . import urgent
+
+    counts = {"leads": lead_reminders.run(), "appointments": appointment_reminders.run(), "urgent": urgent.run()}
     counts["total"] = sum(counts.values())
     return counts

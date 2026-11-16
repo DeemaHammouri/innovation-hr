@@ -5,7 +5,6 @@ from leads import access as lead_access
 
 from .models import OPEN
 
-MEETING_CATS = ("visit_report", "client_signed_copy")
 
 
 def has_access(user):
@@ -64,13 +63,20 @@ def can_request(user, lead):
     return lead_ready(lead) and lead_access.can_pipeline_write(user, lead)
 
 
+def confirms(user):
+    return user.has_capability("contract.confirm")
+
+
 def flags(user, c):
     s = c.status
     return {
         "can_start": is_hr(user) and s in ("requested", "returned"),
+        "can_edit": is_hr(user) and s == "drafting",
         "can_send": is_hr(user) and s == "drafting",
-        "can_log_meeting": on_pipeline(user, c) and s in ("with_commercial", "returned"),
-        "can_submit": on_pipeline(user, c) and s == "meeting_logged",
+        "can_confirm": confirms(user) and s == "with_commercial",
+        "can_return": confirms(user) and s == "with_commercial",
+        "can_send_to_client": is_hr(user) and s == "confirmed",
+        "can_upload_client_copy": (is_hr(user) or on_pipeline(user, c)) and s == "sent",
         "can_review": signs_contracts(user) and s == "ceo_review",
         "can_handover": is_hr(user) and s == "signed",
         "can_cancel": is_head(user) and s in OPEN,
@@ -85,8 +91,8 @@ def can_attach(user, c, category=""):
     s = c.status
     if category == "draft":
         return is_hr(user) and s in ("requested", "drafting", "returned")
-    if category in MEETING_CATS:
-        return on_pipeline(user, c) and s in ("with_commercial", "meeting_logged", "returned")
+    if category == "client_signed_copy":
+        return (is_hr(user) or on_pipeline(user, c)) and s == "sent"
     if category == "final_signed":
-        return is_hr(user) and s == "signed"
+        return (is_hr(user) and s == "signed") or (signs_contracts(user) and s == "ceo_review")
     return (is_hr(user) or on_pipeline(user, c)) and s in OPEN

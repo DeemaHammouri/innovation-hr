@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, connection, transaction
 from django.test.utils import CaptureQueriesContext
@@ -41,34 +39,38 @@ class CCase(RoleCase):
 
     def contract(self, state="requested", lead=None):
         """Walk a real contract to `state` through the services."""
+        from core.testing import ensure_stamp, png_signature
+
+        ensure_stamp()
         c = services.request_contract(self.member, lead or self.lead(), "Standard terms")
         if state == "requested":
             return Contract.objects.get(pk=c.pk)
-        order = ["requested", "drafting", "with_commercial", "meeting_logged", "ceo_review", "signed", "handed_over"]
-        if state == "returned":
-            order = ["requested", "drafting", "with_commercial", "meeting_logged", "ceo_review"]
-        for step in order[1:]:
-            if step == "drafting":
-                c = services.start_drafting(self.hr, c)
-            elif step == "with_commercial":
-                self.attach(c, "draft")
-                c = services.send_to_commercial(self.hr, c)
-            elif step == "meeting_logged":
-                c = services.log_meeting(self.member, c, timezone.localdate(), "Met the owner")
-            elif step == "ceo_review":
-                self.attach(c, "visit_report", self.member)
-                self.attach(c, "client_signed_copy", self.member)
-                c = services.submit_to_ceo(self.member, c)
-            elif step == "signed":
-                c = services.ceo_sign(self.ceo, c)
-            elif step == "handed_over":
-                self.attach(c, "final_signed")
-                c = services.hand_over(self.hr, c)
-            if step == state:
-                break
+        path = {
+            "drafting": 1, "with_commercial": 2, "returned_commercial": 2, "confirmed": 3, "sent": 4, "ceo_review": 5, "returned": 5, "signed": 6, "handed_over": 7,
+        }[state]
+        c = services.start_drafting(self.hr, c)
+        if path >= 2:
+            c = services.send_to_commercial(self.hr, c)
+        if state == "returned_commercial":
+            c = services.return_to_hr(self.head, c, "Fix clause 4")
+        if path >= 3 and state != "returned_commercial":
+            c = services.confirm(self.head, c)
+        if path >= 4:
+            c = services.send_to_client(self.hr, c)
+        if path >= 5:
+            c = self._client_signs(c)
         if state == "returned":
             c = services.ceo_return(self.ceo, c, "Fix clause 4")
+        if path >= 6 and state != "returned":
+            c = services.ceo_sign(self.ceo, c, png_signature())
+        if path >= 7:
+            c = services.hand_over(self.hr, c)
         return Contract.objects.get(pk=c.pk)
+
+    def _client_signs(self, c):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        return services.upload_client_copy(self.member, c, SimpleUploadedFile("c.pdf", b"%PDF-1.4 signed", "application/pdf"))
 
     def act(self, user, c, name, body=None):
         self.as_user(user)
@@ -120,16 +122,19 @@ class AccessTests(CCase):
     def test_each_action_has_one_owner(self):
         owners = {
             "start": ("requested", ("hr_head", "hr_member")), "send": ("drafting", ("hr_head", "hr_member")),
-            "meeting": ("with_commercial", PIPELINE), "submit": ("meeting_logged", PIPELINE), "approve": ("ceo_review", ("ceo",)),
+            "confirm": ("with_commercial", ("commercial_head",)), "commercial-return": ("with_commercial", ("commercial_head",)),
+            "send-to-client": ("confirmed", ("hr_head", "hr_member")), "approve": ("ceo_review", ("ceo",)),
             "return": ("ceo_review", ("ceo",)), "handover": ("signed", ("hr_head", "hr_member")), "cancel": ("requested", ("commercial_head",)),
         }
         for name, (state, allowed) in owners.items():
             c = self.contract(state)
             for key in ALL_ROLES:
                 self.as_role(key)
-                res = self.client.post(f"/api/contracts/{c.pk}/{name}/", {"comment": "x", "reason": "x", "meeting_date": timezone.localdate().isoformat(), "meeting_notes": "n"}, format="json")
-                if key not in allowed:
-                    self.assertIn(res.status_code, (403, 404), (name, key, res.status_code))
+                if key in allowed:
+                    continue  # the allowed person would change the state; they are covered by the flow tests
+                res = self.client.post(f"/api/contracts/{c.pk}/{name}/", {"comment": "x", "reason": "x", "signature": "x"}, format="json")
+                self.assertIn(res.status_code, (403, 404), (name, key, res.status_code))
+                self.assertEqual(Contract.objects.get(pk=c.pk).status, state, (name, key))
 
     def test_flags(self):
         c = self.contract("ceo_review")
@@ -139,17 +144,20 @@ class AccessTests(CCase):
         self.assertFalse(any(self.client.get(f"/api/contracts/{c.pk}/").data["permissions"].values()))
 
     def test_attach_rules_by_category(self):
-        c = self.contract("drafting")
-        self.assertTrue(self.hr2 and __import__("contracts.access", fromlist=["x"]).can_attach(self.hr2, c, "draft"))
         from contracts import access
 
+        c = self.contract("drafting")
+        self.assertTrue(access.can_attach(self.hr2, c, "draft"))
         self.assertFalse(access.can_attach(self.member, c, "draft"))
-        self.assertFalse(access.can_attach(self.member, c, "visit_report"))  # not with Commercial yet
+        self.assertFalse(access.can_attach(self.member, c, "client_signed_copy"))  # not sent to the client yet
         self.assertFalse(access.can_attach(self.hr, c, "final_signed"))
         self.assertFalse(access.can_attach(self.ceo, c, ""))
-        done = self.contract("signed")
-        self.assertTrue(access.can_attach(self.hr, done, "final_signed"))
-        self.assertFalse(access.can_attach(self.member, done, "final_signed"))
+        sent = self.contract("sent")
+        self.assertTrue(access.can_attach(self.member, sent, "client_signed_copy"))
+        self.assertTrue(access.can_attach(self.hr, sent, "client_signed_copy"))
+        review = self.contract("ceo_review")
+        self.assertTrue(access.can_attach(self.ceo, review, "final_signed"))
+        self.assertFalse(access.can_attach(self.member, review, "final_signed"))
 
 
 class FlowTests(CCase):
@@ -199,49 +207,139 @@ class FlowTests(CCase):
         c = self.contract("handed_over")
         self.assertEqual(self.act(self.head, c, "cancel", {"reason": "x"}).status_code, 400)
 
-    def test_draft_needs_a_file_each_round(self):
+    def test_prefilled_from_the_signed_quotation_and_the_country_template(self):
+        from quotations.models import Quotation, QuotationLine, QuotationVersion
+
+        lead = self.lead(skipped=False)
+        q = Quotation.objects.create(ref="QT-0099", lead=lead, requested_by=self.member, status="confirmed", outcome_at=timezone.now(), number="QT/2026/11/0001")
+        v = QuotationVersion.objects.create(quotation=q, number=1, currency="SAR", payment_terms="50% now, 50% on delivery", created_by=self.hr, total="1500.00")
+        QuotationLine.objects.create(version=v, description="Monthly bookkeeping", quantity=1, unit_price="1500.00", line_total="1500.00", frequency="monthly", visits=2)
+        c = services.request_contract(self.member, lead)
+        ver = c.versions.get()
+        self.assertEqual((ver.currency, str(ver.total), ver.payment_terms), ("SAR", "1500.00", "50% now, 50% on delivery"))
+        self.assertEqual(ver.services[0]["description"], "Monthly bookkeeping")
+        self.assertIn(lead.company_name, ver.body_en)
+        self.assertIn("1,500.00", ver.body_en)
+        self.assertIn("SAR", ver.body_ar)
+        self.assertNotIn("{", ver.body_en)
+
+    def test_the_clients_country_picks_the_template(self):
+        from clients.models import Client
+        from contracts.models import ContractTemplate
+
+        ContractTemplate.objects.create(country="SA", name_en="Saudi", name_ar="سعودي", body_en="SAUDI CONTRACT for {client}", body_ar="عقد سعودي لـ {client}")
+        lead = self.lead()
+        Client.objects.create(lead=lead, company_name=lead.company_name, country="SA", created_by=self.head, status="prospect")
+        c = services.request_contract(self.member, lead)
+        self.assertEqual(c.country, "SA")
+        self.assertEqual(c.versions.get().body_en, f"SAUDI CONTRACT for {lead.company_name}")
+        c2 = services.request_contract(self.member, self.lead())  # no client, default JO: falls back to the standard template
+        self.assertIn("SERVICES AGREEMENT", c2.versions.get().body_en)
+
+    def test_hr_edits_the_draft_and_it_needs_text_to_be_sent(self):
         c = self.contract("requested")
         self.assertEqual(self.act(self.hr, c, "send").data["detail"], services.MSG_STATE)
         self.act(self.hr, c, "start")
+        self.act(self.hr, c, "draft", {"body_en": "", "body_ar": " "})
         self.assertEqual(self.act(self.hr, c, "send").data["detail"], services.MSG_NO_DRAFT)
-        self.attach(c, "draft")
+        res = self.act(self.hr, c, "draft", {"title": "Bookkeeping", "body_en": "Clause 1", "end_date": "2027-01-01", "start_date": "2026-01-01"})
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(self.act(self.hr, c, "draft", {"start_date": "2026-05-01", "end_date": "2026-01-01"}).status_code, 400)
+        self.assertEqual(self.act(self.hr, c, "draft", {"currency": "dollars"}).status_code, 400)
+        self.assertEqual(self.act(self.member, c, "draft", {"body_en": "x"}).status_code, 403)
         res = self.act(self.hr, c, "send", {"note": "First draft"})
         self.assertEqual((res.status_code, res.data["status"]), (200, "with_commercial"))
         self.assertEqual([(v["number"], v["note"]) for v in res.data["versions"]], [(1, "First draft")])
+        self.assertEqual(self.act(self.hr, c, "draft", {"body_en": "late"}).status_code, 400)  # locked once with Commercial
         self.assertTrue(Notification.objects.filter(user=self.member, link=f"/contracts/{c.pk}").exists())
 
-    def test_meeting_validation(self):
+    def test_commercial_returns_with_notes_and_hr_redrafts_a_new_version(self):
         c = self.contract("with_commercial")
+        self.assertEqual(self.act(self.head, c, "commercial-return", {"comment": " "}).data["comment"], [services.MSG_COMMENT])
+        res = self.act(self.head, c, "commercial-return", {"comment": "Fix clause 4"})
+        self.assertEqual((res.status_code, res.data["status"], res.data["returned_comment"]), (200, "returned", "Fix clause 4"))
+        self.assertTrue(Notification.objects.filter(user=self.hr, kind="returned").exists())
+        self.assertEqual(self.act(self.hr, c, "start").data["status"], "drafting")
+        self.act(self.hr, c, "draft", {"body_en": "Clause 4 fixed"})
+        res = self.act(self.hr, c, "send")
+        self.assertEqual([v["number"] for v in res.data["versions"]], [1, 2])
+        self.assertEqual(res.data["returned_comment"], "")
+        self.assertEqual(c.versions.get(number=2).body_en, "Clause 4 fixed")
+
+    def test_a_member_cannot_confirm(self):
+        c = self.contract("with_commercial")
+        self.assertEqual(self.act(self.member, c, "confirm").status_code, 403)
+
+    def test_confirm_then_send_issues_the_contracts_own_number(self):
+        from core.models import CompanyProfile
+
+        CompanyProfile.objects.update_or_create(pk=1, defaults={"contract_prefix": "AGR"})
+        c = self.contract("confirmed")
+        self.assertIsNone(c.number)
+        res = self.act(self.hr, c, "send-to-client")
         today = timezone.localdate()
-        bad = [({}, "meeting_date"), ({"meeting_date": "soon", "meeting_notes": "n"}, "meeting_date"),
-               ({"meeting_date": (today + timedelta(days=1)).isoformat(), "meeting_notes": "n"}, "meeting_date"),
-               ({"meeting_date": today.isoformat(), "meeting_notes": " "}, "meeting_notes")]
-        for body, field in bad:
-            self.assertIn(field, self.act(self.member, c, "meeting", body).data, body)
-        res = self.act(self.member, c, "meeting", {"meeting_date": today.isoformat(), "meeting_notes": "Agreed the terms"})
-        self.assertEqual((res.status_code, res.data["status"], res.data["meeting_by_name"]), (200, "meeting_logged", self.member.full_name))
+        self.assertEqual((res.status_code, res.data["status"], res.data["number"]), (200, "sent", f"AGR/{today.year}/{today.month}/0001"))
+        d = self.contract("confirmed")
+        self.assertEqual(self.act(self.hr, d, "send-to-client").data["number"], f"AGR/{today.year}/{today.month}/0002")
+        self.assertEqual(self.act(self.hr, c, "send-to-client").status_code, 400)  # never a second number
+        self.assertEqual(Contract.objects.get(pk=c.pk).number, f"AGR/{today.year}/{today.month}/0001")
 
-    def test_submit_needs_both_documents(self):
-        c = self.contract("meeting_logged")
-        self.assertEqual(self.act(self.member, c, "submit").data["detail"], services.MSG_NO_VISIT)
-        self.attach(c, "visit_report", self.member)
-        self.assertEqual(self.act(self.member, c, "submit").data["detail"], services.MSG_NO_SIGNED_COPY)
-        att = self.attach(c, "client_signed_copy", self.member)
-        att.archived_at = timezone.now()
-        att.save()
-        self.assertEqual(self.act(self.member, c, "submit").data["detail"], services.MSG_NO_SIGNED_COPY)  # archived files do not count
-        self.attach(c, "client_signed_copy", self.member)
-        res = self.act(self.member, c, "submit")
+    def test_numbers_have_no_gaps_or_duplicates(self):
+        from core.models import YearSequence
+
+        numbers = [self.act(self.hr, self.contract("confirmed"), "send-to-client").data["number"] for _ in range(5)]
+        self.assertEqual([int(n.rsplit("/", 1)[1]) for n in numbers], [1, 2, 3, 4, 5])
+        self.assertEqual(len(set(numbers)), 5)
+        self.assertEqual(YearSequence.objects.get(key="contract").last, 5)
+
+    def test_client_signs_on_the_portal_then_the_ceo_signs_with_signature_and_stamp(self):
+        from accounts.models import User
+        from clients import services as client_services
+        from clients.models import Client
+        from core.testing import png_signature
+
+        c = self.contract("sent")
+        client = Client.objects.create(lead=c.lead, company_name=c.lead.company_name, email="cl@client.example", status="prospect", created_by=self.head)
+        client_services.create_portal_account(client, self.head)
+        client.refresh_from_db()
+        User.objects.filter(pk=client.portal_user_id).update(must_change_password=False)
+        self.as_user(client.portal_user)
+        self.assertEqual(self.client.post(f"/api/portal/contracts/{c.pk}/sign/", {"signature": png_signature(blank=True)}, format="json").status_code, 400)
+        res = self.client.post(f"/api/portal/contracts/{c.pk}/sign/", {"signature": png_signature()}, format="json")
         self.assertEqual((res.status_code, res.data["status"]), (200, "ceo_review"))
+        self.assertEqual(self.client.post(f"/api/portal/contracts/{c.pk}/sign/", {"signature": png_signature()}, format="json").status_code, 400)  # only once
         self.assertTrue(Notification.objects.filter(user=self.ceo, kind="contract_review").exists())
+        self.assertEqual(self.act(self.head, c, "approve", {"signature": png_signature()}).status_code, 403)  # not the Commercial head's step
+        self.assertEqual(self.act(self.ceo, c, "approve", {}).status_code, 400)  # nothing drawn and nothing uploaded
+        res = self.act(self.ceo, c, "approve", {"signature": png_signature()})
+        self.assertEqual((res.status_code, res.data["status"], res.data["signed_by_name"], res.data["signed_via"]), (200, "signed", self.ceo.full_name, "drawn"))
+        stored = Contract.objects.get(pk=c.pk)
+        self.assertTrue(stored.signature and stored.stamp and stored.client_signature)
+        self.assertEqual(self.act(self.ceo, c, "approve", {"signature": png_signature()}).status_code, 400)
+        self.assertEqual(self.act(self.hr, c, "handover").data["status"], "handed_over")  # a drawn signature is the final copy
 
-    def test_ceo_approves_and_signature_is_stored(self):
+    def test_ceo_needs_a_stamp_for_a_drawn_signature(self):
+        from core.models import CompanyProfile
+        from core.testing import png_signature
+
         c = self.contract("ceo_review")
-        res = self.act(self.ceo, c, "approve")
-        self.assertEqual((res.status_code, res.data["status"], res.data["signed_by_name"]), (200, "signed", self.ceo.full_name))
-        self.assertIsNotNone(res.data["signed_at"])
-        self.assertTrue(Notification.objects.filter(user=self.hr, kind="signed").exists())
-        self.assertEqual(self.act(self.ceo, c, "approve").status_code, 400)
+        profile = CompanyProfile.get()
+        profile.stamp = ""
+        profile.save()
+        res = self.act(self.ceo, c, "approve", {"signature": png_signature()})
+        self.assertEqual((res.status_code, services.MSG_STAMP in str(res.data)), (400, True))
+
+    def test_ceo_can_upload_the_final_copy_instead(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        c = self.contract("ceo_review")
+        self.as_user(self.ceo)
+        bad = self.client.post(f"/api/contracts/{c.pk}/approve/", {"file": SimpleUploadedFile("x.exe", b"MZ", "application/octet-stream")}, format="multipart")
+        self.assertEqual(bad.status_code, 400)
+        res = self.client.post(f"/api/contracts/{c.pk}/approve/", {"file": SimpleUploadedFile("final.pdf", b"%PDF-1.4 final", "application/pdf")}, format="multipart")
+        self.assertEqual((res.status_code, res.data["signed_via"]), (200, "upload"))
+        self.assertTrue(Attachment.objects.filter(object_id=c.pk, category="final_signed").exists())
+        self.assertEqual(self.act(self.hr, c, "handover").data["status"], "handed_over")
 
     def test_ceo_return_needs_comment_then_hr_can_redraft(self):
         c = self.contract("ceo_review")
@@ -250,20 +348,21 @@ class FlowTests(CCase):
         self.assertEqual((res.status_code, res.data["status"], res.data["ceo_comment"]), (200, "returned", "Fix clause 4"))
         self.assertTrue(Notification.objects.filter(user=self.member, kind="returned").exists())
         self.assertEqual(self.act(self.hr, c, "start").data["status"], "drafting")
-        self.assertEqual(self.act(self.hr, c, "send").data["detail"], services.MSG_NO_DRAFT)  # a new draft file is needed for the new version
-        self.attach(c, "draft")
-        res = self.act(self.hr, c, "send")
-        self.assertEqual([v["number"] for v in res.data["versions"]], [1, 2])
 
-    def test_returned_can_be_resubmitted_by_commercial_directly(self):
-        c = self.contract("returned")
-        self.act(self.member, c, "meeting", {"meeting_date": timezone.localdate().isoformat(), "meeting_notes": "Fixed with the client"})
-        res = self.act(self.member, c, "submit")
-        self.assertEqual((res.status_code, res.data["status"]), (200, "ceo_review"))
-        self.assertEqual(res.data["ceo_comment"], "")
+    def test_staff_upload_the_clients_signed_copy(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
 
-    def test_handover_needs_final_file_and_notifies_operation(self):
+        c = self.contract("sent")
+        self.as_user(self.users["operation_head"])
+        self.assertIn(self.client.post(f"/api/contracts/{c.pk}/client-copy/", {}, format="multipart").status_code, (403, 404))
+        self.as_user(self.member)
+        self.assertEqual(self.client.post(f"/api/contracts/{c.pk}/client-copy/", {}, format="multipart").status_code, 400)
+        res = self.client.post(f"/api/contracts/{c.pk}/client-copy/", {"file": SimpleUploadedFile("signed.pdf", b"%PDF-1.4 signed", "application/pdf")}, format="multipart")
+        self.assertEqual((res.status_code, res.data["status"], res.data["client_signed_via"]), (200, "ceo_review", "upload"))
+
+    def test_handover_after_an_uploaded_final_copy_needs_the_file(self):
         c = self.contract("signed")
+        Contract.objects.filter(pk=c.pk).update(signed_via="upload")
         self.assertEqual(self.act(self.hr, c, "handover").data["detail"], services.MSG_NO_FINAL)
         self.attach(c, "final_signed")
         res = self.act(self.hr2, c, "handover")
@@ -272,25 +371,26 @@ class FlowTests(CCase):
             self.assertTrue(Notification.objects.filter(user=self.users[key], kind="contract_handover").exists(), key)
         self.assertIn("contract_handed_over", list(AuditEntry.objects.filter(content_type=content_type_for(Lead), object_id=c.lead_id).values_list("action", flat=True)))
 
-    def test_invalid_transitions_are_refused(self):
-        for name, user, bad_states in [
-            ("start", self.hr, ("drafting", "with_commercial", "meeting_logged", "ceo_review", "signed", "handed_over")),
-            ("send", self.hr, ("requested", "with_commercial", "ceo_review", "signed")),
-            ("submit", self.member, ("requested", "drafting", "with_commercial", "ceo_review", "signed")),
-            ("approve", self.ceo, ("requested", "drafting", "with_commercial", "meeting_logged", "signed", "returned")),
-            ("handover", self.hr, ("requested", "drafting", "ceo_review", "handed_over")),
-        ]:
-            for state in bad_states:
+    def test_every_illegal_transition_is_refused(self):
+        from core.testing import png_signature
+
+        legal = {
+            "start": {"requested", "returned"}, "send": {"drafting"}, "confirm": {"with_commercial"}, "commercial-return": {"with_commercial"},
+            "send-to-client": {"confirmed"}, "approve": {"ceo_review"}, "return": {"ceo_review"}, "handover": {"signed"},
+        }
+        actors = {"start": self.hr, "send": self.hr, "confirm": self.head, "commercial-return": self.head, "send-to-client": self.hr, "approve": self.ceo, "return": self.ceo, "handover": self.hr}
+        for name, ok in legal.items():
+            for state in ("requested", "drafting", "with_commercial", "confirmed", "sent", "ceo_review", "returned", "signed", "handed_over"):
+                if state in ok:
+                    continue
                 c = self.contract(state)
-                self.assertEqual(self.act(user, c, name).status_code, 400, (name, state))
-        for state in ("requested", "drafting", "meeting_logged", "ceo_review", "signed"):
-            c = self.contract(state)
-            body = {"meeting_date": timezone.localdate().isoformat(), "meeting_notes": "n"}
-            self.assertEqual(self.act(self.member, c, "meeting", body).status_code, 400, state)
+                res = self.act(actors[name], c, name, {"comment": "x", "signature": png_signature()})
+                self.assertEqual(res.status_code, 400, (name, state, res.status_code))
+                self.assertEqual(Contract.objects.get(pk=c.pk).status, state, (name, state))
 
     def test_full_audit_trail(self):
         c = self.contract("handed_over")
-        self.assertEqual(self.actions(c), ["requested", "drafting_started", "sent_to_commercial", "meeting_logged", "submitted_to_ceo", "signed", "handed_over"])
+        self.assertEqual(self.actions(c), ["requested", "drafting_started", "sent_to_commercial", "confirmed", "sent", "client_signed", "signed", "handed_over"])
 
 
 class ListAndWorkTests(CCase):
@@ -303,21 +403,16 @@ class ListAndWorkTests(CCase):
         self.assertEqual(ids("?open=1"), {a.pk, b.pk})
 
     def test_my_work(self):
-        self.contract("requested")
-        self.contract("drafting")
-        self.contract("with_commercial")
-        self.contract("meeting_logged")
-        self.contract("ceo_review")
-        self.contract("signed")
-        self.contract("returned")
+        for state in ("requested", "drafting", "with_commercial", "confirmed", "ceo_review", "signed", "returned"):
+            self.contract(state)
 
         def kinds(user):
             self.as_user(user)
             return sorted(i["kind"] for i in self.client.get("/api/my-work/").data["items"] if i["kind"].startswith("contract"))
 
         self.assertEqual(kinds(self.ceo), ["contract_review"])
-        self.assertEqual(kinds(self.hr), ["contract_continue", "contract_draft", "contract_handover", "contract_redraft"])
-        self.assertEqual(kinds(self.member), ["contract_meeting", "contract_meeting", "contract_submit"])
+        self.assertEqual(kinds(self.hr), ["contract_continue", "contract_draft", "contract_handover", "contract_redraft", "contract_send"])
+        self.assertEqual(kinds(self.member), ["contract_confirm", "contract_send"])
         self.assertEqual(kinds(self.member2), [])
         self.assertEqual(kinds(self.users["operation_head"]), [])
 

@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import include, path
+from documents.views import ClientDocumentsView
 
 from core.company import CompanyStampView, CompanyView
 from core.views import HealthView, MyWorkView
@@ -17,6 +18,8 @@ api_patterns = [
     path("", include("appointments.urls")),
     path("", include("quotations.urls")),
     path("", include("contracts.urls")),
+    path("", include("meetings.urls")),
+    path("documents/", ClientDocumentsView.as_view()),
     path("", include("operations.urls")),
     path("", include("payments.urls")),
     path("", include("hr.urls")),

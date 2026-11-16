@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PortalContracts } from "@/components/contracts/PortalContracts";
 import { DownloadSheet } from "@/components/documents/DownloadSheet";
 import { FormError, useAction } from "@/components/leads/LeadSheets";
 import { NoAccess } from "@/components/NoAccess";
@@ -48,6 +49,7 @@ export default function PortalPage() {
               <Card className="p-5"><p className="text-body text-ink-2">{t("portal.quotations.none")}</p></Card>
             ) : quotes.data.map((q) => <QuotationCard key={q.id} q={q} onSigned={quotes.reload} />)}
           </section>
+          <PortalContracts />
         </div>
       )}
     </>

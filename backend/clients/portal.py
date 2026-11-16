@@ -104,3 +104,75 @@ class PortalQuotationSignView(APIView):
         q = get_object_or_404(_mine(request), pk=pk)
         quotation_services.client_sign(request.user, q, request.data.get("signature"))
         return Response(PortalQuotationSerializer(get_object_or_404(_mine(request), pk=pk)).data)
+
+
+# ---------- the client's contracts ----------
+from contracts import services as contract_services  # noqa: E402
+from contracts.models import Contract  # noqa: E402
+
+CONTRACT_VISIBLE = ["sent", "ceo_review", "signed", "handed_over"]
+
+
+class PortalContractSerializer(serializers.ModelSerializer):
+    """What the client may see of a contract: the text that was sent, the number and the signing state. No internal notes."""
+
+    company = serializers.CharField(source="lead.company_name", read_only=True)
+    version = serializers.SerializerMethodField()
+    can_sign = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Contract
+        fields = ["id", "number", "status", "company", "sent_at", "client_signed_at", "client_signed_via", "signed_at", "version", "can_sign"]
+        read_only_fields = fields
+
+    def get_version(self, c):
+        v = c.versions.exclude(submitted_at=None).order_by("-number").first()
+        if v is None:
+            return None
+        return {"number": v.number, "title": v.title, "currency": v.currency, "total": str(v.total), "payment_terms": v.payment_terms, "start_date": v.start_date, "end_date": v.end_date, "body_en": v.body_en, "body_ar": v.body_ar, "services": v.services}
+
+    def get_can_sign(self, c):
+        return c.status == "sent" and not c.client_signed_at
+
+
+def _my_contracts(request):
+    client = my_client(request)
+    return Contract.objects.filter(lead__client=client, status__in=CONTRACT_VISIBLE).select_related("lead").prefetch_related("versions")
+
+
+class PortalContractListView(APIView):
+    required_capabilities = ["portal.access"]
+    denied_message = "This area is for clients."
+
+    def get(self, request):
+        return Response(PortalContractSerializer(_my_contracts(request).order_by("-sent_at", "-id"), many=True).data)
+
+
+class PortalContractDetailView(APIView):
+    required_capabilities = ["portal.access"]
+    denied_message = "This area is for clients."
+
+    def get(self, request, pk):
+        return Response(PortalContractSerializer(get_object_or_404(_my_contracts(request), pk=pk)).data)
+
+
+class PortalContractDocumentView(APIView):
+    required_capabilities = ["portal.access"]
+    denied_message = "This area is for clients."
+
+    def get(self, request, pk):
+        from documents import builders, serve
+
+        c = get_object_or_404(_my_contracts(request), pk=pk)
+        fmt, lang = serve.options(request)
+        return serve.respond(builders.build_contract(c, lang), fmt, lang, builders.signed_copy(c, "final_signed", "client_signed_copy"))
+
+
+class PortalContractSignView(APIView):
+    required_capabilities = {"post": ["portal.access"]}
+    denied_message = "This area is for clients."
+
+    def post(self, request, pk):
+        c = get_object_or_404(_my_contracts(request), pk=pk)
+        contract_services.client_sign(request.user, c, request.data.get("signature"))
+        return Response(PortalContractSerializer(get_object_or_404(_my_contracts(request), pk=pk)).data)
