@@ -56,6 +56,8 @@ class OpClientViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, Base):
     filterset_fields = ["status"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Client.objects.none()
         today = sla_now()[0]
         last = QAMeeting.objects.filter(client=OuterRef("pk")).order_by("-held_on", "-id")
         qs = (
@@ -102,6 +104,8 @@ class OpClientViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, Base):
 
 class ChecklistViewSet(Base):
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ChecklistItem.objects.none()
         return ChecklistItem.objects.filter(client__in=Client.objects.filter(access.visible_clients_q(self.request.user))).select_related("client", "verified_by")
 
     def item(self):
@@ -144,6 +148,8 @@ class RecurringViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.
     filterset_fields = ["client", "active"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return RecurringTask.objects.none()
         return RecurringTask.objects.filter(client__in=Client.objects.filter(access.visible_clients_q(self.request.user))).select_related("client", "assignee")
 
     def create(self, request, *args, **kwargs):
@@ -164,6 +170,8 @@ class TaskViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, Base):
     filterset_fields = ["client", "status"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return TaskInstance.objects.none()
         qs = TaskInstance.objects.filter(client__in=Client.objects.filter(access.visible_clients_q(self.request.user))).select_related("client", "assignee", "closed_by").prefetch_related("escalations", "deliverables")
         p = self.request.query_params
         if p.get("mine") == "1":
@@ -253,6 +261,8 @@ class MeetingViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, Base):
     filterset_fields = ["client"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return QAMeeting.objects.none()
         return QAMeeting.objects.filter(client__in=Client.objects.filter(access.visible_clients_q(self.request.user))).select_related("logged_by")
 
     def create(self, request, *args, **kwargs):

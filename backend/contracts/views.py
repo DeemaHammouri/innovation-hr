@@ -50,6 +50,8 @@ class ContractViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
     ordering = ["-created_at", "-id"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Contract.objects.none()
         return Contract.objects.filter(access.visible_q(self.request.user)).select_related(*RELATED)
 
     def get_serializer_class(self):

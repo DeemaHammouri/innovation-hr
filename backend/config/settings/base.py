@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "django_filters",
+    "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
     "core",
     "accounts",
@@ -108,6 +109,7 @@ CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000,h
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["core.errors.EnvelopeJSONRenderer"],  # every error leaves as {"error": {"code", "message", "fields"?}}
+    "DEFAULT_SCHEMA_CLASS": "core.apischema.ApiAutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": ["accounts.authentication.CookieJWTAuthentication"],
     # Fail closed: a view must declare the capabilities it needs (accounts/permissions.py), and nobody is stuck on the forced password change.
     "DEFAULT_PERMISSION_CLASSES": [
@@ -185,3 +187,27 @@ EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "1") == "1"
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Innovation Accounting Solutions <no-reply@innovation.local>")
 # Where a client opens the portal (used in the welcome email).
 PORTAL_URL = os.environ.get("PORTAL_URL", "http://localhost:3000/portal")
+
+# OpenAPI (objective 24). The schema and the Swagger / ReDoc pages are served only to people holding `settings.manage` (CEO, Super Admin).
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Innovation Accounting Solutions API",
+    "DESCRIPTION": "Internal workflow platform. Auth is by HttpOnly cookies plus an X-CSRF-Token header on unsafe methods. Errors use one envelope: {error: {code, message, fields?}}.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": r"/api/v1",
+    "COMPONENT_SPLIT_REQUEST": True,
+    "PREPROCESSING_HOOKS": ["core.apidocs.only_v1"],
+    "POSTPROCESSING_HOOKS": ["drf_spectacular.hooks.postprocess_schema_enums", "core.apischema.error_envelope"],
+    # Four models each have a `status` with different choices; give each set its own name.
+    "ENUM_NAME_OVERRIDES": {
+        "PayrollRunStatusEnum": "hr.models.PayrollRun.Status",
+        "ContractStatusEnum": "contracts.models.Contract.Status",
+        "QuotationStatusEnum": "quotations.models.Quotation.Status",
+        "ClientStatusEnum": [("prospect", "Prospect"), ("onboarding", "Onboarding"), ("active", "Active"), ("inactive", "Inactive")],
+    },
+    # The sign-in views use a no-op authenticator that only makes failures answer 401: it is not a security scheme.
+    "AUTHENTICATION_WHITELIST": ["accounts.authentication.CookieJWTAuthentication"],
+    # The library default is AllowAny with no authentication: serve the docs only through the same cookie login and capability check as every endpoint.
+    "SERVE_PERMISSIONS": ["accounts.permissions.HasCapability", "accounts.permissions.PasswordChangeNotPending"],
+    "SERVE_AUTHENTICATION": ["accounts.authentication.CookieJWTAuthentication"],
+}

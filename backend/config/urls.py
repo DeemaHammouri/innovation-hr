@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import include, path
 from documents.views import ClientDocumentsView
 
+from core.apidocs import RedocView, SchemaView, SwaggerView
 from core.company import CompanySetupView, CompanyStampView, CompanyView
 from core.views import HealthView, MyWorkView
 
@@ -30,6 +31,9 @@ api_patterns = [
     path("company/stamp/", CompanyStampView.as_view()),
     path("my-work/", MyWorkView.as_view()),
     path("health/", HealthView.as_view()),
+    path("schema/", SchemaView.as_view(), name="schema"),
+    path("docs/", SwaggerView.as_view(url_name="schema"), name="swagger"),
+    path("redoc/", RedocView.as_view(url_name="schema"), name="redoc"),
 ]
 
 urlpatterns = [

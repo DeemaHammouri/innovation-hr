@@ -58,6 +58,8 @@ class AppointmentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixin
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Appointment.objects.none()
         user = self.request.user
         qs = Appointment.objects.select_related("lead", "owner", "created_by", "report")
         if not user.has_capability("appointment.view_all"):

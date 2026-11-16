@@ -70,6 +70,8 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
     parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Lead.objects.none()
         return (
             Lead.objects.filter(access.visible_q(self.request.user))
             .select_related("assigned_to", "created_by", "batch", "rejection_reason", "client")
@@ -229,6 +231,8 @@ class ImportBatchViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
     pagination_class = StandardPagination
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ImportBatch.objects.none()
         qs = ImportBatch.objects.select_related("created_by").annotate(contacted_n=Count("leads", filter=~Q(leads__status="new")))
         if not self.request.user.has_capability("lead.batches_all"):
             qs = qs.filter(created_by=self.request.user)

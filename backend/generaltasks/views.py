@@ -70,6 +70,8 @@ class GeneralTaskViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixin
         return GeneralTask.objects.select_related("assignee", "assignee__department", "assigned_by")
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return GeneralTask.objects.none()
         user, p = self.request.user, self.request.query_params
         qs = self.base().filter(scope.visible_q(user))
         if self.action != "list":

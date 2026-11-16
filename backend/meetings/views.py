@@ -52,6 +52,8 @@ class MeetingReportViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
     pagination_class = StandardPagination
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return MeetingReport.objects.none()
         qs = MeetingReport.objects.filter(access.visible_q(self.request.user)).select_related(*RELATED)
         p = self.request.query_params
         if p.get("status"):

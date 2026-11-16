@@ -48,6 +48,8 @@ class QuotationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     ordering = ["-created_at", "-id"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Quotation.objects.none()
         return (
             Quotation.objects.filter(access.visible_q(self.request.user))
             .select_related("lead", "lead__assigned_to", "requested_by", "prepared_by", "signed_by", "rejection_reason")

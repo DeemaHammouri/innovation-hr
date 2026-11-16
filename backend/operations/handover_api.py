@@ -103,6 +103,8 @@ class HandoverViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
     filterset_fields = ["status"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Handover.objects.none()
         return Handover.objects.filter(visible_q(self.request.user)).select_related("client", "prepared_by", "decided_by", "escalated_by", "project")
 
     def one(self, pk):
