@@ -14,7 +14,7 @@ def hr_items(user):
     if role in (HR_HEAD, CEO):
         pending = LeaveRequest.objects.filter(status="pending").exclude(user=user).select_related("user", "leave_type")
         if role == CEO:
-            pending = pending.filter(user__department__name="HR", user__role="head")
+            pending = pending.filter(user__department__name="HR", user__is_dept_head=True)
         for r in pending.order_by("start_date")[:CAP]:
             out.append({"kind": "leave_decide", "section": "leave", "ref": r.leave_type.name_en, "title": r.user.full_name, "link": "/leave?tab=requests", "due": r.start_date.isoformat(), "overdue": False})
         status = "draft" if role == CEO else "ceo_approved"

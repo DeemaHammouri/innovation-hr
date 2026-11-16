@@ -50,7 +50,7 @@ def operation_users():
 
 
 def operation_head():
-    return operation_users().filter(role=User.Role.HEAD).first()
+    return operation_users().filter(is_dept_head=True).first()
 
 
 # ---------- onboarding ----------

@@ -34,7 +34,7 @@ def can_decide(user, request):
     """The HR head decides everyone's leave except their own; the CEO decides the HR head's."""
     if request.user_id == user.pk:
         return False
-    if request.user.department.name == "HR" and request.user.role == User.Role.HEAD:
+    if request.user.department.name == "HR" and request.user.is_dept_head:
         return is_ceo(user)
     return is_hr_head(user)
 

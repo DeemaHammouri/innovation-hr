@@ -26,6 +26,6 @@ class Command(BaseCommand):
             password=password,
             full_name=os.environ.get("CEO_NAME", "CEO"),
             department=admin_dept,
-            role=User.Role.HEAD,
+            role="head",
         )
         self.stdout.write(self.style.SUCCESS(f"CEO created: {email.lower()}"))

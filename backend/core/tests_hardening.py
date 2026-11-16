@@ -115,11 +115,11 @@ class HealthAndErrorTests(APITestCase):
 class ConstraintTests(RoleCase):
     def test_database_refuses_a_second_active_head(self):
         with self.assertRaises(IntegrityError), transaction.atomic():
-            User.objects.filter(pk=self.users["hr_member"].pk).update(role="head")  # bypasses the model check on purpose
+            User.objects.filter(pk=self.users["hr_member"].pk).update(is_dept_head=True)  # bypasses the model check on purpose
 
     def test_an_inactive_head_does_not_block_a_new_one(self):
         User.objects.filter(pk=self.users["hr_head"].pk).update(is_active=False)
-        User.objects.filter(pk=self.users["hr_member"].pk).update(role="head")
+        User.objects.filter(pk=self.users["hr_member"].pk).update(is_dept_head=True)
 
     def test_client_cadence_range(self):
         from clients.models import Client

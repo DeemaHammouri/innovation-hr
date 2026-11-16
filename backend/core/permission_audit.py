@@ -1,4 +1,4 @@
-"""Walks every URL the API exposes and tries every method as anonymous and as each of the eight roles.
+"""Walks every URL the API exposes under /api/v1/ (the /api/ alias serves the same routes) and tries every method as anonymous and as each of the eight roles.
 
 Used by core/tests_hardening.py. The checks are the ones that catch a forgotten permission class: an endpoint that answers an anonymous
 caller, or any request that ends in a server error. `matrix()` returns the raw table for docs/PERMISSIONS.md.
@@ -14,9 +14,9 @@ SAMPLES = {"int": "1", "str": "x", "slug": "x", "uuid": "00000000-0000-0000-0000
 
 # Endpoints an anonymous caller may reach on purpose (the sign-in flow and the health check). Everything else must refuse.
 PUBLIC = {
-    ("post", "/api/auth/login/"),
-    ("post", "/api/auth/refresh/"),
-    ("get", "/api/health/"),
+    ("post", "/api/v1/auth/login/"),
+    ("post", "/api/v1/auth/refresh/"),
+    ("get", "/api/v1/health/"),
 }
 
 
@@ -33,7 +33,7 @@ def endpoints():
     """[(concrete_url, template)] for every API route. Regex routes from DRF routers are turned into sample URLs."""
     out, seen = [], set()
     for template, _ in _walk(get_resolver().url_patterns):
-        if not template.startswith("api/"):
+        if not template.startswith("api/v1/"):
             continue
         url = "/" + template
         url = re.sub(r"<(\w+):\w+>", lambda m: SAMPLES.get(m.group(1), "1"), url)

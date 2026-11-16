@@ -158,7 +158,7 @@ def approve(actor, run):
         run.status, run.approved_by, run.approved_at = Status.APPROVED, actor, timezone.now()
         run.save()
         record(actor, run, "approved", from_value="draft", to_value="ceo_approved")
-    head = User.objects.filter(is_active=True, department__name="HR", role=User.Role.HEAD).first()
+    head = User.objects.filter(is_active=True, department__name="HR", is_dept_head=True).first()
     notify(head, "payroll_approved", link=f"/payroll/{run.pk}", dedupe_key=f"payroll-approved:{run.pk}:{int(run.approved_at.timestamp())}", ref=run.month.strftime("%Y-%m"))
     return run
 
@@ -176,7 +176,7 @@ def reopen(actor, run, reason):
         run.status, run.approved_by, run.approved_at = Status.DRAFT, None, None
         run.save()
         record(actor, run, "reopened", from_value="ceo_approved", to_value="draft", comment=reason)
-    head = User.objects.filter(is_active=True, department__name="HR", role=User.Role.HEAD).first()
+    head = User.objects.filter(is_active=True, department__name="HR", is_dept_head=True).first()
     notify(head, "payroll_reopened", link=f"/payroll/{run.pk}", ref=run.month.strftime("%Y-%m"), name=reason[:120])
     return run
 

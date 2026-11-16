@@ -62,7 +62,7 @@ def ceo_users():
 
 def pipeline_users(c):
     who = [c.lead.assigned_to] if c.lead.assigned_to_id and c.lead.assigned_to.is_active else []
-    head = User.objects.filter(is_active=True, department__name="Commercial", role=User.Role.HEAD).first()
+    head = User.objects.filter(is_active=True, department__name="Commercial", is_dept_head=True).first()
     return who + ([head] if head and head not in who else [])
 
 

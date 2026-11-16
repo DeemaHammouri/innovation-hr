@@ -172,7 +172,7 @@ class LeaveViewSet(Authed, viewsets.ViewSet):
             if scope == "decide":
                 qs = qs.filter(status="pending").exclude(user=request.user)
                 if access.is_ceo(request.user):
-                    qs = qs.filter(user__department__name="HR", user__role="head")
+                    qs = qs.filter(user__department__name="HR", user__is_dept_head=True)
                 elif not access.is_hr_head(request.user):
                     qs = qs.none()
         if request.query_params.get("status"):

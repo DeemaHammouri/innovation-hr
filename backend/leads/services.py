@@ -36,7 +36,7 @@ MSG_TYPE = "Choose how you were in touch."
 
 
 def commercial_head():
-    return User.objects.filter(is_active=True, department__name="Commercial", role=User.Role.HEAD).first()
+    return User.objects.filter(is_active=True, department__name="Commercial", is_dept_head=True).first()
 
 
 def link(lead):

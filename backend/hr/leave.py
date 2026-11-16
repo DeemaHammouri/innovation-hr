@@ -73,9 +73,9 @@ def balances(user, year):
 
 def deciders(requester):
     """Who may decide this person's leave: the CEO for the HR head, otherwise the HR head."""
-    if requester.department.name == "HR" and requester.role == User.Role.HEAD:
-        return list(User.objects.filter(is_active=True, department__name="Administration", role=User.Role.HEAD))
-    return list(User.objects.filter(is_active=True, department__name="HR", role=User.Role.HEAD))
+    if requester.department.name == "HR" and requester.is_dept_head:
+        return list(User.objects.filter(is_active=True, department__name="Administration", is_dept_head=True))
+    return list(User.objects.filter(is_active=True, department__name="HR", is_dept_head=True))
 
 
 def _overlaps(user, start, end, exclude=None):
@@ -205,6 +205,6 @@ def calendar_q(user):
     role = role_key(user)
     if role in (CEO, HR_HEAD, HR_MEMBER):
         return Q()
-    if user.role == User.Role.HEAD and user.department_id:
+    if user.is_dept_head and user.department_id:
         return Q(user__department_id=user.department_id)
     return Q(user=user)

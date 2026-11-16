@@ -72,7 +72,7 @@ class Command(BaseCommand):
                 if dept in (ADMINISTRATION, "Marketing"):
                     taken = taken
                 elif role == "head":
-                    taken = taken.filter(role="head")
+                    taken = taken.filter(is_dept_head=True)
                 else:
                     taken = User.objects.none()
                 if taken.exists():

@@ -22,11 +22,12 @@ class RoleKeyTests(RoleCase):
         for key in ALL_ROLES:
             self.assertEqual(role_key(self.users[key]), key)
 
-    def test_superuser_without_department_has_no_role(self):
+    def test_superuser_without_department_is_super_admin(self):
         from accounts.models import User
 
         su = User.objects.create_superuser("dev@x.com", "pw-123456", full_name="Dev")
-        self.assertIsNone(role_key(su))
+        self.assertEqual(role_key(su), "super_admin")
+        self.assertIsNone(su.department_id)
 
     def test_me_endpoint_exposes_role_key(self):
         for key in ALL_ROLES:

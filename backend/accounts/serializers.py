@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import Department, User
+from .models import resolve_role, Department, User
 
 MIN_PASSWORD_LENGTH = 8
 
@@ -46,6 +46,7 @@ class UserSerializer(serializers.ModelSerializer):
 class UserWriteSerializer(serializers.ModelSerializer):
     temporary_password = serializers.CharField(write_only=True, required=False, trim_whitespace=False)
     department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all())
+    role = serializers.ChoiceField(choices=["head", "member"], required=False)  # replaced by explicit roles in objective 5
 
     class Meta:
         model = User
@@ -73,14 +74,18 @@ class UserWriteSerializer(serializers.ModelSerializer):
         if self.instance is None and not attrs.get("temporary_password"):
             raise serializers.ValidationError({"temporary_password": "Add a temporary password."})
         department = attrs.get("department", getattr(self.instance, "department", None))
-        role = attrs.get("role", getattr(self.instance, "role", User.Role.MEMBER))
+        role = attrs.pop("role", getattr(self.instance, "role", "member"))
+        role_ref = resolve_role(department, role)
         if self.instance and self.instance.pk == self.context["request"].user.pk:
-            if department != self.instance.department or role != self.instance.role:
+            if department != self.instance.department or role_ref != self.instance.role_ref:
                 raise serializers.ValidationError(
                     {"role": "You can't change your own department or role."}
                 )
+        attrs["role_ref"] = role_ref
         try:
-            User(pk=getattr(self.instance, "pk", None), department=department, role=role).validate_placement()
+            probe = User(pk=getattr(self.instance, "pk", None), department=department, role_ref=role_ref)
+            probe.is_dept_head = bool(role_ref and role_ref.is_head)
+            probe.validate_placement()
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.message_dict)
         return attrs

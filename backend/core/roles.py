@@ -1,6 +1,4 @@
-"""The eight business roles, derived from department + head/member. Nothing here is stored."""
-from accounts.models import ADMINISTRATION, MARKETING, OPERATION
-
+"""Role keys. The role itself is stored (accounts.Role); this module names the keys and reads the current user's."""
 CEO = "ceo"
 MARKETING_USER = "marketing"
 COMMERCIAL_HEAD = "commercial_head"
@@ -14,22 +12,11 @@ ALL_ROLES = [CEO, MARKETING_USER, COMMERCIAL_HEAD, COMMERCIAL_MEMBER, HR_HEAD, H
 
 
 def role_key(user):
-    """One of ALL_ROLES, or None for anonymous users and developer superusers without a department."""
-    if not user or not user.is_authenticated or not user.department_id:
+    """The key of the user's Role (one of ALL_ROLES, or "super_admin"); None for anonymous users and accounts without a role.
+    Use it for labels and identity only. Permission decisions ask for capabilities (accounts.permissions.HasCapability / user.has_capability)."""
+    if not user or not user.is_authenticated:
         return None
-    dept = user.department.name
-    head = user.role == "head"
-    if dept == ADMINISTRATION:
-        return CEO if head else None
-    if dept == MARKETING:
-        return MARKETING_USER
-    if dept == "Commercial":
-        return COMMERCIAL_HEAD if head else COMMERCIAL_MEMBER
-    if dept == "HR":
-        return HR_HEAD if head else HR_MEMBER
-    if dept == OPERATION:
-        return OPERATION_HEAD if head else OPERATION_MEMBER
-    return None
+    return user.role_name
 
 
 def has_role(user, *keys):

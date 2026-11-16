@@ -2,12 +2,10 @@ from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils import timezone
 
-ADMINISTRATION = "Administration"
-MARKETING = "Marketing"
-OPERATION = "Operation"
-DEPARTMENT_NAMES = [ADMINISTRATION, MARKETING, "Commercial", "HR", OPERATION]
+from .catalog import ADMINISTRATION, DEPARTMENT_NAMES, MARKETING, OPERATION, ROLES, SUPER_ADMIN  # noqa: F401
 
 
 class Department(models.Model):
@@ -20,12 +18,61 @@ class Department(models.Model):
         return self.name
 
 
+class Capability(models.Model):
+    """One thing a person may do ("quotation.sign"). Views ask for capabilities, never for role names."""
+
+    code = models.CharField(max_length=60, unique=True)
+    description = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["code"]
+
+    def __str__(self):
+        return self.code
+
+
+class Role(models.Model):
+    """A job in the company. Belongs to a department (Super Admin to none) and holds capabilities."""
+
+    key = models.CharField(max_length=30, unique=True)
+    department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="roles", null=True, blank=True)
+    is_head = models.BooleanField(default=False)
+    name_en = models.CharField(max_length=80)
+    name_ar = models.CharField(max_length=80)
+    capabilities = models.ManyToManyField(Capability, related_name="roles", blank=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.key
+
+
+def resolve_role(department, legacy_role=None, superuser=False):
+    """The Role for a department seat. Seeds the organisation on first use so a fresh database works."""
+    from .organization import ensure_organization
+
+    roles = ensure_organization()
+    if superuser and department is None:
+        return roles[SUPER_ADMIN]
+    if department is None:
+        return None
+    wanted_head = legacy_role == "head"
+    for role in roles.values():
+        if role.department_id == department.pk and (role.is_head == wanted_head or department.name == MARKETING):
+            return role
+    return None
+
+
 class UserManager(BaseUserManager):
     use_in_migrations = True
 
     def _create(self, email, password, **extra):
         if not email:
             raise ValueError("Email is required")
+        legacy = extra.pop("role", None)  # "head" or "member": a convenience that picks the Role for the department
+        if "role_ref" not in extra and "role_ref_id" not in extra:
+            extra["role_ref"] = resolve_role(extra.get("department"), legacy, extra.get("is_superuser", False))
         user = self.model(email=self.normalize_email(email).lower(), **extra)
         user.set_password(password)
         user.save()
@@ -44,10 +91,6 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    class Role(models.TextChoices):
-        HEAD = "head", "Head"
-        MEMBER = "member", "Member"
-
     class Language(models.TextChoices):
         EN = "en", "English"
         AR = "ar", "Arabic"
@@ -56,7 +99,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     full_name = models.CharField(max_length=150)
     # Empty only for developer superusers made with `createsuperuser`.
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="users", null=True, blank=True)
-    role = models.CharField(max_length=10, choices=Role.choices, default=Role.MEMBER)
+    role_ref = models.ForeignKey(Role, on_delete=models.PROTECT, related_name="users", null=True, blank=True)
+    # Mirrors role_ref.is_head so the database itself can enforce one head per department.
+    is_dept_head = models.BooleanField(default=False, editable=False)
+    username = models.CharField(max_length=150, null=True, blank=True)
+    token_version = models.PositiveIntegerField(default=0)
     must_change_password = models.BooleanField(default=False)
     preferred_language = models.CharField(max_length=2, choices=Language.choices, default=Language.EN)
     is_active = models.BooleanField(default=True)
@@ -71,23 +118,54 @@ class User(AbstractBaseUser, PermissionsMixin):
         ordering = ["full_name"]
         constraints = [
             # A department has at most one active head, enforced by the database as well as by the user screens.
-            models.UniqueConstraint(fields=["department"], condition=models.Q(role="head", is_active=True, department__isnull=False), name="one_active_head_per_department"),
+            models.UniqueConstraint(fields=["department"], condition=models.Q(is_dept_head=True, is_active=True, department__isnull=False), name="one_active_head_per_department"),
+            models.UniqueConstraint(Lower("username"), condition=models.Q(username__isnull=False), name="unique_username_ci"),
         ]
 
     def __str__(self):
         return self.email
 
     @property
+    def role(self):
+        """"head" or "member" within the department (read-only; change role_ref instead)."""
+        return "head" if self.role_ref_id and self.role_ref.is_head else "member"
+
+    @property
+    def role_name(self):
+        return self.role_ref.key if self.role_ref_id else None
+
+    @property
     def is_ceo(self):
-        return bool(self.department_id and self.department.name == ADMINISTRATION and self.role == self.Role.HEAD)
+        return self.role_name == "ceo"
 
     @property
     def is_operation_head(self):
-        return bool(self.department_id and self.department.name == OPERATION and self.role == self.Role.HEAD)
+        return self.role_name == "operation_head"
+
+    @property
+    def is_super_admin(self):
+        return self.role_name == SUPER_ADMIN
+
+    @property
+    def capability_codes(self):
+        """The set of capability codes this person holds, read once per user object."""
+        if not self.is_active or not self.role_ref_id:
+            return frozenset()
+        cached = self.__dict__.get("_caps")
+        if cached is None:
+            cached = self.__dict__["_caps"] = frozenset(self.role_ref.capabilities.values_list("code", flat=True))
+        return cached
+
+    def has_capability(self, code):
+        return code in self.capability_codes
+
+    def refresh_from_db(self, *args, **kwargs):
+        self.__dict__.pop("_caps", None)
+        super().refresh_from_db(*args, **kwargs)
 
     @property
     def can_manage_clients(self):
-        return self.is_ceo or self.is_operation_head
+        return self.has_capability("client.manage")
 
     def validate_placement(self):
         """Department rules. Counts every user, active or not, so a seat is never double-booked."""
@@ -96,17 +174,21 @@ class User(AbstractBaseUser, PermissionsMixin):
         others = User.objects.filter(department_id=self.department_id).exclude(pk=self.pk)
         name = self.department.name
         if name == ADMINISTRATION:
-            if self.role != self.Role.HEAD:
+            if not self.is_dept_head:
                 raise ValidationError({"role": "Administration only has the CEO, who is its head."})
             if others.exists():
                 raise ValidationError({"department": "Administration already has its CEO."})
         elif name == MARKETING:
             if others.exists():
                 raise ValidationError({"department": "Marketing already has its one person."})
-        elif self.role == self.Role.HEAD and others.filter(role=self.Role.HEAD).exists():
+        elif self.is_dept_head and others.filter(is_dept_head=True).exists():
             raise ValidationError({"role": f"{name} already has a head. Change their role first."})
 
     def save(self, *args, **kwargs):
+        if self.role_ref_id is None and (self.department_id or self.is_superuser):
+            self.role_ref = resolve_role(self.department, None, self.is_superuser)
+        self.is_dept_head = bool(self.role_ref_id and self.role_ref.is_head and self.department_id)
+        self.__dict__.pop("_caps", None)
         self.validate_placement()  # enforced here so no code path can skip the rules
         super().save(*args, **kwargs)
 

@@ -208,7 +208,7 @@ class AssigneeViewSet(Base):
 
     def list(self, request):
         people = services.operation_users().order_by("full_name")
-        return Response([{"id": u.pk, "full_name": u.full_name, "is_head": u.role == "head"} for u in people])
+        return Response([{"id": u.pk, "full_name": u.full_name, "is_head": u.is_dept_head} for u in people])
 
 
 class MeetingViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, Base):
