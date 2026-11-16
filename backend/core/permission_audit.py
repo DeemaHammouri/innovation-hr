@@ -16,6 +16,7 @@ SAMPLES = {"int": "1", "str": "x", "slug": "x", "uuid": "00000000-0000-0000-0000
 PUBLIC = {
     ("post", "/api/v1/auth/login/"),
     ("post", "/api/v1/auth/refresh/"),
+    ("post", "/api/v1/auth/logout/"),  # idempotent: clears cookies and retires a refresh token if one is sent
     ("get", "/api/v1/health/"),
 }
 

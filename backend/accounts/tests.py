@@ -21,8 +21,13 @@ class BaseCase(APITestCase):
     def login(self, user, password=PASSWORD):
         res = self.client.post("/api/auth/login/", {"email": user.email, "password": password})
         self.assertEqual(res.status_code, 200, res.content)
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['access']}")
+        # Tokens arrive as cookies, which the test client keeps. Unsafe requests also send the CSRF token the way our pages do.
+        self.client.defaults["HTTP_X_CSRF_TOKEN"] = self.client.cookies["csrf_token"].value
         return res
+
+    def sign_out_client(self):
+        self.client.cookies.clear()
+        self.client.defaults.pop("HTTP_X_CSRF_TOKEN", None)
 
     def new_user_payload(self, **over):
         data = {
@@ -100,12 +105,12 @@ class UserManagementTests(BaseCase):
         member = self.make("hr@x.com", "HR")
         self.login(self.ceo)
         self.assertEqual(self.client.post(f"/api/users/{member.id}/deactivate/").status_code, 200)
-        self.client.credentials()
+        self.sign_out_client()
         res = self.client.post("/api/auth/login/", {"email": member.email, "password": PASSWORD})
         self.assertEqual(res.status_code, 401)
         self.login(self.ceo)
         self.client.post(f"/api/users/{member.id}/activate/")
-        self.client.credentials()
+        self.sign_out_client()
         self.login(member)
 
     def test_ceo_cannot_deactivate_self(self):
@@ -153,7 +158,7 @@ class ForcedPasswordChangeTests(BaseCase):
         )
         self.assertEqual(res.status_code, 200, res.content)
         self.assertEqual(self.client.get("/api/clients/").status_code, 200)
-        self.client.credentials()
+        self.sign_out_client()
         self.assertEqual(
             self.client.post("/api/auth/login/", {"email": "op@x.com", "password": PASSWORD}).status_code, 401
         )
@@ -169,7 +174,7 @@ class ForcedPasswordChangeTests(BaseCase):
 class LoginLogTests(BaseCase):
     def test_login_and_logout_are_logged_with_ip(self):
         res = self.login(self.ceo)
-        self.client.post("/api/auth/logout/", {"refresh": res.data["refresh"]})
+        self.client.post("/api/auth/logout/")
         actions = list(ActionLog.objects.filter(user=self.ceo).order_by("id").values_list("action", flat=True))
         self.assertEqual(actions, ["login", "logout"])
         self.assertTrue(ActionLog.objects.first().ip_address)
@@ -186,7 +191,7 @@ class ClientPermissionTests(BaseCase):
     def test_operation_head_and_ceo_can_create_and_edit(self):
         op = self.make("op@x.com", "Operation", "head")
         for user in (op, self.ceo):
-            self.client.credentials()
+            self.sign_out_client()
             self.login(user)
             res = self.client.post("/api/clients/", {"company_name": f"Acme {user.id}"})
             self.assertEqual(res.status_code, 201, res.content)
@@ -199,7 +204,7 @@ class ClientPermissionTests(BaseCase):
         member = self.make("op2@x.com", "Operation", "member")
         hr_head = self.make("hr@x.com", "HR", "head")
         for user in (member, hr_head):
-            self.client.credentials()
+            self.sign_out_client()
             self.login(user)
             self.assertEqual(self.client.get("/api/clients/").status_code, 403)
             self.assertEqual(self.client.post("/api/clients/", {"company_name": "Acme"}).status_code, 403)

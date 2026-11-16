@@ -103,7 +103,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
+    "DEFAULT_AUTHENTICATION_CLASSES": ["accounts.authentication.CookieJWTAuthentication"],
     # Signed in AND not stuck on the forced password change. Every endpoint is blocked by default.
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -114,8 +114,19 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "ROTATE_REFRESH_TOKENS": False,
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": False,
 }
+
+# Tokens travel only in cookies (see accounts/authentication.py). Secure cookies need HTTPS; browsers still accept them on localhost.
+AUTH_COOKIE_ACCESS = "access_token"
+AUTH_COOKIE_REFRESH = "refresh_token"
+AUTH_COOKIE_CSRF = "csrf_token"
+AUTH_COOKIE_SECURE = os.environ.get("AUTH_COOKIE_SECURE", "0" if DEBUG else "1") == "1"
+AUTH_COOKIE_SAMESITE = "Lax"
+AUTH_REFRESH_COOKIE_PATH = "/api/v1/auth/"
+AUTHENTICATION_BACKENDS = ["accounts.authentication.IdentifierBackend"]
 
 # Sign-in lockout (see accounts/ratelimit.py). Honour X-Forwarded-For only behind a proxy you control that sets it.
 LOGIN_MAX_FAILS_PER_EMAIL = 8

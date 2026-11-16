@@ -32,7 +32,8 @@ if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
 if not CORS_ALLOWED_ORIGINS or any(o.startswith("http://") for o in CORS_ALLOWED_ORIGINS):
     raise ImproperlyConfigured("CORS_ALLOWED_ORIGINS must list the https:// address(es) of the web app.")
-CORS_ALLOW_CREDENTIALS = False  # the API uses bearer tokens, not cookies
+CORS_ALLOW_CREDENTIALS = False  # the browser only talks to the same-origin Next.js proxy; no cross-origin cookie use
+AUTH_COOKIE_SECURE = True  # sign-in cookies are never sent over plain HTTP
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # HTTPS everywhere. If TLS ends at a reverse proxy, set SECURE_PROXY_SSL=1 so Django trusts its X-Forwarded-Proto.

@@ -11,10 +11,11 @@ from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from . import ratelimit
+from .authentication import Anonymous, check_csrf, clear_auth_cookies, issue_tokens, set_auth_cookies, user_from_refresh
 from .models import ActionLog, Department, User
 from .permissions import IsCEO, PasswordChangeNotPending
 from .serializers import (
@@ -45,43 +46,71 @@ MSG_TOO_MANY = "Too many sign-in attempts. Wait 15 minutes and try again."
 
 
 class LoginView(APIView):
-    authentication_classes = []
+    """Sign in with a username or an email. The answer carries the user, never a token: the tokens arrive as HttpOnly cookies."""
+
+    authentication_classes = [Anonymous]
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = str(request.data.get("email", "")).strip().lower()
+        identifier = str(request.data.get("identifier", request.data.get("email", ""))).strip().lower()
         password = str(request.data.get("password", ""))
-        if not email or not password:
-            return Response({"detail": "Enter your email and password."}, status=status.HTTP_400_BAD_REQUEST)
+        if not identifier or not password:
+            return Response({"detail": "Enter your email or username and your password."}, status=status.HTTP_400_BAD_REQUEST)
         ip = client_ip(request) or ""
-        if ratelimit.blocked(email, ip):
+        if ratelimit.blocked(identifier, ip):
             return Response({"detail": MSG_TOO_MANY}, status=status.HTTP_429_TOO_MANY_REQUESTS)
-        user = authenticate(request, username=email, password=password)
+        user = authenticate(request, username=identifier, password=password)
         if user is None:
-            ratelimit.record_failure(email, ip)
-            # Same answer for an unknown email, a wrong password and a deactivated account.
+            ratelimit.record_failure(identifier, ip)
+            # Same answer for an unknown account, a wrong password and a deactivated account.
             return Response(
-                {"detail": "That email and password don't match. Check them and try again."},
+                {"detail": "That email or username and password don't match. Check them and try again."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        ratelimit.clear(email)
+        ratelimit.clear(identifier)
         log_action(request, user, ActionLog.Action.LOGIN)
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {"access": str(refresh.access_token), "refresh": str(refresh), "user": UserSerializer(user).data}
-        )
+        response = Response({"user": UserSerializer(user).data})
+        return set_auth_cookies(response, issue_tokens(user))
+
+
+class RefreshView(APIView):
+    """Swap the refresh cookie for a new pair. Each refresh token works once: the old one is blacklisted, so a stolen copy that is
+    replayed after the real owner refreshed is refused."""
+
+    authentication_classes = [Anonymous]
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        check_csrf(request)
+        raw = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
+        if not raw:
+            raise AuthenticationFailed("Please sign in.", code="not_authenticated")
+        refresh, user = user_from_refresh(raw)
+        try:
+            refresh.blacklist()
+        except TokenError as exc:
+            raise AuthenticationFailed("Your session has ended. Please sign in again.", code="token_revoked") from exc
+        response = Response({"user": UserSerializer(user).data})
+        return set_auth_cookies(response, issue_tokens(user), csrf=request.COOKIES.get(settings.AUTH_COOKIE_CSRF))
 
 
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]  # signing out must work even before the password change
+    """Works with an expired access token too: it retires the refresh token and clears the cookies."""
+
+    authentication_classes = [Anonymous]
+    permission_classes = [AllowAny]
 
     def post(self, request):
-        try:
-            RefreshToken(request.data.get("refresh", "")).blacklist()
-        except TokenError:
-            pass  # already expired or used: the user is signed out either way
-        log_action(request, request.user, ActionLog.Action.LOGOUT)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        raw = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
+        if raw:
+            check_csrf(request)
+            try:
+                refresh, user = user_from_refresh(raw)
+                refresh.blacklist()
+                log_action(request, user, ActionLog.Action.LOGOUT)
+            except (AuthenticationFailed, TokenError):
+                pass  # already expired or used: the user is signed out either way
+        return clear_auth_cookies(Response(status=status.HTTP_204_NO_CONTENT))
 
 
 class MeView(APIView):

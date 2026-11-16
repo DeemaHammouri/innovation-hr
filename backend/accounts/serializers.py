@@ -24,11 +24,12 @@ class UserSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source="department.name", default=None, read_only=True)
     permissions = serializers.SerializerMethodField()
     role_key = serializers.SerializerMethodField()
+    capabilities = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
-            "id", "full_name", "email", "department", "department_name", "role", "role_key",
+            "id", "full_name", "email", "username", "department", "department_name", "role", "role_key", "capabilities",
             "is_active", "must_change_password", "preferred_language", "permissions",
         ]
         read_only_fields = fields
@@ -37,6 +38,9 @@ class UserSerializer(serializers.ModelSerializer):
         from core.roles import role_key
 
         return role_key(user)
+
+    def get_capabilities(self, user):
+        return sorted(user.capability_codes)
 
     def get_permissions(self, user):
         # The frontend uses these only to decide what to show. The backend enforces them again.

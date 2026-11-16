@@ -1,3 +1,5 @@
+import time
+
 from clients.models import Client
 from core.concurrency import MSG_CONFLICT
 from core.testing import RoleCase
@@ -10,8 +12,10 @@ class StaleEditTests(RoleCase):
     def test_client_second_save_gets_a_conflict(self):
         self.as_role("operation_head")
         created = self.client.post("/api/clients/", {"company_name": "Alpha Co"}, format="json").data
+        time.sleep(0.03)  # the Windows clock can tick coarsely; two saves in one tick would share an updated_at
         first = self.client.patch(f"/api/clients/{created['id']}/", {"phone": "0791", "expected_updated_at": created["updated_at"]}, format="json")
         self.assertEqual(first.status_code, 200)
+        time.sleep(0.03)
         second = self.client.patch(f"/api/clients/{created['id']}/", {"phone": "0792", "expected_updated_at": created["updated_at"]}, format="json")
         self.assertEqual(second.status_code, 409)
         self.assertEqual(second.data["detail"], MSG_CONFLICT)
