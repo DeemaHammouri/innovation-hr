@@ -17,7 +17,7 @@ export function PasswordChecklist({
   sameAsTemporary?: boolean;
 }) {
   const { t } = useI18n();
-  const long = password.length >= 8;
+  const long = password.length >= 12;
   const rules = [
     { key: "min", ok: long, text: t("pw.ruleLength") },
     {
@@ -30,7 +30,7 @@ export function PasswordChecklist({
 
   let score = 0;
   if (long) score++;
-  if (password.length >= 12) score++;
+  if (password.length >= 16) score++;
   if (/[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password)) score++;
   if (/[^A-Za-z0-9]/.test(password)) score++;
   const labels = ["pw.empty", "pw.weak", "pw.fair", "pw.good", "pw.strong"];

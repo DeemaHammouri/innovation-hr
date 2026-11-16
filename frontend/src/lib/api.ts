@@ -63,10 +63,16 @@ export type Client = {
 export class ApiError extends Error {
   status: number;
   data: Record<string, unknown>;
-  constructor(status: number, data: Record<string, unknown>) {
+  code: string;
+  constructor(status: number, raw: Record<string, unknown>) {
+    // Every server error is {"error": {"code", "message", "fields"?}}. It is flattened here to the shape the screens already read:
+    // `detail` is the message, and each field name maps to its messages.
+    const env = raw?.error as { code?: string; message?: string; fields?: Record<string, unknown> } | undefined;
+    const data: Record<string, unknown> = env ? { ...(env.fields ?? {}), detail: env.message ?? "err.generic" } : (raw ?? {});
     // `message` is a backend message or a dictionary key. The screen turns it into the active language.
     super(typeof data?.detail === "string" ? data.detail : "err.generic");
     this.status = status;
+    this.code = env?.code ?? "";
     this.data = data;
   }
   /** First message for each field, e.g. { email: "Someone already uses this email." } */

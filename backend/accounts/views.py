@@ -1,5 +1,3 @@
-import secrets
-
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.db.models import Count
@@ -14,35 +12,27 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.exceptions import TokenError
 
+from audit.events import client_ip, record_event
+
 from . import ratelimit
 from .authentication import Anonymous, check_csrf, clear_auth_cookies, issue_tokens, set_auth_cookies, user_from_refresh
-from .models import ActionLog, Department, User
+from .models import ActionLog, Department, Role, User
+from .passwords import generate_temporary_password
 from .permissions import HasCapability, PasswordChangeNotPending
 from .serializers import (
     ChangePasswordSerializer,
     DepartmentSerializer,
     PreferredLanguageSerializer,
+    RoleSerializer,
     UserSerializer,
     UserWriteSerializer,
 )
-
-# No look-alike characters (0/O, 1/l/I) so a temporary password is easy to read out loud.
-PASSWORD_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-
-
-def client_ip(request):
-    """The caller's address. X-Forwarded-For is honoured only when the deployment says a trusted proxy sets it (anyone can forge it)."""
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded and getattr(settings, "TRUST_X_FORWARDED_FOR", False):
-        return forwarded.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
-
 
 def log_action(request, user, action_name):
     ActionLog.objects.create(user=user, action=action_name, ip_address=client_ip(request))
 
 
-MSG_TOO_MANY = "Too many sign-in attempts. Wait 15 minutes and try again."
+MSG_TOO_MANY = "Too many sign-in attempts. Wait 5 minutes and try again."
 
 
 class LoginView(APIView):
@@ -58,10 +48,12 @@ class LoginView(APIView):
             return Response({"detail": "Enter your email or username and your password."}, status=status.HTTP_400_BAD_REQUEST)
         ip = client_ip(request) or ""
         if ratelimit.blocked(identifier, ip):
+            record_event(request, "login_blocked", identifier=identifier)
             return Response({"detail": MSG_TOO_MANY}, status=status.HTTP_429_TOO_MANY_REQUESTS)
         user = authenticate(request, username=identifier, password=password)
         if user is None:
             ratelimit.record_failure(identifier, ip)
+            record_event(request, "login_failed", identifier=identifier)
             # Same answer for an unknown account, a wrong password and a deactivated account.
             return Response(
                 {"detail": "That email or username and password don't match. Check them and try again."},
@@ -69,6 +61,7 @@ class LoginView(APIView):
             )
         ratelimit.clear(identifier)
         log_action(request, user, ActionLog.Action.LOGIN)
+        record_event(request, "login_success", actor=user, target=user, identifier=identifier)
         response = Response({"user": UserSerializer(user).data})
         return set_auth_cookies(response, issue_tokens(user))
 
@@ -108,6 +101,7 @@ class LogoutView(APIView):
                 refresh, user = user_from_refresh(raw)
                 refresh.blacklist()
                 log_action(request, user, ActionLog.Action.LOGOUT)
+                record_event(request, "logout", actor=user, target=user)
             except (AuthenticationFailed, TokenError):
                 pass  # already expired or used: the user is signed out either way
         return clear_auth_cookies(Response(status=status.HTTP_204_NO_CONTENT))
@@ -123,28 +117,34 @@ class MeView(APIView):
 
     def patch(self, request):
         # Only the language preference. Every other field in the body is ignored.
+        before = request.user.preferred_language
         serializer = PreferredLanguageSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save(update_fields=["preferred_language"])
+        if request.user.preferred_language != before:
+            record_event(request, "language_changed", target=request.user, previous=before, chosen=request.user.preferred_language)
         return Response(UserSerializer(request.user).data)
 
 
 class ChangePasswordView(APIView):
-    """Forced change only: the user has just signed in with a temporary password."""
+    """Set a new password. Works while a password change is pending (the only thing besides /me and sign-out that does).
+    The first change after a temporary password needs no current password; later ones do. Every old token stops working."""
 
     permission_classes = [HasCapability]
     required_capabilities = []
 
     def post(self, request):
         user = request.user
-        if not user.must_change_password:
-            return Response({"detail": "Your password is already set."}, status=status.HTTP_403_FORBIDDEN)
         serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         user.set_password(serializer.validated_data["new_password"])
         user.must_change_password = False
         user.save()
-        return Response(UserSerializer(user).data)
+        user.bump_token_version()
+        record_event(request, "password_changed", actor=user, target=user)
+        # The tokens held so far are now void: this device gets fresh ones and stays signed in.
+        response = Response(UserSerializer(user).data)
+        return set_auth_cookies(response, issue_tokens(user), csrf=request.COOKIES.get(settings.AUTH_COOKIE_CSRF))
 
 
 class DepartmentListView(ListAPIView):
@@ -153,6 +153,20 @@ class DepartmentListView(ListAPIView):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     pagination_class = None
+
+
+class RoleListView(ListAPIView):
+    """The roles a person can be given, optionally for one department (?department=ID). Super Admin is never offered."""
+
+    required_capabilities = ["user.manage"]
+    denied_message = "Only the CEO can do this."
+    serializer_class = RoleSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = Role.objects.exclude(key="super_admin")
+        department = self.request.query_params.get("department")
+        return qs.filter(department_id=int(department)) if department and department.isdigit() else qs
 
 
 class UserViewSet(
@@ -164,7 +178,7 @@ class UserViewSet(
 ):
     required_capabilities = {"*": ["user.manage"]}
     denied_message = "Only the CEO can do this."
-    queryset = User.objects.select_related("department").filter(is_superuser=False)
+    queryset = User.objects.select_related("department", "role_ref").filter(is_superuser=False).exclude(role_ref__key="super_admin")
     filter_backends = [SearchFilter]
     search_fields = ["full_name", "email", "department__name"]
     http_method_names = ["get", "post", "patch", "head", "options"]
@@ -172,16 +186,35 @@ class UserViewSet(
     def get_serializer_class(self):
         return UserSerializer if self.action in ("list", "retrieve") else UserWriteSerializer
 
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+        p = self.request.query_params
+        if p.get("department", "").isdigit():
+            queryset = queryset.filter(department_id=int(p["department"]))
+        if p.get("role"):
+            queryset = queryset.filter(role_ref__key=p["role"])
+        if p.get("status") in ("active", "inactive"):
+            queryset = queryset.filter(is_active=p["status"] == "active")
+        return queryset
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        record_event(request, "user_created", target=user, role=user.role_name, department=user.department.name)
+        data = UserSerializer(user).data
+        data["temporary_password"] = user.temporary_password  # shown once, here only
+        return Response(data, status=status.HTTP_201_CREATED)
 
     def partial_update(self, request, *args, **kwargs):
-        serializer = self.get_serializer(self.get_object(), data=request.data, partial=True)
+        user = self.get_object()
+        before = (user.role_name, user.department.name if user.department_id else "")
+        serializer = self.get_serializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        return Response(UserSerializer(serializer.save()).data)
+        user = serializer.save()
+        after = (user.role_name, user.department.name if user.department_id else "")
+        record_event(request, "user_updated", target=user, from_role=before[0], to_role=after[0], from_department=before[1], to_department=after[1])
+        return Response(UserSerializer(user).data)
 
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
@@ -190,22 +223,32 @@ class UserViewSet(
             return Response({"detail": "You can't deactivate your own account."}, status=status.HTTP_400_BAD_REQUEST)
         user.is_active = False
         user.save()
+        user.bump_token_version()
+        record_event(request, "user_deactivated", target=user)
         return Response(UserSerializer(user).data)
 
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
         user = self.get_object()
+        if user.pk == request.user.pk:
+            return Response({"detail": "You can't change your own status."}, status=status.HTTP_400_BAD_REQUEST)
         user.is_active = True
         user.save()
+        record_event(request, "user_activated", target=user)
         return Response(UserSerializer(user).data)
 
     @action(detail=True, methods=["post"], url_path="reset-password")
     def reset_password(self, request, pk=None):
         user = self.get_object()
-        temporary = "".join(secrets.choice(PASSWORD_ALPHABET) for _ in range(10))
+        if user.pk == request.user.pk:
+            return Response({"detail": "Change your own password from your profile."}, status=status.HTTP_400_BAD_REQUEST)
+        temporary = generate_temporary_password()
         user.set_password(temporary)
         user.must_change_password = True
         user.save()
+        user.bump_token_version()
+        ratelimit.clear(user.email)
+        record_event(request, "password_reset", target=user)
         return Response({"temporary_password": temporary})
 
 

@@ -148,6 +148,11 @@ class User(AbstractBaseUser, PermissionsMixin):
             cached = self.__dict__["_caps"] = frozenset(Capability.objects.filter(roles=self.role_ref_id).values_list("code", flat=True))  # one query
         return cached
 
+    def bump_token_version(self):
+        """Every token issued so far stops working (password change, reset, deactivation, role change)."""
+        User.objects.filter(pk=self.pk).update(token_version=models.F("token_version") + 1)
+        self.token_version = User.objects.values_list("token_version", flat=True).get(pk=self.pk)
+
     def has_capability(self, code):
         return code in self.capability_codes
 

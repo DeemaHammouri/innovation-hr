@@ -67,20 +67,20 @@ class LoginLockoutTests(RoleCase):
         return res
 
     def test_locks_after_repeated_failures_even_with_the_right_password(self):
-        self.assertEqual(self.bad(n=8).status_code, 401)
+        self.assertEqual(self.bad(n=5).status_code, 401)
         res = self.client.post(LOGIN, {"email": "ceo@x.com", "password": PASSWORD}, format="json")
         self.assertEqual(res.status_code, 429)
         self.assertIn("Too many", res.data["detail"])
 
     def test_other_accounts_are_not_locked_by_one(self):
-        self.bad(n=8)
+        self.bad(n=5)
         res = self.client.post(LOGIN, {"email": "marketing@x.com", "password": PASSWORD}, format="json")
         self.assertEqual(res.status_code, 200)
 
     def test_success_resets_the_counter(self):
-        self.bad(n=5)
+        self.bad(n=4)
         self.assertEqual(self.client.post(LOGIN, {"email": "ceo@x.com", "password": PASSWORD}, format="json").status_code, 200)
-        self.assertEqual(self.bad(n=5).status_code, 401)
+        self.assertEqual(self.bad(n=4).status_code, 401)
 
     def test_ip_limit_and_forged_forwarded_header_ignored(self):
         with override_settings(LOGIN_MAX_FAILS_PER_IP=3, LOGIN_MAX_FAILS_PER_EMAIL=100):

@@ -11,13 +11,13 @@ Baseline audit, 16 Nov 2026, against commit `c1c68ef`. Source of truth for requi
 
 | # | Objective | Phase | Done | Partly | Different | Missing |
 |---|-----------|-------|------|--------|-----------|---------|
-| 1 | Skeleton and deployment | 1 | 1 | 2 | 1 | 4 |
-| 2 | Organisation (Department, Role, Capability) | 1 | 1 | 0 | 1 | 5 |
-| 3 | Cookie JWT authentication | 1 | 2 | 0 | 1 | 5 |
-| 4 | Capability RBAC | 1 | 1 | 1 | 1 | 4 |
-| 5 | User management, first login | 1 | 2 | 3 | 2 | 3 |
-| 6 | Revocation, lockout, audit, error envelope | 1 | 0 | 2 | 1 | 4 |
-| 7 | Shell, i18n, proxy | 1 | 2 | 1 | 1 | 3 |
+| 1 | Skeleton and deployment | 1 | 6 (2 written, not verified here) | 0 | 0 | 0 |
+| 2 | Organisation (Department, Role, Capability) | 1 | 7 | 0 | 0 | 0 |
+| 3 | Cookie JWT authentication | 1 | 7 | 0 | 0 | 0 |
+| 4 | Capability RBAC | 1 | 6 | 0 | 0 | 0 |
+| 5 | User management, first login | 1 | 10 | 0 | 0 | 0 |
+| 6 | Revocation, lockout, audit, error envelope | 1 | 7 | 0 | 0 | 0 |
+| 7 | Shell, i18n, proxy | 1 | 7 | 0 | 1 (decided) | 0 |
 | 8 | Lead model and normalisation | 2 | 0 | 2 | 0 | 3 |
 | 9 | Import (xlsx, CSV) | 2 | 0 | 2 | 0 | 3 |
 | 10 | Lead statuses and history | 2 | 1 | 2 | 0 | 0 |
@@ -42,85 +42,90 @@ Counts are approximate (tallied by hand from the rows below) and will be recompu
 
 ## Phase 1: Foundation
 
+Gate run: `manage.py test` and `pytest` both run the same 467 tests (466 pass, 1 is the opt-in matrix dump tool, skipped). `tsc`, `eslint`, `next build`, `npm run i18n:check` and `scripts/secret_scan.py` are clean. Browser proof: `qa/browser/phase1.js` and `qa/browser/cookies.js`, output in `docs/evidence/phase1-browser.txt` (21 checks, all pass).
+
 ### 1. Skeleton and deployment
-| Row | Status | Evidence | Work needed |
-|-----|--------|----------|-------------|
-| `backend/` and `frontend/` folders | Done | repo layout | none |
-| Settings split base / development / production / test | Partly | `config/settings.py` plus `config/settings_prod.py`; test overrides live inside `settings.py` behind `"test" in sys.argv` | split into `settings/base.py`, `development.py`, `production.py`, `test.py` |
-| `.env.example` documenting every variable | Partly | `backend/.env.example` exists | audit against `os.environ` reads and complete it |
-| `docker-compose.yml` with PostgreSQL, Gunicorn Django, Next.js, health checks | Missing | no Docker files | write Dockerfiles and compose. Not verifiable here (no Docker) |
-| `GET /api/v1/health/` | Different | `core/views.py: HealthView` at `/api/health/` | move all routes under `/api/v1/` (see objective 7 proxy) and keep health |
-| Compose healthy | Missing | no Docker on this machine | "Written, not verified here" |
-| No secrets in git | Missing | no scan on record | run a scan over history and working tree |
-| `.gitignore` for db, uploads, env | Done | `.gitignore` lines for `*.sqlite3`, `private_media/`, `.env` | none |
+| Row | Status | Evidence | Note |
+|-----|--------|----------|------|
+| `backend/` and `frontend/` folders | Done | repo layout | |
+| Settings split base / development / production / test | Done | `backend/config/settings/{base,development,production,test}.py`; `core/tests_hardening.py` imports production settings; `pytest.ini` | wsgi/asgi default to production |
+| `.env.example` documenting every variable | Done | `backend/.env.example`, root `.env.example`; test `core/tests_deploy.py::test_every_env_variable_is_documented` | the test reads the settings and fails on an undocumented variable |
+| `docker-compose.yml`: PostgreSQL, Gunicorn Django, Next.js, health checks | Written, not verified here | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`; test `core/tests_deploy.py` checks only the frontend is published | No Docker on this machine. To verify: `docker compose up --build`, then `docker compose ps` must show three healthy services |
+| `GET /api/v1/health/` | Done | `core/tests_deploy.py`, `HealthView` | `/api/` stays as an alias for one release |
+| Compose healthy | Written, not verified here | as above | needs Docker |
+| No secrets in git | Done | `python scripts/secret_scan.py` over working tree and full history: 0 findings; detect-secrets false positives reviewed | |
+| `.gitignore` for db, uploads, env | Done | `.gitignore` | |
 
 ### 2. Organisation: Department, Role, Capability
-| Row | Status | Evidence | Work needed |
-|-----|--------|----------|-------------|
-| Department model | Done | `accounts/models.py: Department`, constraint `one_active_head_per_department` | none |
-| Role model belonging to a department | Different | role is `User.role` CharField (`head` / `member`) with `core/roles.py: role_key` | add `Role` model, link users with an additive FK and a data migration; keep `role_key` values stable |
-| Capability model, roles hold capabilities | Missing | none | add models plus the capability catalogue |
-| Nine roles (eight business roles plus Super Admin) | Missing | eight role keys exist, no Super Admin | add Super Admin, no department, receives every capability automatically |
-| Idempotent `seed_organization` | Different | `accounts/management/commands/seed.py` creates departments and the CEO only | new `seed_organization`; run twice in a test |
-| Grant a capability without touching view code | Missing | | test: add a capability to a role, endpoint opens |
+| Row | Status | Evidence | Note |
+|-----|--------|----------|------|
+| Department model | Done | `accounts/models.py` | |
+| Role model belonging to a department | Done | `Role`, `User.role_ref`, migrations 0004 to 0007 (legacy column dropped after the suite passed without it) | forward and backward data migration tested with `MigrationExecutor` in `accounts/tests_organization.py` |
+| Capability model, roles hold capabilities | Done | `Capability`, `accounts/catalog.py` (44 capabilities) | |
+| Nine roles including Super Admin | Done | `accounts/tests_organization.py` | Super Admin has no department |
+| Super Admin gets every capability automatically | Done | `core/tests_capabilities.py::GrantTests::test_super_admin_holds_everything` | |
+| Idempotent `seed_organization` | Done | `accounts/tests_organization.py` runs it twice and compares counts; grants made by hand survive | |
+| Grant a capability without touching view code | Done | `core/tests_capabilities.py::GrantTests::test_granting_and_revoking_payment_view` | add then remove a capability on a role, endpoint opens then closes |
 
 ### 3. Authentication with HttpOnly cookies
-| Row | Status | Evidence | Work needed |
-|-----|--------|----------|-------------|
-| Login by username or email, case-insensitive | Different | email only (`accounts/views.py: LoginView`) | add additive `username`, accept either |
-| Tokens only in HttpOnly + Secure + SameSite=Lax cookies | Missing | `frontend/src/lib/api.ts` keeps access and refresh in `localStorage`; tokens are returned in the body | cookie auth class, remove storage use, same-origin proxy |
-| Refresh with rotation and blacklist | Missing | `SIMPLE_JWT.ROTATE_REFRESH_TOKENS = False`, no blacklist app | enable rotation and `token_blacklist` |
-| Logout | Partly | `auth/logout/` exists (`accounts/urls.py`) | clear cookies and blacklist the refresh token |
-| `GET /auth/me/` returns user and capabilities | Partly | `MeView` returns user and `role_key` | add capabilities |
-| CSRF double-submit cookie on unsafe requests | Missing | none (bearer tokens today) | required once cookies are used |
-| Proof: tokens unreadable from JS, reused refresh rejected, no-CSRF POST rejected | Missing | | three tests plus a browser check |
-| Lockout and throttling basics exist | Done | `accounts/ratelimit.py`, tests in `accounts/tests.py` | tune in objective 6 |
+| Row | Status | Evidence | Note |
+|-----|--------|----------|------|
+| Login by username or email, case-insensitive | Done | `accounts/tests_auth_cookies.py`; browser: username in other case signs in | additive nullable `username`, unique on `Lower()` |
+| Tokens only in HttpOnly, SameSite=Lax cookies | Done | `tests_auth_cookies.py` (flags, no token in the body); browser `cookies.js`: page cannot read tokens, no storage use | `Secure` is on in production settings and by default outside DEBUG; browsers accept it on localhost |
+| Refresh with rotation and blacklist | Done | test: replayed refresh token is refused | |
+| Logout | Done | test: refresh blacklisted, cookies cleared | |
+| `/auth/me/` returns user and capabilities | Done | `UserSerializer.capabilities`, test | |
+| CSRF double-submit on unsafe requests | Done | tests; browser: PATCH without header 403, with header 200 | |
+| Proof: tokens unreadable from JS, reused refresh rejected, no-CSRF POST rejected | Done | the three tests above and `qa/browser/cookies.js` | |
 
 ### 4. Capability RBAC
-| Row | Status | Evidence | Work needed |
-|-----|--------|----------|-------------|
-| `HasCapability` permission class, fail closed | Missing | permissions are role-key checks in each app's `access.py`; default is `IsAuthenticated` plus `PasswordChangeNotPending` | build the class, default deny |
-| Each view declares capabilities per action | Missing | | declare on every view |
-| Migrate role-key checks without changing who can do what | Different | `core/roles.py`, `*/access.py` | map each rule to a capability, keep tests green |
-| Generated matrix test over every endpoint x every role + anonymous | Done | `core/permission_audit.py`, `core/tests_hardening.py` | keep as the regression proof for the migration |
-| Allowed and denied tests per role | Partly | many per module (397 tests) | add a denial test for every capability |
-| Frontend reads capabilities only to show or hide | Missing | frontend branches on `role_key` | switch to capabilities |
+| Row | Status | Evidence | Note |
+|-----|--------|----------|------|
+| `HasCapability`, fail closed | Done | `accounts/permissions.py`; `core/tests_capabilities.py::FailClosedTests::test_a_role_with_no_capability_only_reaches_open_endpoints` | a view with no declaration answers 403 |
+| Every view declares its capabilities per action | Done | `DeclarationTests::test_every_endpoint_declares_its_capabilities_or_is_public` walks the URL table | only login, refresh, logout and health are public |
+| Migrate role-key checks without changing who can do what | Done | the existing suite (429 tests at that point) stayed green unchanged; matrix dump before/after over 645 endpoint x role cells (`core/tests_matrix_dump.py`): no cell changed from allowed to denied or back, apart from the differences listed below | see "Differences found by the before/after dump" |
+| Generated matrix over every endpoint x every role | Done | `core/permission_audit.py`, `core/tests_hardening.py` | |
+| Allowed and denied tests per role | Done | `FailClosedTests::test_removing_any_one_capability_closes_every_endpoint_that_names_it`: 134 generated denial cases, one per capability per endpoint | |
+| Frontend reads capabilities only to show or hide | Done | `frontend/src/lib/can.ts`; no `role_key` branch remains in guards or the sidebar (grep) | `role_key` is still used to word a few labels |
+
+**Differences found by the before/after dump** (all intended, none widens access): unsupported methods now answer 405 instead of 403; the DRF index pages (`/api/v1/`, `/api/v1/lookups/`) answer 403 to everyone (nothing reads them); `POST auth/refresh/` with no usable cookie answers 403 (CSRF check first) instead of 400, and `POST auth/logout/` answers 204 instead of 401 to nobody (sign-out is idempotent by design).
 
 ### 5. User management and first login
-| Row | Status | Evidence | Work needed |
-|-----|--------|----------|-------------|
-| List, search, filter, create, edit, activate, deactivate | Done | `accounts/views.py`, `accounts/tests.py` | confirm filters (grep) |
-| Reset password | Partly | exists (grep) | switch to random temporary password |
-| 16-character random temporary password shown once | Different | CEO types the temporary password (`accounts/serializers.py: temporary_password`) | server generates, shows once |
-| Stored only as Argon2 hash | Missing | default PBKDF2 (`PASSWORD_HASHERS` not set; MD5 in tests) | add `argon2-cffi`, configure hasher |
-| Never in logs, audit log or DB | Partly | `core/logscrub.py` exists | write the proof test |
-| Until changed, only me / password-change / logout work | Done | `PasswordChangeNotPending` default permission | keep |
-| Password policy: min 12, not common, not similar, not current | Different | `MIN_PASSWORD_LENGTH = 8` in `accounts/serializers.py` | Django validators, min 12 |
-| Super Admin protected from the CEO | Missing | no Super Admin | build with objective 2 |
-| Nobody changes their own role, department or status | Partly (grep) | | explicit tests |
-| Role choices depend on the department | Partly (grep) | model rules in `User.clean` | confirm in API and form |
+| Row | Status | Evidence | Note |
+|-----|--------|----------|------|
+| List, search, filter, create, edit, activate, deactivate | Done | `accounts/tests_users_security.py::test_list_search_filter` (department, role, status filters added) | |
+| Reset password | Done | `RevocationTests`, `AuditTrailTests` | |
+| 16-character random temporary password shown once | Done | `test_create_shows_a_16_character_password_once` | `secrets`, one of each character class, no look-alikes |
+| Stored only as Argon2 hash | Done | `test_temporary_password_is_stored_only_as_an_argon2_hash` | `argon2-cffi`; PBKDF2 stays second so old hashes verify |
+| Never in logs, audit or DB | Done | `test_the_password_appears_nowhere_it_should_not` scans the log stream and every column of every table | |
+| Until changed, only me / password-change / logout work | Done | `test_first_sign_in_allows_only_me_password_change_and_sign_out`; browser check | |
+| Password policy: min 12, not common, not similar, not the current one | Done | `test_password_policy` | Django validators plus an explicit current-password rule |
+| Super Admin protected from the CEO, including forged requests | Done | `test_super_admin_is_invisible_and_untouchable_for_the_ceo` (404 on read, edit, deactivate, reset; role not offered, forged create refused) | |
+| Nobody changes their own role, department or status | Done | `test_nobody_changes_their_own_role_department_or_status` | |
+| Role choices depend on the department | Done | `test_role_choices_depend_on_the_department`, `GET /api/v1/roles/?department=` | the form still offers head / member per department, which maps one to one |
 
 ### 6. Revocation, lockout, audit, error envelope
-| Row | Status | Evidence | Work needed |
-|-----|--------|----------|-------------|
-| `token_version` claim, bumped on password change, reset, deactivation, role change | Missing | none | add field, claim, check in authentication |
-| Deactivated user cut off on the next request | Partly | inactive users fail authentication; no test over cookies | test with token_version |
-| Lockout 5 failures in 5 minutes, per-IP throttle | Different | 8 per email, 40 per IP, 15-minute window (`config/settings.py`) | change to the brief's numbers |
-| AuditLog (logins, failures, password, user and language changes, actor, target, IP, UA) | Partly | `accounts/models.py: ActionLog`, `audit/models.py: AuditEntry` | confirm coverage, add IP and user agent, refuse secret-like fields |
-| One error envelope `{"error": {code, message, fields?}}` | Missing | DRF default `{"detail": ...}`; the frontend maps English messages (`API_MESSAGES`) | custom exception handler plus 404/405/429/500 handlers; adapt the frontend |
-| No stack traces | Partly | `DEBUG` off in production settings (grep) | test |
+| Row | Status | Evidence | Note |
+|-----|--------|----------|------|
+| `token_version` claim, bumped on password change, reset, deactivation, role change | Done | `RevocationTests` (old access and refresh tokens refused after each) | |
+| Deactivated user cut off on the next request | Done | `test_deactivation_voids_the_old_token` | |
+| Lockout 5 failures in 5 minutes, per-IP throttle | Done | `LockoutTests::test_the_sixth_attempt_is_blocked_even_with_the_right_password`, `test_per_address_throttle`; browser: `[401 x5, 429]` | |
+| Audit trail: logins, failures, password, user and language changes with actor, target, IP, user agent | Done | `audit.SecurityEvent` (append-only), `AuditTrailTests` | `ActionLog` still feeds attendance |
+| Secret-like fields refused | Done | `test_secret_like_fields_are_refused` (by key name and by token shape) | |
+| One error envelope for the entire API | Done | `core/errors.py` renderer wraps every status of 400 or more; `ErrorEnvelopeTests` cover 400, 401, 403, 404 (record and route), 405, 429, 500 | `response.data` is unchanged for in-process callers; the wire shape is the envelope |
+| No stack traces | Done | `test_500_has_no_stack_trace_or_internals` | |
 
 ### 7. Shell: i18n, proxy
-| Row | Status | Evidence | Work needed |
-|-----|--------|----------|-------------|
-| Language from a cookie | Done | `lang` cookie, `frontend/src/lib/i18n.tsx` | none |
-| `<html lang dir>` set on the server | Done | `frontend/src/app/layout.tsx` (grep) | confirm by test |
-| Language saved to the profile | Done | `preferred_language`, applied after sign-in | none |
-| next-intl | Different | custom `lib/i18n.tsx`, 1,600 keys per language | decide: adopt next-intl or keep (see questions) |
-| Logical CSS, RTL layout and icon flipping | Partly | Tailwind logical utilities; RTL sweeps passed in QA | keep |
-| Same-origin proxy `/api/[...path]` to Django | Missing | `next.config.ts` points the browser at `NEXT_PUBLIC_API_URL`; CORS is on | add route handler or rewrite |
-| Script that fails on a missing key | Missing | no script | add and run in CI |
-| Proof: switching flips layout, persists on a fresh browser | Done (QA) | journeys in EN and AR at 375, 768, 1280 | move into Playwright (objective 23) |
+| Row | Status | Evidence | Note |
+|-----|--------|----------|------|
+| Language from a cookie | Done | `lang` cookie | |
+| `<html lang dir>` set on the server | Done | browser proof: `curl`-style fetch with each cookie returns the right attributes before any script runs | |
+| Language saved to the profile | Done | browser proof: switching to Arabic saves `preferred_language`; `language_changed` audit event | |
+| next-intl | Different (decided with the user) | in-house `lib/i18n.tsx`, 1,629 keys in each language | kept on the user's instruction; the missing-key script below gives the same safety |
+| Logical CSS, RTL layout and icon flipping | Done | browser proof: sidebar moves from left 0 to 1024 when the language flips; RTL screenshots in the QA sweeps | |
+| Same-origin proxy `/api/[...path]` | Done | `frontend/src/app/api/[...path]/route.ts`; CSP `connect-src 'self'`; every browser call in the proofs goes through it | |
+| Script that fails on a missing key | Done | `npm run i18n:check` (`frontend/scripts/check-i18n.mjs`): equal keys, no empty values, matching placeholders, every literal `t("key")` exists in both files | not yet wired into CI (no CI in the repo) |
+| Proof: switching flips layout, persists on a fresh browser | Done | `qa/browser/phase1.js`: a fresh context starts English, becomes Arabic and RTL after sign-in | |
 
 ---
 

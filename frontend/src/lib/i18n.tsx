@@ -58,6 +58,15 @@ const API_MESSAGES: Record<string, string> = {
   "Only the CEO can do this.": "err.ceoOnly",
   "Only the Operation Manager and the CEO can manage clients.": "err.clientsOnly",
   "Your password is already set.": "err.passwordSet",
+  "This password is too short. It must contain at least 12 characters.": "err.pwShort",
+  "This password is too common.": "err.pwCommon",
+  "This password is entirely numeric.": "err.pwNumeric",
+  "Choose a password that's different from your current one.": "err.pwSameCurrent",
+  "Your current password is not right.": "err.pwCurrentWrong",
+  "That email or username and password don't match. Check them and try again.": "login.mismatchId",
+  "Your session check failed. Reload the page and try again.": "err.csrf",
+  "You can't change your own status.": "err.cantSelf",
+  "Change your own password from your profile.": "err.passwordNowChanged",
   "You can't deactivate your own account.": "err.selfDeactivate",
   "Use at least 8 characters.": "v.min8",
   "Enter the person's full name.": "v.fullName",
@@ -110,6 +119,7 @@ const API_MESSAGES: Record<string, string> = {
   "You can't archive this lead.": "err.leadNoArchive",
   "Only the person who imported this batch can undo it.": "err.leadNoUndo",
   "Too many sign-in attempts. Wait 15 minutes and try again.": "p8.api.0",
+  "Too many sign-in attempts. Wait 5 minutes and try again.": "p8.api.0",
   "Choose a period of up to 2 years.": "p7.api.1",
   "You don't have access to this report.": "p7.api.2",
   "Add at least one instalment.": "p6.api.0",
@@ -278,6 +288,7 @@ export function LanguageProvider({ initialLang, children }: { initialLang: Lang;
       if (dictionaries.en[raw] !== undefined) return t(raw); // already a key
       if (API_MESSAGES[raw]) return t(API_MESSAGES[raw]);
       if (/^This file doesn't look like a real/.test(raw)) return t("v.fileFake");
+      if (/^The password is too similar to/.test(raw)) return t("err.pwSimilar");
       const head = raw.match(/^(.+) already has a head\. Change their role first\.$/);
       if (head) return t("err.deptHasHead", { dept: dept(head[1]) });
       return lang === "en" ? raw : t("err.generic");

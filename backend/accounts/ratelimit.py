@@ -1,35 +1,38 @@
-"""Sign-in rate limiting: too many wrong passwords for one email, or from one address, locks sign-in for a while.
+"""Sign-in lockout: 5 wrong passwords for one account within 5 minutes lock that account, and too many from one address lock the address.
 
-Counters live in Django's cache. The default in-memory cache is per process; production settings use a file cache shared by all workers
-on one machine (use Redis for several machines, see docs/DEPLOYMENT.md). A successful sign-in clears the email's counter.
+Counters live in Django's cache (a file cache shared by the workers in production; use Redis for several machines, see
+docs/DEPLOYMENT.md). The check runs BEFORE the password is looked at, so the 6th attempt is refused even with the right password.
+A successful sign-in clears the account's counter.
 """
 from django.conf import settings
 from django.core.cache import cache
-
-WINDOW = 15 * 60  # seconds a failure counts for
 
 
 def _limit(name, default):
     return getattr(settings, name, default)
 
 
-def _keys(email, ip):
-    return f"login-fail:email:{email[:254]}", f"login-fail:ip:{ip}"
+def _window():
+    return _limit("LOGIN_WINDOW_SECONDS", 300)
 
 
-def blocked(email, ip):
-    k_email, k_ip = _keys(email, ip)
-    return cache.get(k_email, 0) >= _limit("LOGIN_MAX_FAILS_PER_EMAIL", 8) or cache.get(k_ip, 0) >= _limit("LOGIN_MAX_FAILS_PER_IP", 40)
+def _keys(identifier, ip):
+    return f"login-fail:id:{identifier[:254]}", f"login-fail:ip:{ip}"
 
 
-def record_failure(email, ip):
-    for key in _keys(email, ip):
-        cache.add(key, 0, WINDOW)  # starts the window on the first failure only
+def blocked(identifier, ip):
+    k_id, k_ip = _keys(identifier, ip)
+    return cache.get(k_id, 0) >= _limit("LOGIN_MAX_FAILS_PER_EMAIL", 5) or cache.get(k_ip, 0) >= _limit("LOGIN_MAX_FAILS_PER_IP", 20)
+
+
+def record_failure(identifier, ip):
+    for key in _keys(identifier, ip):
+        cache.add(key, 0, _window())  # the window starts at the first failure and does not slide
         try:
             cache.incr(key)
         except ValueError:
-            cache.set(key, 1, WINDOW)
+            cache.set(key, 1, _window())
 
 
-def clear(email):
-    cache.delete(_keys(email, "")[0])
+def clear(identifier):
+    cache.delete(_keys(identifier, "")[0])

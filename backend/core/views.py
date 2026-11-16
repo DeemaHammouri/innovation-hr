@@ -50,15 +50,3 @@ class HealthView(APIView):
         except Exception:
             return Response({"status": "down"}, status=503)
         return Response({"status": "ok"})
-
-
-def json_404(request, exception=None):
-    from django.http import JsonResponse
-
-    return JsonResponse({"detail": "Not found."}, status=404)
-
-
-def json_500(request):
-    from django.http import JsonResponse
-
-    return JsonResponse({"detail": "Something went wrong on our side. Try again, and tell your administrator if it keeps happening."}, status=500)

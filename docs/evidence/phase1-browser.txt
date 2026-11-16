@@ -1,0 +1,24 @@
+PASS server HTML: English is lang=en dir=ltr | <html lang="en" dir="ltr" class="_GgaCW_variable RoJKRq_variable">
+PASS server HTML: Arabic is lang=ar dir=rtl | <html lang="ar" dir="rtl" class="_GgaCW_variable RoJKRq_variable">
+PASS create returns 201 and a 16-character temporary password | 201
+PASS the password is not shown again
+PASS username (any case) signs in and lands on the forced password change | http://localhost:3000/set-password
+PASS other endpoints are closed until the password is changed (403) | {"error":{"code":"permission_denied","message":"You don't have access to leads."}}
+PASS an 8-character password is refused with the envelope + field error | {"error":{"code":"validation_error","message":"Check the highlighted fields and try again.","fields":{"new_password":["This password is too short. It must contain at least 12 characters."]}}}
+PASS a strong password unlocks the app
+PASS switching to Arabic flips dir to rtl | ltr -> rtl
+PASS the sidebar moves to the other side | 0 -> 1024
+PASS language is saved on the profile | ar
+PASS fresh browser: starts English, becomes Arabic/RTL after sign-in | ltr -> {"lang":"ar","dir":"rtl"}
+PASS 5 wrong passwords, then the right one is blocked (401 x5, 429) | [401,401,401,401,401,429]
+errors: [] []
+ALL 13 PASSED
+PASS page script cannot read access/refresh tokens
+PASS nothing token-like in localStorage/sessionStorage | []
+PASS token cookies are HttpOnly
+PASS PATCH without the CSRF header is refused (403) | 403
+PASS PATCH with the CSRF header works (200) | 200
+PASS session survives a reload | http://localhost:3000/
+PASS refresh rotates the refresh cookie | 200
+PASS after logout /auth/me/ is 401 | 401
+errors: []

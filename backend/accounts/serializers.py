@@ -1,15 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import resolve_role, Department, User
-
-MIN_PASSWORD_LENGTH = 8
-
-
-def check_password_length(value):
-    if len(value) < MIN_PASSWORD_LENGTH:
-        raise serializers.ValidationError(f"Use at least {MIN_PASSWORD_LENGTH} characters.")
-    return value
+from .models import Department, Role, User, resolve_role
+from .passwords import check_policy, generate_temporary_password
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -47,14 +40,22 @@ class UserSerializer(serializers.ModelSerializer):
         return {"manage_users": user.has_capability("user.manage"), "manage_clients": user.has_capability("client.manage")}
 
 
+class RoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ["id", "key", "department", "is_head", "name_en", "name_ar"]
+        read_only_fields = fields
+
+
 class UserWriteSerializer(serializers.ModelSerializer):
-    temporary_password = serializers.CharField(write_only=True, required=False, trim_whitespace=False)
+    """Create and edit a person. There is no password field: the server makes the temporary password and shows it once."""
+
     department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all())
-    role = serializers.ChoiceField(choices=["head", "member"], required=False)  # replaced by explicit roles in objective 5
+    role = serializers.CharField(required=False)  # a role key such as "hr_member"; "head" / "member" still mean that seat in the department
 
     class Meta:
         model = User
-        fields = ["full_name", "email", "department", "role", "preferred_language", "temporary_password"]
+        fields = ["full_name", "email", "username", "department", "role", "preferred_language"]
 
     def validate_full_name(self, value):
         value = value.strip()
@@ -71,51 +72,72 @@ class UserWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Someone already uses this email.")
         return value
 
-    def validate_temporary_password(self, value):
-        return check_password_length(value)
+    def validate_username(self, value):
+        value = (value or "").strip() or None
+        if value is None:
+            return None
+        taken = User.objects.filter(username__iexact=value)
+        if self.instance:
+            taken = taken.exclude(pk=self.instance.pk)
+        if taken.exists():
+            raise serializers.ValidationError("Someone already uses this username.")
+        return value
 
     def validate(self, attrs):
-        if self.instance is None and not attrs.get("temporary_password"):
-            raise serializers.ValidationError({"temporary_password": "Add a temporary password."})
         department = attrs.get("department", getattr(self.instance, "department", None))
-        role = attrs.pop("role", getattr(self.instance, "role", "member"))
-        role_ref = resolve_role(department, role)
+        wanted = attrs.pop("role", None)
+        if wanted in (None, "head", "member"):
+            current = getattr(self.instance, "role", "member") if wanted is None else wanted
+            role_ref = resolve_role(department, current)
+        else:
+            role_ref = Role.objects.filter(key=wanted).first()
+            # Roles come from the department's own list. Super Admin belongs to no department, so it can never be picked here.
+            if role_ref is None or role_ref.department_id != department.pk:
+                raise serializers.ValidationError({"role": "That role doesn't belong to this department."})
+        if role_ref is None:
+            raise serializers.ValidationError({"role": "Choose a role for this department."})
         if self.instance and self.instance.pk == self.context["request"].user.pk:
             if department != self.instance.department or role_ref != self.instance.role_ref:
-                raise serializers.ValidationError(
-                    {"role": "You can't change your own department or role."}
-                )
+                raise serializers.ValidationError({"role": "You can't change your own department or role."})
         attrs["role_ref"] = role_ref
         try:
             probe = User(pk=getattr(self.instance, "pk", None), department=department, role_ref=role_ref)
-            probe.is_dept_head = bool(role_ref and role_ref.is_head)
+            probe.is_dept_head = bool(role_ref.is_head)
             probe.validate_placement()
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.message_dict)
         return attrs
 
     def create(self, validated_data):
-        password = validated_data.pop("temporary_password")
-        return User.objects.create_user(must_change_password=True, password=password, **validated_data)
+        password = generate_temporary_password()
+        user = User.objects.create_user(must_change_password=True, password=password, **validated_data)
+        user.temporary_password = password  # handed to the view once; never stored in clear and never logged
+        return user
 
     def update(self, instance, validated_data):
-        validated_data.pop("temporary_password", None)  # passwords change through "Reset password"
-        return super().update(instance, validated_data)
+        moved = validated_data.get("role_ref") != instance.role_ref or validated_data.get("department") != instance.department
+        instance = super().update(instance, validated_data)
+        if moved:
+            instance.bump_token_version()  # a new seat means new rights: old tokens must not carry the old ones
+        return instance
 
 
 class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(trim_whitespace=False, required=False)
     new_password = serializers.CharField(trim_whitespace=False)
     confirm_password = serializers.CharField(trim_whitespace=False)
 
-    def validate_new_password(self, value):
-        check_password_length(value)
-        if self.context["request"].user.check_password(value):
-            raise serializers.ValidationError("Choose a password that's different from the temporary one.")
-        return value
-
     def validate(self, attrs):
+        user = self.context["request"].user
+        if not user.must_change_password:  # a deliberate change proves who is asking
+            if not attrs.get("current_password") or not user.check_password(attrs["current_password"]):
+                raise serializers.ValidationError({"current_password": "Your current password is not right."})
         if attrs["new_password"] != attrs["confirm_password"]:
             raise serializers.ValidationError({"confirm_password": "The two passwords don't match."})
+        try:
+            check_policy(user, attrs["new_password"])
+        except serializers.ValidationError as exc:
+            raise serializers.ValidationError({"new_password": exc.detail})
         return attrs
 
 

@@ -91,15 +91,18 @@ class UserManagementTests(BaseCase):
         self.assertEqual(res.status_code, 201, res.content)
         user = User.objects.get(email="sam@x.com")
         self.assertTrue(user.must_change_password)
-        self.assertTrue(user.check_password("Temp-1234"))
+        shown = res.data["temporary_password"]  # made by the server, shown once
+        self.assertEqual(len(shown), 16)
+        self.assertTrue(user.check_password(shown))
 
-    def test_duplicate_email_and_short_password_are_rejected(self):
+    def test_duplicate_email_is_rejected_and_a_chosen_password_is_ignored(self):
         self.login(self.ceo)
         self.client.post("/api/users/", self.new_user_payload())
         dup = self.client.post("/api/users/", self.new_user_payload(email="SAM@x.com"))
         self.assertEqual(dup.status_code, 400)
-        short = self.client.post("/api/users/", self.new_user_payload(email="n@x.com", temporary_password="123"))
-        self.assertEqual(short.status_code, 400)
+        chosen = self.client.post("/api/users/", self.new_user_payload(email="n@x.com", temporary_password="123"))
+        self.assertEqual(chosen.status_code, 201)
+        self.assertFalse(User.objects.get(email="n@x.com").check_password("123"))
 
     def test_deactivate_blocks_login_and_activate_restores_it(self):
         member = self.make("hr@x.com", "HR")
@@ -147,14 +150,14 @@ class ForcedPasswordChangeTests(BaseCase):
         short = self.client.post("/api/auth/change-password/", {"new_password": "short", "confirm_password": "short"})
         self.assertEqual(short.status_code, 400)
         mismatch = self.client.post(
-            "/api/auth/change-password/", {"new_password": "brand-new-1", "confirm_password": "brand-new-2"}
+            "/api/auth/change-password/", {"new_password": "brand-new-pass-1", "confirm_password": "brand-new-pass-2"}
         )
         self.assertEqual(mismatch.status_code, 400)
 
     def test_change_unlocks_everything_and_old_password_stops_working(self):
         self.login(self.op)
         res = self.client.post(
-            "/api/auth/change-password/", {"new_password": "brand-new-1", "confirm_password": "brand-new-1"}
+            "/api/auth/change-password/", {"new_password": "brand-new-pass-1", "confirm_password": "brand-new-pass-1"}
         )
         self.assertEqual(res.status_code, 200, res.content)
         self.assertEqual(self.client.get("/api/clients/").status_code, 200)
@@ -163,12 +166,12 @@ class ForcedPasswordChangeTests(BaseCase):
             self.client.post("/api/auth/login/", {"email": "op@x.com", "password": PASSWORD}).status_code, 401
         )
 
-    def test_change_password_is_not_available_once_set(self):
+    def test_a_later_change_needs_the_current_password(self):
         self.login(self.ceo)
-        res = self.client.post(
-            "/api/auth/change-password/", {"new_password": "brand-new-1", "confirm_password": "brand-new-1"}
-        )
-        self.assertEqual(res.status_code, 403)
+        body = {"new_password": "brand-new-pass-1", "confirm_password": "brand-new-pass-1"}
+        self.assertEqual(self.client.post("/api/auth/change-password/", body).status_code, 400)
+        self.assertEqual(self.client.post("/api/auth/change-password/", {**body, "current_password": "wrong-one-here"}).status_code, 400)
+        self.assertEqual(self.client.post("/api/auth/change-password/", {**body, "current_password": PASSWORD}).status_code, 200)
 
 
 class LoginLogTests(BaseCase):

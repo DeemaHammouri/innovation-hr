@@ -11,7 +11,7 @@ import { PageTitle } from "@/components/ui/PageTitle";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { isEmail, useForm } from "@/lib/useForm";
+import { useForm } from "@/lib/useForm";
 
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const form = useForm({ email: "", password: "" }, (v) => ({
-    ...(!v.email.trim() ? { email: "v.enterEmail" } : !isEmail(v.email.trim()) ? { email: "v.emailFormat" } : {}),
+    ...(!v.email.trim() ? { email: "v.enterIdentifier" } : {}),
     ...(!v.password ? { password: "v.enterPassword" } : {}),
   }));
 
@@ -84,7 +84,7 @@ export default function LoginPage() {
                 {msg(formError)}
               </p>
             ) : null}
-            <Input label={t("common.email")} type="email" autoComplete="username" required {...form.field("email")} />
+            <Input label={t("login.identifier")} type="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" required {...form.field("email")} />
             <Input label={t("login.password")} type="password" autoComplete="current-password" required {...form.field("password")} />
             <Button type="submit" className="w-full" loading={submitting}>
               {t("common.signIn")}

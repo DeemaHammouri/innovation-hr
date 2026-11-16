@@ -103,6 +103,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 
 REST_FRAMEWORK = {
+    "DEFAULT_RENDERER_CLASSES": ["core.errors.EnvelopeJSONRenderer"],  # every error leaves as {"error": {"code", "message", "fields"?}}
     "DEFAULT_AUTHENTICATION_CLASSES": ["accounts.authentication.CookieJWTAuthentication"],
     # Fail closed: a view must declare the capabilities it needs (accounts/permissions.py), and nobody is stuck on the forced password change.
     "DEFAULT_PERMISSION_CLASSES": [
@@ -128,9 +129,11 @@ AUTH_COOKIE_SAMESITE = "Lax"
 AUTH_REFRESH_COOKIE_PATH = "/api/v1/auth/"
 AUTHENTICATION_BACKENDS = ["accounts.authentication.IdentifierBackend"]
 
-# Sign-in lockout (see accounts/ratelimit.py). Honour X-Forwarded-For only behind a proxy you control that sets it.
-LOGIN_MAX_FAILS_PER_EMAIL = 8
-LOGIN_MAX_FAILS_PER_IP = 40
+# Sign-in lockout (see accounts/ratelimit.py): 5 wrong passwords in 5 minutes lock the account, 20 from one address lock the address.
+# Honour X-Forwarded-For only behind a proxy you control that sets it.
+LOGIN_MAX_FAILS_PER_EMAIL = 5
+LOGIN_MAX_FAILS_PER_IP = 20
+LOGIN_WINDOW_SECONDS = 5 * 60
 TRUST_X_FORWARDED_FOR = os.environ.get("TRUST_X_FORWARDED_FOR", "0") == "1"
 
 # Request bodies are small JSON or a single upload of at most 10 MB (files/views.py).
@@ -147,3 +150,15 @@ LOGGING = {
 
 # Days that are not working days when counting leave (Monday = 0). Friday and Saturday by default.
 WEEKEND_DAYS = (4, 5)
+
+# Passwords: Argon2 first (older hashes still verify and are upgraded at the next sign-in); the policy is in AUTH_PASSWORD_VALIDATORS.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+]
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 12}},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+]

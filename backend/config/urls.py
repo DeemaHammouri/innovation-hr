@@ -29,5 +29,5 @@ urlpatterns = [
     path("api/", include(api_patterns)),
 ]
 
-handler404 = "core.views.json_404"
-handler500 = "core.views.json_500"
+handler404 = "core.errors.json_404"
+handler500 = "core.errors.json_500"

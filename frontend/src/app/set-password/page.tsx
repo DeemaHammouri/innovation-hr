@@ -23,7 +23,7 @@ export default function SetPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const form = useForm({ new_password: "", confirm_password: "" }, (v) => ({
-    ...(v.new_password.length < 8 ? { new_password: "v.min8" } : {}),
+    ...(v.new_password.length < 12 ? { new_password: "v.min12" } : {}),
     ...(!v.confirm_password ? { confirm_password: "v.typeAgain" } : v.confirm_password !== v.new_password ? { confirm_password: "v.mismatch" } : {}),
   }));
 
