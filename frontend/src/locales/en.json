@@ -648,6 +648,7 @@
   "nav.quotations": "Quotations",
   "qt.title": "Quotations",
   "qt.description": "Description",
+  "qt.pageDescription": "Prices prepared by HR, signed by the Commercial head and sent to clients.",
   "qt.search": "Search quotations",
   "qt.searchPlaceholder": "Client, reference or contact",
   "qt.count": "{count} quotations",

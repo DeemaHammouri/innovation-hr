@@ -12,11 +12,23 @@ const dictionaries: Record<Lang, Record<string, string>> = { en, ar };
 // Western digits (0-9) in both languages.
 const LOCALES: Record<Lang, string> = { en: "en-US", ar: "ar-u-nu-latn" };
 
-/** `{name}` inserts a value. `{count|lead|leads}` picks the singular when the number is exactly 1. */
-function interpolate(text: string, vars?: Vars) {
+/**
+ * `{name}` inserts a value. A plural form picks by number and may use `#` for the number itself:
+ * `{count|lead|leads}` (one, other) for English, `{count|one|two|few|many}` for Arabic (1, 2, 3-10, 11+).
+ */
+function interpolate(text: string, vars?: Vars, lang: Lang = "en") {
   if (!vars) return text;
   return text
-    .replace(/\{(\w+)\|([^|{}]*)\|([^|{}]*)\}/g, (_, k, one, many) => (Number(vars[k]) === 1 ? one : many))
+    .replace(/\{(\w+)((?:\|[^|{}]*){2,4})\}/g, (whole, k, rest: string) => {
+      const forms = rest.slice(1).split("|");
+      const shown = String(vars[k] ?? "");
+      const n = Number(shown.replace(/,/g, ""));
+      if (Number.isNaN(n)) return whole;
+      let pick = forms[forms.length - 1];
+      if (forms.length === 2) pick = n === 1 ? forms[0] : forms[1];
+      else if (forms.length === 4) pick = lang === "ar" ? (n === 1 ? forms[0] : n === 2 ? forms[1] : n % 100 >= 3 && n % 100 <= 10 ? forms[2] : forms[3]) : n === 1 ? forms[0] : forms[3];
+      return pick.replace(/#/g, shown);
+    })
     .replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
 }
 
@@ -260,7 +272,7 @@ export function LanguageProvider({ initialLang, children }: { initialLang: Lang;
   }, []);
 
   const value = useMemo<I18n>(() => {
-    const t = (key: string, vars?: Vars) => interpolate(dictionaries[lang][key] ?? dictionaries.en[key] ?? key, vars);
+    const t = (key: string, vars?: Vars) => interpolate(dictionaries[lang][key] ?? dictionaries.en[key] ?? key, vars, lang);
     const dept = (name: string | null) => (name ? (dictionaries[lang][`dept.${name}`] ?? name) : t("common.none"));
     const msg = (raw: string) => {
       if (dictionaries.en[raw] !== undefined) return t(raw); // already a key

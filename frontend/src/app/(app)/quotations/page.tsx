@@ -129,7 +129,7 @@ function QuotationsView() {
 
   return (
     <>
-      <PageHeader title={t("qt.title")} description={t("qt.description")} />
+      <PageHeader title={t("qt.title")} description={t("qt.pageDescription")} />
       <Card className="overflow-hidden">
         <div className="space-y-3 border-b border-line p-4">
           <SearchField label={t("qt.search")} value={search} onChange={(v) => { setSearch(v); setParams({ q: v, page: "" }); }} placeholder={t("qt.searchPlaceholder")} />
