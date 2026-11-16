@@ -1,13 +1,12 @@
 """Payments belong to the Commercial head. The CEO can read. Nobody else sees any of it."""
-from core.roles import CEO, COMMERCIAL_HEAD, role_key
 
 
 def is_head(user):
-    return role_key(user) == COMMERCIAL_HEAD
+    return user.has_capability("payment.manage")
 
 
 def has_access(user):
-    return role_key(user) in (CEO, COMMERCIAL_HEAD)
+    return user.has_capability("payment.view")
 
 
 def can_view(user, obj=None):

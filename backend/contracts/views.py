@@ -6,10 +6,8 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
-from accounts.permissions import PasswordChangeNotPending
 from core.pagination import StandardPagination
 from leads import access as lead_access
 from leads.models import Lead
@@ -28,15 +26,16 @@ MSG_NO_PIPELINE = "Only the Commercial head or the assigned member can do this."
 RELATED = ("lead", "lead__assigned_to", "quotation", "requested_by", "drafted_by", "meeting_by", "signed_by", "handed_over_by")
 
 
-class HasContractAccess(BasePermission):
-    message = "You don't have access to contracts."
-
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and access.has_access(request.user))
-
-
 class ContractViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    permission_classes = [HasContractAccess, PasswordChangeNotPending]
+    required_capabilities = {
+        "*": ["contract.access"],
+        "start": ["contract.access", "contract.draft"], "send": ["contract.access", "contract.draft"], "handover": ["contract.access", "contract.draft"],
+        "approve": ["contract.access", "contract.sign"], "return_": ["contract.access", "contract.sign"],
+    }
+    denied_message = {
+        "*": "You don't have access to contracts.",
+        "start": MSG_HR_ONLY, "send": MSG_HR_ONLY, "handover": MSG_HR_ONLY, "approve": MSG_CEO_ONLY, "return_": MSG_CEO_ONLY,
+    }
     pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ContractFilter
@@ -78,7 +77,7 @@ class ContractViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
             raise PermissionDenied(MSG_NO_PIPELINE)
 
     def _ceo(self, request):
-        if not access.is_ceo(request.user):
+        if not access.signs_contracts(request.user):
             raise PermissionDenied(MSG_CEO_ONLY)
 
     @action(detail=True, methods=["post"])

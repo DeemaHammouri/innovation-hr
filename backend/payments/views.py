@@ -6,11 +6,9 @@ from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied
-from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.permissions import PasswordChangeNotPending
 from clients.models import Client
 from core.csvout import csv_response
 from core.pagination import StandardPagination
@@ -23,15 +21,9 @@ from .serializers import InstalmentSerializer, PaymentSerializer, money, receipt
 MSG_HEAD_ONLY = "Only the Commercial head can do this."
 
 
-class HasPaymentsAccess(BasePermission):
-    message = "You don't have access to payments."
-
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and access.has_access(request.user))
-
-
 class Base:
-    permission_classes = [HasPaymentsAccess, PasswordChangeNotPending]
+    required_capabilities = {"*": ["payment.view"]}
+    denied_message = "You don't have access to payments."
 
     def today(self):
         return sla_now()[0]

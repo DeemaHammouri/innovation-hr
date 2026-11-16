@@ -2,7 +2,6 @@
 from django.utils import timezone
 
 from core.mywork import provider
-from core.roles import OPERATION_HEAD, OPERATION_MEMBER, role_key
 
 from .models import ChecklistItem, TaskInstance
 
@@ -11,13 +10,13 @@ CAP = 50
 
 @provider
 def operation_items(user):
-    role = role_key(user)
-    if role not in (OPERATION_HEAD, OPERATION_MEMBER):
+    if not user.has_capability("operation.work"):
         return []
+    manager = user.has_capability("operation.manage")
     today = timezone.localdate()
     out = []
     tasks = TaskInstance.objects.filter(status="open", due_date__lte=today).select_related("client").order_by("due_date")
-    tasks = tasks.filter(assignee=user) if role == OPERATION_MEMBER else tasks.filter(assignee__in=[user, None]) | tasks.filter(assignee__isnull=True)
+    tasks = tasks.filter(assignee__in=[user, None]) | tasks.filter(assignee__isnull=True) if manager else tasks.filter(assignee=user)
     for t in tasks.distinct()[:CAP]:
         out.append({"kind": "op_task", "section": "operation", "ref": t.title, "title": t.client.company_name, "link": "/operation?tab=tasks", "due": t.due_date.isoformat(), "overdue": t.due_date < today})
     for i in ChecklistItem.objects.filter(status="uploaded", archived_at__isnull=True).select_related("client").order_by("updated_at")[:CAP]:

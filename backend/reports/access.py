@@ -1,17 +1,11 @@
-"""Who can open which report. Reports are read-only views over data other modules own; they add no tables."""
-from core.roles import CEO, COMMERCIAL_HEAD, HR_HEAD, MARKETING_USER, OPERATION_HEAD, role_key
+"""Who can open which report. Reports are read-only views over data other modules own; they add no tables.
+Each section is one capability, report.<section>."""
 
-SECTIONS = {
-    "funnel": (CEO, COMMERCIAL_HEAD, MARKETING_USER),
-    "revenue": (CEO, COMMERCIAL_HEAD),
-    "forecast": (CEO, COMMERCIAL_HEAD),
-    "operations": (CEO, OPERATION_HEAD),
-    "hr": (CEO, HR_HEAD),
-}
+SECTIONS = ("funnel", "revenue", "forecast", "operations", "hr")
 
 
 def can_open(user, section):
-    return role_key(user) in SECTIONS.get(section, ())
+    return section in SECTIONS and user.has_capability(f"report.{section}")
 
 
 def sections_for(user):

@@ -55,9 +55,7 @@ def hr_users():
 
 
 def ceo_users():
-    from core.roles import CEO, role_key
-
-    return [u for u in User.objects.filter(is_active=True, department__name="Administration") if role_key(u) == CEO]
+    return list(User.objects.filter(is_active=True, role_ref__key="ceo"))
 
 
 def pipeline_users(c):

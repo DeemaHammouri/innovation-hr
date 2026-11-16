@@ -2,7 +2,6 @@
 from django.utils import timezone
 
 from core.mywork import provider
-from core.roles import COMMERCIAL_HEAD, COMMERCIAL_MEMBER, HR_HEAD, HR_MEMBER, role_key
 
 from .models import Quotation
 
@@ -18,18 +17,19 @@ def item(kind, q, due=None, overdue=False):
 
 @provider
 def quotation_items(user):
-    role = role_key(user)
+    head = user.has_capability("lead.manage")
+    member = user.has_capability("lead.work_assigned")
     qs = Quotation.objects.select_related("lead")
     out = []
-    if role in (HR_HEAD, HR_MEMBER):
+    if user.has_capability("quotation.prepare"):
         for q in qs.filter(status__in=["requested", "in_preparation", "changes_requested"]).order_by("created_at")[:CAP]:
             kind = {"requested": "quotation_prepare", "in_preparation": "quotation_continue", "changes_requested": "quotation_changes"}[q.status]
             out.append(item(kind, q))
-    elif role in (COMMERCIAL_HEAD, COMMERCIAL_MEMBER):
-        if role == COMMERCIAL_HEAD:
+    elif head or member:
+        if user.has_capability("quotation.sign"):
             for q in qs.filter(status="in_review").order_by("created_at")[:CAP]:
                 out.append(item("quotation_sign", q))
-        mine = qs.filter(lead__assigned_to=user) if role == COMMERCIAL_MEMBER else qs
+        mine = qs if head else qs.filter(lead__assigned_to=user)
         for q in mine.filter(status="signed").order_by("signed_at")[:CAP]:
             out.append(item("quotation_send", q))
         for q in mine.filter(status="sent").order_by("sent_at")[:CAP]:

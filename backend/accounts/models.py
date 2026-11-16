@@ -135,14 +135,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.role_ref.key if self.role_ref_id else None
 
     @property
-    def is_ceo(self):
-        return self.role_name == "ceo"
-
-    @property
-    def is_operation_head(self):
-        return self.role_name == "operation_head"
-
-    @property
     def is_super_admin(self):
         return self.role_name == SUPER_ADMIN
 
@@ -153,7 +145,7 @@ class User(AbstractBaseUser, PermissionsMixin):
             return frozenset()
         cached = self.__dict__.get("_caps")
         if cached is None:
-            cached = self.__dict__["_caps"] = frozenset(self.role_ref.capabilities.values_list("code", flat=True))
+            cached = self.__dict__["_caps"] = frozenset(Capability.objects.filter(roles=self.role_ref_id).values_list("code", flat=True))  # one query
         return cached
 
     def has_capability(self, code):
@@ -162,10 +154,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     def refresh_from_db(self, *args, **kwargs):
         self.__dict__.pop("_caps", None)
         super().refresh_from_db(*args, **kwargs)
-
-    @property
-    def can_manage_clients(self):
-        return self.has_capability("client.manage")
 
     def validate_placement(self):
         """Department rules. Counts every user, active or not, so a seat is never double-booked."""

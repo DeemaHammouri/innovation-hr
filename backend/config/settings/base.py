@@ -104,9 +104,9 @@ CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000,h
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["accounts.authentication.CookieJWTAuthentication"],
-    # Signed in AND not stuck on the forced password change. Every endpoint is blocked by default.
+    # Fail closed: a view must declare the capabilities it needs (accounts/permissions.py), and nobody is stuck on the forced password change.
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        "accounts.permissions.HasCapability",
         "accounts.permissions.PasswordChangeNotPending",
     ],
 }

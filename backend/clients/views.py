@@ -3,7 +3,6 @@ from rest_framework import mixins, viewsets
 from rest_framework.filters import SearchFilter
 
 from audit.models import record
-from accounts.permissions import CanManageClients, PasswordChangeNotPending
 
 from .models import Client
 from .serializers import ClientSerializer
@@ -18,7 +17,8 @@ class ClientViewSet(
 ):
     """Create, read and edit. There is no delete in this version."""
 
-    permission_classes = [CanManageClients, PasswordChangeNotPending]
+    required_capabilities = {"*": ["client.manage"]}
+    denied_message = "Only the Operation Manager and the CEO can manage clients."
     queryset = Client.objects.select_related("created_by")
     serializer_class = ClientSerializer
     filter_backends = [SearchFilter]

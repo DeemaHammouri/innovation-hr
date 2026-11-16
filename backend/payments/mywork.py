@@ -1,6 +1,5 @@
 """The Commercial head's My Work: instalments that are overdue."""
 from core.mywork import provider
-from core.roles import COMMERCIAL_HEAD, role_key
 from leads.sla import sla_now
 
 from . import services
@@ -11,7 +10,7 @@ CAP = 50
 
 @provider
 def payment_items(user):
-    if role_key(user) != COMMERCIAL_HEAD:
+    if not user.has_capability("payment.manage"):
         return []
     today = sla_now()[0]
     qs = services.with_paid(Instalment.objects.filter(cancelled_at__isnull=True, due_date__lt=today).select_related("client")).order_by("due_date")

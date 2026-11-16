@@ -30,6 +30,7 @@ def mentionable_users(user, obj):
 
 
 class CommentListCreateView(ListCreateAPIView):
+    required_capabilities = []  # any signed-in person; access to the record itself is checked in core.access
     """GET or POST /api/comments/?target=client:5"""
 
     serializer_class = CommentSerializer
@@ -68,6 +69,7 @@ class CommentListCreateView(ListCreateAPIView):
 
 
 class MentionableView(APIView):
+    required_capabilities = []  # any signed-in person; access to the record itself is checked in core.access
     """GET /api/mentionable/?target=client:5 : who can be @mentioned on this record."""
 
     def get(self, request):

@@ -7,14 +7,11 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
 from accounts.models import User
-from accounts.permissions import PasswordChangeNotPending
 from core.pagination import StandardPagination
-from core.roles import CEO, COMMERCIAL_HEAD, MARKETING_USER, role_key
 
 from . import access, importer, services
 from .filters import LeadFilter
@@ -33,25 +30,31 @@ BOARD = ["new", "contacted", "waiting", "qualified", "rejected"]
 BOARD_LIMIT = 50
 
 
-class HasLeadAccess(BasePermission):
-    message = "You don't have access to leads."
-
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and access.has_lead_access(request.user))
-
-
 def require_marketing(user):
-    if role_key(user) != MARKETING_USER:
+    if not user.has_capability("lead.create"):
         raise PermissionDenied(MSG_MARKETING_ONLY)
 
 
 def require_head(user):
-    if role_key(user) != COMMERCIAL_HEAD:
+    if not user.has_capability("lead.manage"):
         raise PermissionDenied(MSG_HEAD_ONLY)
 
 
 class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    permission_classes = [HasLeadAccess, PasswordChangeNotPending]
+    # Every action needs to be allowed into leads; the ones that are for one job also name its capability.
+    required_capabilities = {
+        "list": ["lead.access"], "retrieve": ["lead.access"], "board": ["lead.access"], "interactions": ["lead.access"],
+        "outcome": ["lead.access"], "skip_quotation": ["lead.access"], "archive": ["lead.access"], "partial_update": ["lead.access"],
+        "create": ["lead.access", "lead.create"],
+        "assignees": ["lead.access", "lead.manage"], "assign": ["lead.access", "lead.manage"],
+        "reopen": ["lead.access", "lead.manage"], "restore": ["lead.access", "lead.manage"],
+        "import_template": ["lead.access", "lead.import"], "import_preview": ["lead.access", "lead.import"], "import_confirm": ["lead.access", "lead.import"],
+    }
+    denied_message = {
+        "*": "You don't have access to leads.", "create": MSG_MARKETING_ONLY,
+        "assignees": MSG_HEAD_ONLY, "assign": MSG_HEAD_ONLY, "reopen": MSG_HEAD_ONLY, "restore": MSG_HEAD_ONLY,
+        "import_template": MSG_MARKETING_ONLY, "import_preview": MSG_MARKETING_ONLY, "import_confirm": MSG_MARKETING_ONLY,
+    }
     serializer_class = LeadSerializer
     pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -201,23 +204,17 @@ class LeadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
         return Response(ImportBatchSerializer(batch, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 
-class BatchPermission(BasePermission):
-    message = "You don't have access to import batches."
-
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and role_key(request.user) in (MARKETING_USER, COMMERCIAL_HEAD, CEO))
-
-
 class ImportBatchViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """Marketing sees their own batches. The Commercial head and the CEO can read them all."""
 
-    permission_classes = [BatchPermission, PasswordChangeNotPending]
+    required_capabilities = {"list": ["lead.batches"], "retrieve": ["lead.batches"], "undo": ["lead.batches"]}
+    denied_message = "You don't have access to import batches."
     serializer_class = ImportBatchSerializer
     pagination_class = StandardPagination
 
     def get_queryset(self):
         qs = ImportBatch.objects.select_related("created_by").annotate(contacted_n=Count("leads", filter=~Q(leads__status="new")))
-        if role_key(self.request.user) == MARKETING_USER:
+        if not self.request.user.has_capability("lead.batches_all"):
             qs = qs.filter(created_by=self.request.user)
         return qs
 

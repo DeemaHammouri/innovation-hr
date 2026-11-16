@@ -13,6 +13,8 @@ from .roles import role_key
 class MyWorkView(APIView):
     """Everything waiting on the signed-in person, plus the numbers for the sidebar badges."""
 
+    required_capabilities = []  # any signed-in person; each provider decides what that person sees
+
     def get(self, request):
         for name, job in mywork.daily_jobs():
             try:

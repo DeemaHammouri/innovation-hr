@@ -57,6 +57,7 @@ def validate_upload(upload):
 
 
 class AttachmentListCreateView(ListAPIView):
+    required_capabilities = []  # any signed-in person; access to the record itself is checked in core.access
     """GET or POST /api/files/?target=contract:3 (multipart: file, category). Access always follows the parent record."""
 
     serializer_class = AttachmentSerializer
@@ -102,6 +103,7 @@ def load_attachment(user, pk):
 
 
 class AttachmentDownloadView(APIView):
+    required_capabilities = []  # any signed-in person; access to the record itself is checked in core.access
     def get(self, request, pk):
         att, _, _ = load_attachment(request.user, pk)
         res = FileResponse(att.file.open("rb"), as_attachment=True, filename=att.original_name, content_type=att.content_type_header)
@@ -111,6 +113,7 @@ class AttachmentDownloadView(APIView):
 
 
 class AttachmentArchiveView(APIView):
+    required_capabilities = []  # any signed-in person; access to the record itself is checked in core.access
     """Files are archived, not deleted. Whoever may attach to the record (or uploaded it) may archive it."""
 
     def post(self, request, pk):

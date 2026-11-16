@@ -200,10 +200,7 @@ def save_type(actor, data, instance=None):
 
 # ---------- calendar ----------
 def calendar_q(user):
-    from core.roles import CEO, HR_HEAD, HR_MEMBER, role_key
-
-    role = role_key(user)
-    if role in (CEO, HR_HEAD, HR_MEMBER):
+    if user.has_capability("hr.attendance_all"):
         return Q()
     if user.is_dept_head and user.department_id:
         return Q(user__department_id=user.department_id)

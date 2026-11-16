@@ -40,6 +40,10 @@ CAPABILITIES = {
     "lead.view_created": ("See leads you added", [_MKT]),
     "lead.manage": ("Assign, reopen, archive and restore any lead; work the whole pipeline", [_CH]),
     "lead.work_assigned": ("Log contacts and outcomes on leads assigned to you", [_CM]),
+    "lead.create": ("Add leads", [_MKT]),
+    "lead.import": ("Import leads from a file", [_MKT]),
+    "lead.batches": ("See import batches", [_CEO, _CH, _MKT]),
+    "lead.batches_all": ("See every import batch, not only your own", [_CEO, _CH]),
     "lead.edit_created": ("Edit and archive your own untouched leads", [_MKT]),
     # Quotations
     "quotation.access": ("Open quotations", [_CEO, _CH, _CM, _HH, _HM]),

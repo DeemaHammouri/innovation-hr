@@ -2,7 +2,6 @@
 from django.utils import timezone
 
 from core.mywork import provider
-from core.roles import COMMERCIAL_HEAD, COMMERCIAL_MEMBER, role_key
 
 from .models import Lead
 from .sla import first_contact_overdue, sla_now
@@ -19,13 +18,13 @@ def item(kind, lead, due=None, overdue=False):
 
 @provider
 def lead_items(user):
-    role = role_key(user)
-    if role not in (COMMERCIAL_HEAD, COMMERCIAL_MEMBER):
+    head = user.has_capability("lead.manage")
+    if not (head or user.has_capability("lead.work_assigned")):
         return []
     today, now, sla = sla_now()
     open_leads = Lead.objects.filter(archived_at__isnull=True)
     out = []
-    if role == COMMERCIAL_HEAD:
+    if head:
         for lead in open_leads.filter(status="new", assigned_to__isnull=True).order_by("created_at")[:CAP]:
             out.append(item("lead_assign", lead, overdue=first_contact_overdue(lead, now, sla)))
     mine = open_leads.filter(assigned_to=user)

@@ -28,7 +28,10 @@ MSG_RANGE = "Choose a date range of up to 93 days."
 
 
 class Authed:
-    permission_classes = [IsAuthenticated, PasswordChangeNotPending]
+    """Self-service by default: any signed-in person, working on their own attendance, leave and payslips.
+    Views that expose other people's data override this with the capability they need."""
+
+    required_capabilities = []
 
     def today(self):
         return sla_now()[0]
@@ -84,6 +87,8 @@ class AttendanceMineExportView(AttendanceMineView):
 
 
 class AttendanceReportView(Authed, APIView):
+    required_capabilities = ["hr.attendance_all"]
+    denied_message = "You don't have access to the attendance report."
     """GET /api/hr/attendance/?from=&to=&user=&late=1 - HR and the CEO only."""
 
     pagination_class = StandardPagination
@@ -122,6 +127,8 @@ class AttendanceReportExportView(AttendanceReportView):
 
 
 class PeopleView(Authed, APIView):
+    required_capabilities = ["hr.attendance_all"]
+    denied_message = "You don't have access to the attendance report."
     """GET /api/hr/people/ - names for the report's filter. HR and the CEO."""
 
     def get(self, request):
@@ -171,7 +178,7 @@ class LeaveViewSet(Authed, viewsets.ViewSet):
                 raise PermissionDenied("You don't have access to everyone's leave requests.")
             if scope == "decide":
                 qs = qs.filter(status="pending").exclude(user=request.user)
-                if access.is_ceo(request.user):
+                if access.decides_hr_head_leave(request.user):
                     qs = qs.filter(user__department__name="HR", user__is_dept_head=True)
                 elif not access.is_hr_head(request.user):
                     qs = qs.none()
@@ -235,6 +242,8 @@ class LeaveViewSet(Authed, viewsets.ViewSet):
 
 # ---------------- salaries, payroll, payslips ----------------
 class PayrollBase(Authed):
+    required_capabilities = ["hr.payroll_view"]
+    denied_message = MSG_NO_PAYROLL
     def need_see(self):
         if not access.sees_payroll(self.request.user):
             raise PermissionDenied(MSG_NO_PAYROLL)
@@ -244,7 +253,7 @@ class PayrollBase(Authed):
             raise PermissionDenied(MSG_HR_HEAD)
 
     def need_ceo(self):
-        if not access.is_ceo(self.request.user):
+        if not access.approves_payroll(self.request.user):
             raise PermissionDenied(MSG_CEO)
 
 

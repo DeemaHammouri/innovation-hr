@@ -5,10 +5,8 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
-from accounts.permissions import PasswordChangeNotPending
 from core.pagination import StandardPagination
 from leads.models import Lead
 from leads.sla import sla_now
@@ -24,15 +22,17 @@ MSG_HEAD_ONLY = "Only the Commercial head can do this."
 MSG_NO_PIPELINE = "Only the Commercial head or the assigned member can do this."
 
 
-class HasQuotationAccess(BasePermission):
-    message = "You don't have access to quotations."
-
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and access.has_access(request.user))
-
-
 class QuotationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    permission_classes = [HasQuotationAccess, PasswordChangeNotPending]
+    required_capabilities = {
+        "*": ["quotation.access"],
+        "start": ["quotation.access", "quotation.prepare"], "draft": ["quotation.access", "quotation.prepare"], "submit": ["quotation.access", "quotation.prepare"],
+        "request_changes": ["quotation.access", "quotation.sign"], "sign": ["quotation.access", "quotation.sign"], "cancel": ["quotation.access", "quotation.sign"],
+    }
+    denied_message = {
+        "*": "You don't have access to quotations.",
+        "start": MSG_HR_ONLY, "draft": MSG_HR_ONLY, "submit": MSG_HR_ONLY,
+        "request_changes": MSG_HEAD_ONLY, "sign": MSG_HEAD_ONLY, "cancel": MSG_HEAD_ONLY,
+    }
     pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = QuotationFilter

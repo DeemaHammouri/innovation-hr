@@ -7,27 +7,31 @@ Who can see what in HR.
 * Salaries and payroll: the HR head and the CEO only, plus each employee's own payslip once the run is paid.
 """
 from accounts.models import User
-from core.roles import CEO, HR_HEAD, HR_MEMBER, role_key
 
 
-def is_ceo(user):
-    return role_key(user) == CEO
+def approves_payroll(user):
+    """Approves payroll runs (the CEO)."""
+    return user.has_capability("hr.payroll_approve")
+
+
+def decides_hr_head_leave(user):
+    return user.has_capability("hr.leave_decide_hr_head")
 
 
 def is_hr_head(user):
-    return role_key(user) == HR_HEAD
+    return user.has_capability("hr.manage")
 
 
 def is_hr(user):
-    return role_key(user) in (HR_HEAD, HR_MEMBER)
+    return user.has_capability("hr.staff")
 
 
 def sees_everyone(user):
-    return role_key(user) in (CEO, HR_HEAD, HR_MEMBER)
+    return user.has_capability("hr.attendance_all")
 
 
 def can_request_leave(user):
-    return role_key(user) is not None and not is_ceo(user)
+    return user.has_capability("hr.leave_request")
 
 
 def can_decide(user, request):
@@ -35,12 +39,12 @@ def can_decide(user, request):
     if request.user_id == user.pk:
         return False
     if request.user.department.name == "HR" and request.user.is_dept_head:
-        return is_ceo(user)
+        return decides_hr_head_leave(user)
     return is_hr_head(user)
 
 
 def sees_payroll(user):
-    return role_key(user) in (CEO, HR_HEAD)
+    return user.has_capability("hr.payroll_view")
 
 
 def manages_payroll(user):

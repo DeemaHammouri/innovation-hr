@@ -44,7 +44,12 @@ def parse_period(request, section):
 
 
 class Base(APIView):
-    permission_classes = [IsAuthenticated, PasswordChangeNotPending]
+    def get_required_capabilities(self, request):
+        section = self.kwargs.get("section")
+        # An unknown section is answered with 404 by build(); a known one needs its own capability.
+        return [f"report.{section}"] if section in access.SECTIONS else []
+
+    denied_message = None
 
     def build(self, request, section):
         if section not in BUILDERS:
@@ -58,7 +63,7 @@ class Base(APIView):
 
 
 class ReportIndex(APIView):
-    permission_classes = [IsAuthenticated, PasswordChangeNotPending]
+    required_capabilities = []  # lists only the sections the person may open
 
     def get(self, request):
         return Response({"sections": access.sections_for(request.user)})
@@ -80,7 +85,7 @@ class SearchView(APIView):
     """One box over leads, quotations, contracts and clients. Each kind goes through the same visibility rule as its own list, and
     only reference, company and contact fields are searched: no HR or payroll data is reachable from here."""
 
-    permission_classes = [IsAuthenticated, PasswordChangeNotPending]
+    required_capabilities = []  # each kind is filtered by its own module's visibility rule
     LIMIT = 5
 
     def get(self, request):

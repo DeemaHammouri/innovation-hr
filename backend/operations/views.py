@@ -7,10 +7,8 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.filters import SearchFilter
-from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
-from accounts.permissions import PasswordChangeNotPending
 from clients.models import Client
 from core.pagination import StandardPagination
 from leads.sla import sla_now
@@ -26,15 +24,9 @@ MSG_HEAD_ONLY = "Only the Operation head can do this."
 MSG_NOT_YOURS = "You can only handle tasks assigned to you."
 
 
-class HasOperationAccess(BasePermission):
-    message = "You don't have access to Operation."
-
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and access.has_access(request.user))
-
-
 class Base(viewsets.GenericViewSet):
-    permission_classes = [HasOperationAccess, PasswordChangeNotPending]
+    required_capabilities = {"*": ["operation.access"]}
+    denied_message = "You don't have access to Operation."
     pagination_class = StandardPagination
 
     def get_serializer_context(self):

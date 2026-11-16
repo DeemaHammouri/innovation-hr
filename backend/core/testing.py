@@ -38,10 +38,13 @@ class RoleCase(APITestCase):
         )
 
     def as_role(self, key):
-        self.client.force_authenticate(self.users[key])
-        return self.users[key]
+        user = self.users[key]
+        user.capability_codes  # noqa: B018  (read once, so query-count tests measure the endpoint and not the capability lookup)
+        self.client.force_authenticate(user)
+        return user
 
     def as_user(self, user):
+        user.capability_codes  # noqa: B018  (warm, as in as_role)
         self.client.force_authenticate(user)
         return user
 

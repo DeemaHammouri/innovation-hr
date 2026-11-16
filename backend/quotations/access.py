@@ -1,50 +1,43 @@
 """Who can see and change a quotation. HR prepares, the Commercial head signs, the Commercial pipeline sends and records the outcome."""
 from django.db.models import Q
 
-from core.roles import CEO, COMMERCIAL_HEAD, COMMERCIAL_MEMBER, HR_HEAD, HR_MEMBER, role_key
 from leads import access as lead_access
 
 from .models import OPEN
 
-QUOTATION_ROLES = (CEO, COMMERCIAL_HEAD, COMMERCIAL_MEMBER, HR_HEAD, HR_MEMBER)
-
 
 def has_access(user):
-    return role_key(user) in QUOTATION_ROLES
+    return user.has_capability("quotation.access")
 
 
 def is_hr(user):
-    return role_key(user) in (HR_HEAD, HR_MEMBER)
+    return user.has_capability("quotation.prepare")
 
 
 def is_head(user):
-    return role_key(user) == COMMERCIAL_HEAD
+    return user.has_capability("quotation.sign")
 
 
 def visible_q(user):
-    role = role_key(user)
-    if role in (CEO, COMMERCIAL_HEAD, HR_HEAD, HR_MEMBER):
+    if user.has_capability("quotation.view_all"):
         return Q()
-    if role == COMMERCIAL_MEMBER:
+    if user.has_capability("quotation.view_assigned"):
         return Q(lead__assigned_to=user)
     return Q(pk__in=[])
 
 
 def can_view(user, q):
-    role = role_key(user)
-    if role in (CEO, COMMERCIAL_HEAD, HR_HEAD, HR_MEMBER):
-        return True
-    return role == COMMERCIAL_MEMBER and q.lead.assigned_to_id == user.pk
+    return user.has_capability("quotation.view_all") or (user.has_capability("quotation.view_assigned") and q.lead.assigned_to_id == user.pk)
 
 
 def on_pipeline(user, q):
-    """The Commercial head, or the member the lead is assigned to."""
-    return is_head(user) or (role_key(user) == COMMERCIAL_MEMBER and q.lead.assigned_to_id == user.pk)
+    """Whoever manages the lead pipeline, or the person the lead is assigned to."""
+    return lead_access.is_head(user) or (user.has_capability("lead.work_assigned") and q.lead.assigned_to_id == user.pk)
 
 
 def acts_on_lead(user, lead):
-    """The Commercial head, or the member the lead is assigned to (whatever state the lead is in)."""
-    return is_head(user) or (role_key(user) == COMMERCIAL_MEMBER and lead.assigned_to_id == user.pk)
+    """Whoever manages the pipeline, or the person the lead is assigned to (whatever state the lead is in)."""
+    return lead_access.is_head(user) or (user.has_capability("lead.work_assigned") and lead.assigned_to_id == user.pk)
 
 
 def can_request(user, lead):

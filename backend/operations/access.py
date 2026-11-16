@@ -1,21 +1,18 @@
 """Operation works on clients. The CEO and the Commercial side can read; nobody else sees any of it."""
 from django.db.models import Q
 
-from core.roles import CEO, COMMERCIAL_HEAD, COMMERCIAL_MEMBER, OPERATION_HEAD, OPERATION_MEMBER, role_key
-
-OP = (OPERATION_HEAD, OPERATION_MEMBER)
 
 
 def is_op(user):
-    return role_key(user) in OP
+    return user.has_capability("operation.work")
 
 
 def is_op_head(user):
-    return role_key(user) == OPERATION_HEAD
+    return user.has_capability("operation.manage")
 
 
 def has_access(user):
-    return role_key(user) in (CEO, COMMERCIAL_HEAD, COMMERCIAL_MEMBER, *OP)
+    return user.has_capability("operation.access")
 
 
 def own_deal_q(user):
@@ -24,19 +21,17 @@ def own_deal_q(user):
 
 
 def visible_clients_q(user):
-    role = role_key(user)
-    if role in (CEO, *OP):
+    if user.has_capability("operation.view_all_clients"):
         return Q()
-    if role in (COMMERCIAL_HEAD, COMMERCIAL_MEMBER):
+    if user.has_capability("operation.view_own_deals"):
         return own_deal_q(user)
     return Q(pk__in=[])
 
 
 def can_view_client(user, client):
-    role = role_key(user)
-    if role in (CEO, *OP):
+    if user.has_capability("operation.view_all_clients"):
         return True
-    if role in (COMMERCIAL_HEAD, COMMERCIAL_MEMBER):
+    if user.has_capability("operation.view_own_deals"):
         return client.contracts.filter(Q(lead__assigned_to=user) | Q(requested_by=user)).exists()
     return False
 

@@ -44,7 +44,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_permissions(self, user):
         # The frontend uses these only to decide what to show. The backend enforces them again.
-        return {"manage_users": user.is_ceo, "manage_clients": user.can_manage_clients}
+        return {"manage_users": user.has_capability("user.manage"), "manage_clients": user.has_capability("client.manage")}
 
 
 class UserWriteSerializer(serializers.ModelSerializer):

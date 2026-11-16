@@ -1,47 +1,40 @@
 """Who can see and change a lead. One place, used by the API querysets, the record registry and the screen's permission flags."""
 from django.db.models import Q
 
-from core.roles import CEO, COMMERCIAL_HEAD, COMMERCIAL_MEMBER, MARKETING_USER, role_key
-
-LEAD_ROLES = (CEO, MARKETING_USER, COMMERCIAL_HEAD, COMMERCIAL_MEMBER)
-
-
 def has_lead_access(user):
-    return role_key(user) in LEAD_ROLES
+    return user.has_capability("lead.access")
 
 
 def visible_q(user):
-    """CEO and the Commercial head see everything. A Commercial member sees what is assigned to them. Marketing sees what they added."""
-    role = role_key(user)
-    if role in (CEO, COMMERCIAL_HEAD):
+    """Everything with lead.view_all; plus what is assigned to you (lead.view_assigned); plus what you added (lead.view_created)."""
+    if user.has_capability("lead.view_all"):
         return Q()
-    if role == COMMERCIAL_MEMBER:
-        return Q(assigned_to=user)
-    if role == MARKETING_USER:
-        return Q(created_by=user)
-    return Q(pk__in=[])
+    q = Q(pk__in=[])
+    if user.has_capability("lead.view_assigned"):
+        q |= Q(assigned_to=user)
+    if user.has_capability("lead.view_created"):
+        q |= Q(created_by=user)
+    return q
 
 
 def can_view(user, lead):
-    role = role_key(user)
-    if role in (CEO, COMMERCIAL_HEAD):
-        return True
-    if role == COMMERCIAL_MEMBER:
-        return lead.assigned_to_id == user.pk
-    if role == MARKETING_USER:
-        return lead.created_by_id == user.pk
-    return False
+    return (
+        user.has_capability("lead.view_all")
+        or (user.has_capability("lead.view_assigned") and lead.assigned_to_id == user.pk)
+        or (user.has_capability("lead.view_created") and lead.created_by_id == user.pk)
+    )
 
 
 def is_head(user):
-    return role_key(user) == COMMERCIAL_HEAD
+    """Runs the whole pipeline: assign, reopen, restore, work any lead."""
+    return user.has_capability("lead.manage")
 
 
 def can_pipeline_write(user, lead):
-    """Log contacts and outcomes: the Commercial head, or the member the lead is assigned to. Never on an archived lead."""
+    """Log contacts and outcomes: whoever manages the pipeline, or the person the lead is assigned to. Never on an archived lead."""
     if lead.archived_at:
         return False
-    return is_head(user) or (role_key(user) == COMMERCIAL_MEMBER and lead.assigned_to_id == user.pk)
+    return is_head(user) or (user.has_capability("lead.work_assigned") and lead.assigned_to_id == user.pk)
 
 
 def can_edit(user, lead):
@@ -49,7 +42,7 @@ def can_edit(user, lead):
         return False
     if can_pipeline_write(user, lead):
         return True
-    return role_key(user) == MARKETING_USER and lead.created_by_id == user.pk and lead.status == "new"
+    return user.has_capability("lead.edit_created") and lead.created_by_id == user.pk and lead.status == "new"
 
 
 def can_archive(user, lead):
@@ -58,7 +51,7 @@ def can_archive(user, lead):
     if is_head(user):
         return True
     return (
-        role_key(user) == MARKETING_USER
+        user.has_capability("lead.edit_created")
         and lead.created_by_id == user.pk
         and lead.status == "new"
         and not lead.interactions.exists()

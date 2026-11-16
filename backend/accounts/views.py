@@ -8,7 +8,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
 from rest_framework.generics import ListAPIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import AuthenticationFailed
@@ -17,7 +17,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from . import ratelimit
 from .authentication import Anonymous, check_csrf, clear_auth_cookies, issue_tokens, set_auth_cookies, user_from_refresh
 from .models import ActionLog, Department, User
-from .permissions import IsCEO, PasswordChangeNotPending
+from .permissions import HasCapability, PasswordChangeNotPending
 from .serializers import (
     ChangePasswordSerializer,
     DepartmentSerializer,
@@ -114,7 +114,9 @@ class LogoutView(APIView):
 
 
 class MeView(APIView):
-    permission_classes = [IsAuthenticated]
+    # Usable while a password change is pending: it is how the page learns who is signed in.
+    permission_classes = [HasCapability]
+    required_capabilities = []
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
@@ -130,7 +132,8 @@ class MeView(APIView):
 class ChangePasswordView(APIView):
     """Forced change only: the user has just signed in with a temporary password."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasCapability]
+    required_capabilities = []
 
     def post(self, request):
         user = request.user
@@ -145,7 +148,8 @@ class ChangePasswordView(APIView):
 
 
 class DepartmentListView(ListAPIView):
-    permission_classes = [IsCEO, PasswordChangeNotPending]
+    required_capabilities = ["user.manage"]
+    denied_message = "Only the CEO can do this."
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     pagination_class = None
@@ -158,7 +162,8 @@ class UserViewSet(
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
-    permission_classes = [IsCEO, PasswordChangeNotPending]
+    required_capabilities = {"*": ["user.manage"]}
+    denied_message = "Only the CEO can do this."
     queryset = User.objects.select_related("department").filter(is_superuser=False)
     filter_backends = [SearchFilter]
     search_fields = ["full_name", "email", "department__name"]
@@ -207,7 +212,7 @@ class UserViewSet(
 class DashboardSummaryView(APIView):
     """Read-only numbers for the Home screen. What comes back depends on who is asking."""
 
-    permission_classes = [IsAuthenticated, PasswordChangeNotPending]
+    required_capabilities = []  # any signed-in person; what comes back depends on their capabilities
 
     @staticmethod
     def recent_clients(limit=5):
@@ -226,7 +231,7 @@ class DashboardSummaryView(APIView):
         own = ActionLog.objects.filter(user=user, action=ActionLog.Action.LOGIN)[:5]
         data = {"my_sign_ins": [{"timestamp": log.timestamp} for log in own]}
 
-        if user.is_ceo:
+        if user.has_capability("user.manage"):
             people = User.objects.filter(is_superuser=False)
             by_department = {row["department__name"]: row["n"] for row in people.values("department__name").annotate(n=Count("id"))}
             logins = ActionLog.objects.filter(action=ActionLog.Action.LOGIN, user__is_superuser=False).select_related("user")[:8]
@@ -243,7 +248,7 @@ class DashboardSummaryView(APIView):
                     {"user_id": log.user_id, "full_name": log.user.full_name, "timestamp": log.timestamp} for log in logins
                 ],
             }
-        elif user.is_operation_head:
+        elif user.has_capability("operation.manage"):
             now = timezone.now()
             data["operation"] = {
                 "total_clients": Client.objects.count(),

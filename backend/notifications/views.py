@@ -22,6 +22,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class NotificationListView(ListAPIView):
+    required_capabilities = []  # any signed-in person; access to the record itself is checked in core.access
     """Only ever the signed-in person's own notifications."""
 
     serializer_class = NotificationSerializer
@@ -35,11 +36,13 @@ class NotificationListView(ListAPIView):
 
 
 class UnreadCountView(APIView):
+    required_capabilities = []  # any signed-in person; access to the record itself is checked in core.access
     def get(self, request):
         return Response({"count": Notification.objects.filter(user=request.user, read_at__isnull=True).count()})
 
 
 class MarkReadView(APIView):
+    required_capabilities = []  # any signed-in person; access to the record itself is checked in core.access
     def post(self, request, pk):
         updated = Notification.objects.filter(user=request.user, pk=pk, read_at__isnull=True).update(read_at=timezone.now())
         if not updated and not Notification.objects.filter(user=request.user, pk=pk).exists():
@@ -48,6 +51,7 @@ class MarkReadView(APIView):
 
 
 class MarkAllReadView(APIView):
+    required_capabilities = []  # any signed-in person; access to the record itself is checked in core.access
     def post(self, request):
         Notification.objects.filter(user=request.user, read_at__isnull=True).update(read_at=timezone.now())
         return Response(status=204)

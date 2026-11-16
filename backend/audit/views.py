@@ -17,6 +17,7 @@ class AuditEntrySerializer(serializers.ModelSerializer):
 
 
 class ActivityListView(ListAPIView):
+    required_capabilities = []  # any signed-in person; access to the record itself is checked in core.access
     """GET /api/activity/?target=client:5 : the read-only timeline of one record. Read-only by design: there is no write endpoint."""
 
     serializer_class = AuditEntrySerializer

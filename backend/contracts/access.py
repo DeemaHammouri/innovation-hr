@@ -1,58 +1,55 @@
 """Who can see and change a contract. HR drafts, Commercial runs the meeting, the CEO signs, HR hands over to Operation."""
 from django.db.models import Q
 
-from core.roles import CEO, COMMERCIAL_HEAD, COMMERCIAL_MEMBER, HR_HEAD, HR_MEMBER, OPERATION_HEAD, OPERATION_MEMBER, role_key
 from leads import access as lead_access
 
 from .models import OPEN
 
-CONTRACT_ROLES = (CEO, COMMERCIAL_HEAD, COMMERCIAL_MEMBER, HR_HEAD, HR_MEMBER, OPERATION_HEAD, OPERATION_MEMBER)
-OPERATION = (OPERATION_HEAD, OPERATION_MEMBER)
 MEETING_CATS = ("visit_report", "client_signed_copy")
 
 
 def has_access(user):
-    return role_key(user) in CONTRACT_ROLES
+    return user.has_capability("contract.access")
 
 
 def is_hr(user):
-    return role_key(user) in (HR_HEAD, HR_MEMBER)
+    return user.has_capability("contract.draft")
 
 
 def is_head(user):
-    return role_key(user) == COMMERCIAL_HEAD
+    """The Commercial head: cancels contracts and runs the whole pipeline."""
+    return lead_access.is_head(user)
 
 
-def is_ceo(user):
-    return role_key(user) == CEO
+def signs_contracts(user):
+    return user.has_capability("contract.sign")
 
 
 def visible_q(user):
-    role = role_key(user)
-    if role in (CEO, COMMERCIAL_HEAD, HR_HEAD, HR_MEMBER):
+    if user.has_capability("contract.view_all"):
         return Q()
-    if role == COMMERCIAL_MEMBER:
-        return Q(lead__assigned_to=user)
-    if role in OPERATION:
-        return Q(status="handed_over")  # Operation sees a contract once it has been handed over
-    return Q(pk__in=[])
+    q = Q(pk__in=[])
+    if user.has_capability("contract.view_assigned"):
+        q |= Q(lead__assigned_to=user)
+    if user.has_capability("contract.view_handed_over"):
+        q |= Q(status="handed_over")  # Operation sees a contract once it has been handed over
+    return q
 
 
 def can_view(user, c):
-    role = role_key(user)
-    if role in (CEO, COMMERCIAL_HEAD, HR_HEAD, HR_MEMBER):
-        return True
-    if role == COMMERCIAL_MEMBER:
-        return c.lead.assigned_to_id == user.pk
-    return role in OPERATION and c.status == "handed_over"
+    return (
+        user.has_capability("contract.view_all")
+        or (user.has_capability("contract.view_assigned") and c.lead.assigned_to_id == user.pk)
+        or (user.has_capability("contract.view_handed_over") and c.status == "handed_over")
+    )
 
 
 def on_pipeline(user, c):
-    return is_head(user) or (role_key(user) == COMMERCIAL_MEMBER and c.lead.assigned_to_id == user.pk)
+    return is_head(user) or (user.has_capability("lead.work_assigned") and c.lead.assigned_to_id == user.pk)
 
 
 def acts_on_lead(user, lead):
-    return is_head(user) or (role_key(user) == COMMERCIAL_MEMBER and lead.assigned_to_id == user.pk)
+    return is_head(user) or (user.has_capability("lead.work_assigned") and lead.assigned_to_id == user.pk)
 
 
 def lead_ready(lead):
@@ -74,7 +71,7 @@ def flags(user, c):
         "can_send": is_hr(user) and s == "drafting",
         "can_log_meeting": on_pipeline(user, c) and s in ("with_commercial", "returned"),
         "can_submit": on_pipeline(user, c) and s == "meeting_logged",
-        "can_review": is_ceo(user) and s == "ceo_review",
+        "can_review": signs_contracts(user) and s == "ceo_review",
         "can_handover": is_hr(user) and s == "signed",
         "can_cancel": is_head(user) and s in OPEN,
     }

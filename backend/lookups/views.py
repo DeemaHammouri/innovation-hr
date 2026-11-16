@@ -1,25 +1,17 @@
 from rest_framework import serializers, viewsets
 from rest_framework.generics import RetrieveUpdateAPIView
-from rest_framework.permissions import SAFE_METHODS, BasePermission
 
-from accounts.permissions import PasswordChangeNotPending
-from core.roles import CEO, role_key
 
 from .models import ChecklistTemplateItem, RejectionReason, Service, SlaSetting, WorkHours
 
 
-class CEOWritesEveryoneReads(BasePermission):
-    """Every signed-in person can read a lookup (forms need them). Only the CEO can change one."""
-
-    message = "Only the CEO can change these settings."
-
-    def has_permission(self, request, view):
-        if not (request.user and request.user.is_authenticated):
-            return False
-        return request.method in SAFE_METHODS or role_key(request.user) == CEO
-
-
-PERMS = [CEOWritesEveryoneReads, PasswordChangeNotPending]
+# Every signed-in person can read a lookup (forms need them). Only settings.manage can change one.
+CAPS = {
+    "list": [], "retrieve": [], "get": [],
+    "create": ["settings.manage"], "update": ["settings.manage"], "partial_update": ["settings.manage"], "destroy": ["settings.manage"],
+    "put": ["settings.manage"], "patch": ["settings.manage"],
+}
+DENIED = "Only the CEO can change these settings."
 
 
 def bilingual_fields(extra=()):
@@ -50,7 +42,8 @@ def make_serializer(model, extra=()):
 class LookupViewSet(viewsets.ModelViewSet):
     """List, create, edit. No delete: switch a value off with is_active=false."""
 
-    permission_classes = PERMS
+    required_capabilities = CAPS
+    denied_message = DENIED
     pagination_class = None
     http_method_names = ["get", "post", "patch", "head", "options"]
 
@@ -81,7 +74,8 @@ def singleton_view(model, fields):
     ser = type(f"{model.__name__}Serializer", (serializers.ModelSerializer,), {"Meta": meta})
 
     class View(RetrieveUpdateAPIView):
-        permission_classes = PERMS
+        required_capabilities = CAPS
+        denied_message = DENIED
         serializer_class = ser
         http_method_names = ["get", "patch", "head", "options"]
 

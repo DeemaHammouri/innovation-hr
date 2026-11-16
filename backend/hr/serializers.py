@@ -104,8 +104,8 @@ class RunSerializer(serializers.ModelSerializer):
         u = self.context["request"].user
         return {
             "can_edit": access.manages_payroll(u) and r.status == "draft",
-            "can_approve": access.is_ceo(u) and r.status == "draft",
-            "can_reopen": access.is_ceo(u) and r.status == "ceo_approved",
+            "can_approve": access.approves_payroll(u) and r.status == "draft",
+            "can_reopen": access.approves_payroll(u) and r.status == "ceo_approved",
             "can_pay": access.manages_payroll(u) and r.status == "ceo_approved",
         }
 
