@@ -7,7 +7,7 @@ from .models import Quotation, QuotationLine, QuotationVersion
 class LineSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuotationLine
-        fields = ["id", "position", "service", "description", "quantity", "unit_price", "discount_percent", "tax_percent", "line_total"]
+        fields = ["id", "position", "service", "description", "quantity", "unit_price", "discount_percent", "tax_percent", "line_total", "frequency", "visits"]
         read_only_fields = fields
 
 
@@ -19,7 +19,7 @@ class VersionSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuotationVersion
         fields = [
-            "id", "number", "currency", "valid_until", "notes", "created_by_name", "created_at", "submitted_at", "is_draft",
+            "id", "number", "currency", "valid_until", "notes", "payment_terms", "created_by_name", "created_at", "submitted_at", "is_draft",
             "subtotal", "discount_total", "tax_total", "total", "lines",
         ]
         read_only_fields = fields
@@ -38,6 +38,10 @@ class QuotationSerializer(serializers.ModelSerializer):
     requested_by_name = serializers.CharField(source="requested_by.full_name", read_only=True)
     prepared_by_name = serializers.CharField(source="prepared_by.full_name", default=None, read_only=True)
     signed_by_name = serializers.CharField(source="signed_by.full_name", default=None, read_only=True)
+    assigned_hr_id = serializers.IntegerField(source="assigned_to_id", read_only=True)
+    assigned_hr_name = serializers.CharField(source="assigned_to.full_name", default=None, read_only=True)
+    has_signature = serializers.SerializerMethodField()
+    has_signed_copy = serializers.SerializerMethodField()
     rejection_reason_en = serializers.CharField(source="rejection_reason.name_en", default=None, read_only=True)
     rejection_reason_ar = serializers.CharField(source="rejection_reason.name_ar", default=None, read_only=True)
     latest = serializers.SerializerMethodField()
@@ -50,7 +54,8 @@ class QuotationSerializer(serializers.ModelSerializer):
             "id", "ref", "lead", "lead_ref", "lead_company", "lead_contact", "assigned_to_name", "status", "requested_by", "requested_by_name",
             "request_note", "prepared_by_name", "review_comment", "signed_by_name", "signed_at", "signed_version", "sent_at", "next_follow_up",
             "rejection_reason", "rejection_reason_en", "rejection_reason_ar", "rejection_note", "outcome_at", "cancel_reason", "created_at",
-            "latest", "follow_up_overdue", "permissions",
+            "latest", "follow_up_overdue", "permissions", "number", "assigned_hr_id", "assigned_hr_name", "has_signature", "has_signed_copy",
+            "client_signed_at", "client_signed_via",
         ]
         read_only_fields = fields
 
@@ -61,6 +66,12 @@ class QuotationSerializer(serializers.ModelSerializer):
         v = max(versions, key=lambda x: x.number)
         shown = next((x for x in versions if x.number == q.signed_version), v) if q.signed_version else v
         return {"number": v.number, "is_draft": v.submitted_at is None, "currency": shown.currency, "total": str(shown.total), "valid_until": shown.valid_until, "count": len(versions)}
+
+    def get_has_signature(self, q):
+        return bool(q.signature and q.stamp)
+
+    def get_has_signed_copy(self, q):
+        return q.client_signed_via == "upload"
 
     def get_follow_up_overdue(self, q):
         today = self.context.get("today")

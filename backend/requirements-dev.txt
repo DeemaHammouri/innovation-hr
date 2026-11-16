@@ -2,3 +2,5 @@
 pytest>=8
 pytest-django>=4.9
 pip-audit>=2.7
+pymupdf>=1.24      # renders PDFs to images so Arabic shaping can be checked in tests and by eye
+pypdf>=5

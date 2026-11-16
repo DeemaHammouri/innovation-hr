@@ -11,7 +11,7 @@ from django.utils import timezone
 from accounts.models import ActionLog
 from clients.models import Client
 from contracts.models import Contract
-from core.testing import PASSWORD, RoleCase
+from core.testing import PASSWORD, RoleCase, png_signature
 from leads.models import Lead
 from lookups.models import RejectionReason
 
@@ -78,7 +78,7 @@ class JourneyTests(RoleCase):
         draft = {"currency": "JOD", "valid_until": (timezone.localdate() + timedelta(days=30)).isoformat(), "lines": [{"description": "Bookkeeping", "quantity": "1", "unit_price": "400", "discount_percent": "0", "tax_percent": "0"}]}
         self.assertEqual(self.as_("hr_member").put(f"/api/quotations/{qid}/draft/", draft, format="json").status_code, 200)
         self.post("hr_member", f"/api/quotations/{qid}/submit/", expect=200)
-        self.post("commercial_head", f"/api/quotations/{qid}/sign/", expect=200)
+        self.post("commercial_head", f"/api/quotations/{qid}/sign/", {"signature": png_signature()}, expect=200)
         self.post("commercial_member", f"/api/quotations/{qid}/send/", expect=200)
         self.post("commercial_member", f"/api/quotations/{qid}/outcome/", {"outcome": "confirmed"}, expect=200)
 

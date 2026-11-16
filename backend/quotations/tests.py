@@ -8,7 +8,7 @@ from django.utils import timezone
 from audit.models import AuditEntry
 from core.access import content_type_for
 from core.roles import ALL_ROLES
-from core.testing import RoleCase
+from core.testing import RoleCase, png_signature
 from leads.models import Lead
 from lookups.models import RejectionReason, Service
 from notifications.models import Notification
@@ -50,7 +50,7 @@ class QCase(RoleCase):
             if state == "changes_requested":
                 q = services.request_changes(self.head, q, "Lower the price")
             elif state != "in_review":
-                q = services.sign(self.head, q)
+                q = services.sign(self.head, q, png_signature())
                 if state == "sent":
                     q = services.mark_sent(self.member, q)
         return Quotation.objects.get(pk=q.pk)
@@ -353,7 +353,7 @@ class ReviewTests(QCase):
 
     def test_sign_stores_signer_time_and_version(self):
         q = self.quote("in_review")
-        res = self.act(self.head, q, "sign")
+        res = self.act(self.head, q, "sign", {"signature": png_signature()})
         self.assertEqual(res.status_code, 200, res.data)
         self.assertEqual((res.data["status"], res.data["signed_by_name"], res.data["signed_version"]), ("signed", self.head.full_name, 1))
         self.assertIsNotNone(res.data["signed_at"])
@@ -364,12 +364,12 @@ class ReviewTests(QCase):
 
     def test_the_ceo_cannot_sign(self):
         q = self.quote("in_review")
-        self.assertEqual(self.act(self.users["ceo"], q, "sign").status_code, 403)
+        self.assertEqual(self.act(self.users["ceo"], q, "sign", {"signature": png_signature()}).status_code, 403)
 
     def test_sign_only_from_in_review(self):
         for state in ("requested", "in_preparation", "changes_requested", "signed", "sent"):
             q = self.quote(state)
-            self.assertEqual(self.act(self.head, q, "sign").status_code, 400, state)
+            self.assertEqual(self.act(self.head, q, "sign", {"signature": png_signature()}).status_code, 400, state)
 
     def test_cannot_request_changes_after_signing(self):
         q = self.quote("signed")

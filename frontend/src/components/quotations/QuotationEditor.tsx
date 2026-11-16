@@ -12,12 +12,13 @@ import { useFetch } from "@/lib/useFetch";
 import { lineMath, totalsOf, useMoney } from "./quoteUi";
 
 const CURRENCIES = ["JOD", "USD", "EUR", "SAR", "AED"];
-type Line = Omit<QuotationLine, "service"> & { service: string; key: number };
+type Line = Omit<QuotationLine, "service" | "visits" | "frequency"> & { service: string; key: number; frequency: string; visits: string };
+const FREQUENCIES = ["once", "monthly", "quarterly", "semiannual", "annual"];
 type LineErrors = Record<string, string>;
 
 let counter = 0;
-const blank = (): Line => ({ key: ++counter, service: "", description: "", quantity: "1", unit_price: "", discount_percent: "0", tax_percent: "0" });
-const fromServer = (l: QuotationLine): Line => ({ key: ++counter, service: l.service ? String(l.service) : "", description: l.description, quantity: l.quantity, unit_price: l.unit_price, discount_percent: l.discount_percent, tax_percent: l.tax_percent });
+const blank = (): Line => ({ key: ++counter, service: "", description: "", quantity: "1", unit_price: "", discount_percent: "0", tax_percent: "0", frequency: "once", visits: "" });
+const fromServer = (l: QuotationLine): Line => ({ key: ++counter, service: l.service ? String(l.service) : "", description: l.description, quantity: l.quantity, unit_price: l.unit_price, discount_percent: l.discount_percent, tax_percent: l.tax_percent, frequency: l.frequency ?? "once", visits: l.visits == null ? "" : String(l.visits) });
 const strip = (v: string) => v.replace(/\.00$/, "");
 
 /** HR's working screen: the draft version's details and line items. Totals shown here are a preview; the server's numbers are the ones that count. */
@@ -30,6 +31,7 @@ export function QuotationEditor({ quotation, version, onChanged }: { quotation: 
   const [currency, setCurrency] = useState(version.currency);
   const [validUntil, setValidUntil] = useState(version.valid_until ?? "");
   const [notes, setNotes] = useState(version.notes);
+  const [paymentTerms, setPaymentTerms] = useState(version.payment_terms ?? "");
   const [lines, setLines] = useState<Line[]>(() => (version.lines.length ? version.lines.map(fromServer) : [blank()]));
   const [saving, setSaving] = useState<"" | "draft" | "submit">("");
   const [top, setTop] = useState<Record<string, string>>({});
@@ -37,7 +39,6 @@ export function QuotationEditor({ quotation, version, onChanged }: { quotation: 
   const [formError, setFormError] = useState("");
 
   const totals = totalsOf(lines);
-  const currencies = CURRENCIES.includes(currency) ? CURRENCIES : [currency, ...CURRENCIES];
   const update = (key: number, patch: Partial<Line>) => setLines((all) => all.map((l) => (l.key === key ? { ...l, ...patch } : l)));
 
   function pickService(l: Line, id: string) {
@@ -57,14 +58,15 @@ export function QuotationEditor({ quotation, version, onChanged }: { quotation: 
     currency,
     valid_until: validUntil || null,
     notes,
-    lines: lines.map((l) => ({ service: l.service ? Number(l.service) : null, description: l.description, quantity: l.quantity, unit_price: l.unit_price === "" ? "0" : l.unit_price, discount_percent: l.discount_percent || "0", tax_percent: l.tax_percent || "0" })),
+    payment_terms: paymentTerms,
+    lines: lines.map((l) => ({ frequency: l.frequency, visits: l.visits === "" ? null : l.visits, service: l.service ? Number(l.service) : null, description: l.description, quantity: l.quantity, unit_price: l.unit_price === "" ? "0" : l.unit_price, discount_percent: l.discount_percent || "0", tax_percent: l.tax_percent || "0" })),
   });
 
   function showErrors(err: unknown) {
     if (err instanceof ApiError && err.status === 400) {
       const data = err.data as Record<string, unknown>;
       const next: Record<string, string> = {};
-      for (const k of ["currency", "valid_until", "notes"]) if (Array.isArray(data[k])) next[k] = String((data[k] as unknown[])[0]);
+      for (const k of ["currency", "valid_until", "notes", "payment_terms"]) if (Array.isArray(data[k])) next[k] = String((data[k] as unknown[])[0]);
       if (Array.isArray(data.lines)) {
         const arr = data.lines as unknown[];
         if (arr.length && typeof arr[0] === "string") next.lines = String(arr[0]);
@@ -108,7 +110,10 @@ export function QuotationEditor({ quotation, version, onChanged }: { quotation: 
       <Card as="section" className="p-5 md:p-6">
         <h2 className="text-section text-ink">{t("qt.editor.details", { number: version.number })}</h2>
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
-          <Select name="currency" label={t("qt.currency")} value={currency} onChange={(e) => setCurrency(e.target.value)} error={top.currency} options={currencies.map((c) => ({ value: c, label: c }))} />
+          <div>
+            <Input name="currency" label={t("qt.currency")} ltr maxLength={3} list="qt-currencies" autoComplete="off" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} error={top.currency} hint={t("qt.currencyHint")} required />
+            <datalist id="qt-currencies">{CURRENCIES.map((c) => <option key={c} value={c} />)}</datalist>
+          </div>
           <Input name="valid_until" label={t("qt.validUntil")} type="date" required value={validUntil} onChange={(e) => setValidUntil(e.target.value)} error={top.valid_until} hint={t("qt.validUntilHint")} />
         </div>
       </Card>
@@ -133,6 +138,10 @@ export function QuotationEditor({ quotation, version, onChanged }: { quotation: 
                 <div className="grid gap-4 md:grid-cols-[14rem_1fr]">
                   <Select name={`service-${l.key}`} label={t("qt.service")} value={l.service} onChange={(e) => pickService(l, e.target.value)} error={errs.service} placeholder={t("qt.customItem")} options={catalog.map((s) => ({ value: String(s.id), label: lang === "ar" ? s.name_ar : s.name_en }))} />
                   <Input name={`description-${l.key}`} label={t("qt.description")} required value={l.description} onChange={(e) => update(l.key, { description: e.target.value })} error={errs.description} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Select name={`frequency-${l.key}`} label={t("qt.frequency")} value={l.frequency} onChange={(e) => update(l.key, { frequency: e.target.value })} error={errs.frequency} options={FREQUENCIES.map((f) => ({ value: f, label: t(`qt.freq.${f}`) }))} />
+                  <Input name={`visits-${l.key}`} label={t("qt.visits")} inputMode="numeric" ltr value={l.visits} onChange={(e) => update(l.key, { visits: e.target.value })} error={errs.visits} />
                 </div>
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
                   <Input name={`quantity-${l.key}`} label={t("qt.quantity")} inputMode="decimal" ltr value={l.quantity} onChange={(e) => update(l.key, { quantity: e.target.value })} error={errs.quantity} />
@@ -167,6 +176,8 @@ export function QuotationEditor({ quotation, version, onChanged }: { quotation: 
       </Card>
 
       <Card as="section" className="p-5 md:p-6">
+        <Textarea name="payment_terms" label={t("qt.paymentTerms")} hint={t("qt.paymentTermsHint")} rows={3} value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} error={top.payment_terms} />
+        <div className="mt-5" />
         <Textarea name="notes" label={t("qt.notes")} hint={t("qt.notesHint")} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} error={top.notes} />
       </Card>
 

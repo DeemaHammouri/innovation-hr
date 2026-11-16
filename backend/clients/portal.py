@@ -26,3 +26,81 @@ class PortalMeView(APIView):
     def get(self, request):
         client = my_client(request)
         return Response({"client": PortalClientSerializer(client).data})
+
+
+# ---------- the client's quotations ----------
+from quotations import services as quotation_services  # noqa: E402
+from quotations.models import Quotation  # noqa: E402
+
+CLIENT_VISIBLE = ["sent", "waiting", "confirmed"]
+
+
+class PortalQuotationSerializer(serializers.ModelSerializer):
+    """What the client may see: the signed offer, never internal notes, review comments or who prepared it."""
+
+    company = serializers.CharField(source="lead.company_name", read_only=True)
+    version = serializers.SerializerMethodField()
+    can_sign = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Quotation
+        fields = ["id", "number", "status", "company", "sent_at", "client_signed_at", "client_signed_via", "version", "can_sign"]
+        read_only_fields = fields
+
+    def get_version(self, q):
+        v = next((x for x in q.versions.all() if x.number == q.signed_version), None)
+        if v is None:
+            return None
+        return {
+            "number": v.number, "currency": v.currency, "valid_until": v.valid_until, "payment_terms": v.payment_terms, "notes": v.notes,
+            "subtotal": str(v.subtotal), "discount_total": str(v.discount_total), "tax_total": str(v.tax_total), "total": str(v.total),
+            "lines": [{"description": l.description, "quantity": str(l.quantity), "unit_price": str(l.unit_price), "discount_percent": str(l.discount_percent),
+                       "tax_percent": str(l.tax_percent), "line_total": str(l.line_total), "frequency": l.frequency, "visits": l.visits} for l in v.lines.all()],
+        }
+
+    def get_can_sign(self, q):
+        return q.status in ("sent", "waiting") and not q.client_signed_at
+
+
+def _mine(request):
+    client = my_client(request)
+    qs = Quotation.objects.filter(lead__client=client, status__in=CLIENT_VISIBLE).select_related("lead").prefetch_related("versions__lines")
+    return qs
+
+
+class PortalQuotationListView(APIView):
+    required_capabilities = ["portal.access"]
+    denied_message = "This area is for clients."
+
+    def get(self, request):
+        return Response(PortalQuotationSerializer(_mine(request).order_by("-sent_at", "-id"), many=True).data)
+
+
+class PortalQuotationDetailView(APIView):
+    required_capabilities = ["portal.access"]
+    denied_message = "This area is for clients."
+
+    def get(self, request, pk):
+        return Response(PortalQuotationSerializer(get_object_or_404(_mine(request), pk=pk)).data)
+
+
+class PortalQuotationDocumentView(APIView):
+    required_capabilities = ["portal.access"]
+    denied_message = "This area is for clients."
+
+    def get(self, request, pk):
+        from documents import builders, serve
+
+        q = get_object_or_404(_mine(request), pk=pk)
+        fmt, lang = serve.options(request)
+        return serve.respond(builders.build_quotation(q), fmt, lang, builders.signed_copy(q))
+
+
+class PortalQuotationSignView(APIView):
+    required_capabilities = {"post": ["portal.access"]}
+    denied_message = "This area is for clients."
+
+    def post(self, request, pk):
+        q = get_object_or_404(_mine(request), pk=pk)
+        quotation_services.client_sign(request.user, q, request.data.get("signature"))
+        return Response(PortalQuotationSerializer(get_object_or_404(_mine(request), pk=pk)).data)

@@ -1,10 +1,11 @@
 "use client";
 
-import { DotsThreeVertical, Printer, Prohibit } from "@phosphor-icons/react";
+import { DotsThreeVertical, FilePdf, Printer, Prohibit, UploadSimple, UserPlus } from "@phosphor-icons/react";
 import { can } from "@/lib/can";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { DownloadSheet } from "@/components/documents/DownloadSheet";
 import { FormError, useAction } from "@/components/leads/LeadSheets";
 import { QuotationEditor } from "@/components/quotations/QuotationEditor";
 import { CancelSheet, ChangesSheet, OutcomeSheet } from "@/components/quotations/QuotationSheets";
@@ -16,15 +17,17 @@ import { Card, InsetList, InsetRow, StatusPill } from "@/components/ui/Card";
 import { Ltr } from "@/components/ui/Ltr";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Menu, MenuItem } from "@/components/ui/Popover";
+import { Select } from "@/components/ui/Field";
 import { Sheet } from "@/components/ui/Sheet";
+import { SignaturePad } from "@/components/ui/SignaturePad";
 import { ErrorState, Skeleton, useDelayed } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
-import { api, type Quotation } from "@/lib/api";
+import { api, type Quotation, upload } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useFetch } from "@/lib/useFetch";
 
-type Sheet = "changes" | "outcome" | "cancel" | "sign" | null;
+type Sheet = "changes" | "outcome" | "cancel" | "sign" | "assign" | "copy" | "download" | null;
 
 export default function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -72,7 +75,8 @@ export default function QuotationDetailPage() {
 
   let primary: React.ReactNode = null;
   let secondary: React.ReactNode = null;
-  if (p.can_start) primary = <Button loading={busy} onClick={() => post("start", t("qt.started"))}>{t(data.status === "requested" ? "qt.next.start" : "qt.next.newVersion")}</Button>;
+  if (p.can_assign && !p.can_start) primary = <Button onClick={() => setSheet("assign")}>{t("qt.next.assign")}</Button>;
+  else if (p.can_start) primary = <Button loading={busy} onClick={() => post("start", t("qt.started"))}>{t(data.status === "requested" ? "qt.next.start" : "qt.next.newVersion")}</Button>;
   else if (p.can_review) {
     primary = <Button onClick={() => setSheet("sign")}>{t("qt.next.sign")}</Button>;
     secondary = <Button variant="secondary" onClick={() => setSheet("changes")}>{t("qt.next.changes")}</Button>;
@@ -89,7 +93,7 @@ export default function QuotationDetailPage() {
     : data.status === "in_preparation" || data.status === "requested" || data.status === "changes_requested" ? t("qt.hint.withHr")
     : "";
 
-  const menu = p.can_cancel || p.can_print ? (
+  const menu = (
     <Menu
       label={t("common.actions")}
       trigger={({ open, ...props }) => (
@@ -106,11 +110,14 @@ export default function QuotationDetailPage() {
               {t("qt.print")}
             </Link>
           ) : null}
+          <MenuItem icon={<FilePdf size={20} aria-hidden />} onSelect={() => { close(); setSheet("download"); }}>{t("doc.menu")}</MenuItem>
+          {p.can_assign ? <MenuItem icon={<UserPlus size={20} aria-hidden />} onSelect={() => { close(); setSheet("assign"); }}>{t("qt.next.assign")}</MenuItem> : null}
+          {p.can_upload_copy ? <MenuItem icon={<UploadSimple size={20} aria-hidden />} onSelect={() => { close(); setSheet("copy"); }}>{t("qt.copy.title")}</MenuItem> : null}
           {p.can_cancel ? <MenuItem danger icon={<Prohibit size={20} aria-hidden />} onSelect={() => { close(); setSheet("cancel"); }}>{t("qt.cancel.title")}</MenuItem> : null}
         </>
       )}
     </Menu>
-  ) : null;
+  );
   const empty = <span className="text-ink-3">{"—"}</span>;
   const reasonName = lang === "ar" ? data.rejection_reason_ar : data.rejection_reason_en;
 
@@ -118,7 +125,7 @@ export default function QuotationDetailPage() {
     <>
       <PageHeader
         back={back}
-        title={`${data.ref} · ${data.lead_company}`}
+        title={`${data.number ?? data.ref} · ${data.lead_company}`}
         meta={<span className="flex flex-wrap items-center gap-2"><QuoteStatusPill status={data.status} />{data.follow_up_overdue ? <StatusPill tone="danger">{t("lead.overdueFollowUp")}</StatusPill> : null}</span>}
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -167,6 +174,8 @@ export default function QuotationDetailPage() {
               <InsetRow label={t("qt.requestedOn")}>{formatDateTime(data.created_at)}</InsetRow>
               <InsetRow label={t("qt.requestNote")}>{data.request_note ? <span className="whitespace-pre-line">{data.request_note}</span> : empty}</InsetRow>
               <InsetRow label={t("qt.preparedBy")}>{data.prepared_by_name ?? empty}</InsetRow>
+              {data.assigned_hr_name ? <InsetRow label={t("qt.assignedTo")}>{data.assigned_hr_name}</InsetRow> : null}
+              {data.number ? <InsetRow label={t("qt.number")}><Ltr>{data.number}</Ltr></InsetRow> : null}
             </InsetList>
             {data.signed_by_name ? (
               <InsetList title={t("qt.sectionSignature")}>
@@ -174,6 +183,12 @@ export default function QuotationDetailPage() {
                 <InsetRow label={t("qt.signedOn")}>{data.signed_at ? formatDateTime(data.signed_at) : empty}</InsetRow>
                 <InsetRow label={t("qt.signedVersionLabel")}>{t("qt.versionN", { number: data.signed_version ?? 0 })}</InsetRow>
                 {data.sent_at ? <InsetRow label={t("qt.sentOn")}>{formatDateTime(data.sent_at)}</InsetRow> : null}
+              </InsetList>
+            ) : null}
+            {data.client_signed_at ? (
+              <InsetList title={t("qt.sectionClientSignature")}>
+                <InsetRow label={t("qt.clientSignedOn")}>{formatDateTime(data.client_signed_at)}</InsetRow>
+                <InsetRow label={t("qt.clientSignedVia")}>{t(`qt.via.${data.client_signed_via || "portal"}`)}</InsetRow>
               </InsetList>
             ) : null}
             {["waiting", "confirmed", "rejected", "cancelled"].includes(data.status) ? (
@@ -190,6 +205,9 @@ export default function QuotationDetailPage() {
           </div>
         }
       />
+      {sheet === "download" ? <DownloadSheet path={`/quotations/${data.id}/document/`} fileBase={`quotation-${(data.number ?? data.ref).replace(/\//g, "-")}`} onClose={() => setSheet(null)} /> : null}
+      {sheet === "assign" ? <AssignSheet quotation={data} onClose={() => setSheet(null)} onDone={done} /> : null}
+      {sheet === "copy" ? <CopySheet quotation={data} onClose={() => setSheet(null)} onDone={done} /> : null}
       {sheet === "sign" ? <SignSheet quotation={data} onClose={() => setSheet(null)} onDone={done} /> : null}
       {sheet === "changes" ? <ChangesSheet quotation={data} onClose={() => setSheet(null)} onDone={done} /> : null}
       {sheet === "outcome" ? <OutcomeSheet quotation={data} onClose={() => setSheet(null)} onDone={done} /> : null}
@@ -203,10 +221,14 @@ function SignSheet({ quotation, onClose, onDone }: { quotation: Quotation; onClo
   const { t } = useI18n();
   const toast = useToast();
   const money = useMoney();
-  const action = useAction([]);
+  const action = useAction(["signature", "stamp"]);
+  const [signature, setSignature] = useState("");
+  const [local, setLocal] = useState("");
   const v = quotation.versions?.[quotation.versions.length - 1];
   async function sign() {
-    const saved = await action.run(() => api<Quotation>(`/quotations/${quotation.id}/sign/`, { method: "POST" }));
+    if (!signature) return setLocal("sign.drawHere");
+    setLocal("");
+    const saved = await action.run(() => api<Quotation>(`/quotations/${quotation.id}/sign/`, { method: "POST", body: { signature } }));
     if (saved) {
       toast.success(t("qt.signedDone"));
       onDone();
@@ -228,6 +250,62 @@ function SignSheet({ quotation, onClose, onDone }: { quotation: Quotation; onClo
       <FormError message={action.formError} />
       <p className="text-body text-ink-2">{t("qt.sign.text", { version: v?.number ?? 1, total: v ? money(v.total, v.currency) : "", name: quotation.lead_company })}</p>
       <p className="mt-3 text-label font-normal text-ink-2">{t("qt.sign.note")}</p>
+      <div className="mt-4">
+        <SignaturePad label={t("sign.pad")} onChange={(d) => { setSignature(d); setLocal(""); }} error={local ? t(local) : action.errors.signature ?? action.errors.stamp} />
+        <p className="mt-2 text-caption text-ink-2">{t("qt.sign.draw")}</p>
+      </div>
+    </Sheet>
+  );
+}
+
+function AssignSheet({ quotation, onClose, onDone }: { quotation: Quotation; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const action = useAction(["assigned_to"]);
+  const { data: people } = useFetch<{ id: number; full_name: string }[]>("/quotations/hr-people/");
+  const [who, setWho] = useState(quotation.assigned_hr_id ? String(quotation.assigned_hr_id) : "");
+  const [local, setLocal] = useState("");
+  async function save() {
+    if (!who) return setLocal("qt.assign.error");
+    setLocal("");
+    const saved = await action.run(() => api<Quotation>(`/quotations/${quotation.id}/assign/`, { method: "POST", body: { assigned_to: Number(who) } }));
+    if (saved) {
+      toast.success(t("qt.assign.done"));
+      onDone();
+    }
+  }
+  return (
+    <Sheet open onClose={onClose} title={t("qt.assign.title")} footer={<><Button variant="secondary" onClick={onClose}>{t("common.cancel")}</Button><Button loading={action.saving} onClick={save}>{t("qt.assign.save")}</Button></>}>
+      <FormError message={action.formError} />
+      <Select name="assigned_to" label={t("qt.assign.person")} value={who} onChange={(e) => setWho(e.target.value)} placeholder={t("qt.assign.choose")} error={local ? t(local) : action.errors.assigned_to} options={(people ?? []).map((p) => ({ value: String(p.id), label: p.full_name }))} required />
+    </Sheet>
+  );
+}
+
+function CopySheet({ quotation, onClose, onDone }: { quotation: Quotation; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const action = useAction(["file"]);
+  const [file, setFile] = useState<File | null>(null);
+  const [local, setLocal] = useState("");
+  async function save() {
+    if (!file) return setLocal("qt.copy.choose");
+    setLocal("");
+    const form = new FormData();
+    form.append("file", file);
+    const saved = await action.run(() => upload<Quotation>(`/quotations/${quotation.id}/signed-copy/`, form));
+    if (saved) {
+      toast.success(t("qt.copy.done"));
+      onDone();
+    }
+  }
+  return (
+    <Sheet open onClose={onClose} title={t("qt.copy.title")} footer={<><Button variant="secondary" onClick={onClose}>{t("common.cancel")}</Button><Button loading={action.saving} onClick={save}>{t("qt.copy.save")}</Button></>}>
+      <FormError message={action.formError} />
+      <p className="mb-4 text-body text-ink-2">{t("qt.copy.text")}</p>
+      <label htmlFor="field-file" className="mb-1.5 block text-label text-ink">{t("qt.copy.file")}</label>
+      <input id="field-file" name="file" type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block w-full text-body text-ink file:me-3 file:rounded-control file:border file:border-line file:bg-surface file:px-3 file:py-2" />
+      {local || action.errors.file ? <p role="alert" className="mt-2 text-label font-medium text-danger-ink">{local ? t(local) : action.errors.file}</p> : null}
     </Sheet>
   );
 }

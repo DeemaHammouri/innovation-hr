@@ -5,11 +5,15 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from core.pagination import StandardPagination
 from leads.models import Lead
 from leads.sla import sla_now
+
+from documents import builders as doc_builders
+from documents import serve as doc_serve
 
 from . import access, services
 from .filters import QuotationFilter
@@ -27,11 +31,14 @@ class QuotationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         "*": ["quotation.access"],
         "start": ["quotation.access", "quotation.prepare"], "draft": ["quotation.access", "quotation.prepare"], "submit": ["quotation.access", "quotation.prepare"],
         "request_changes": ["quotation.access", "quotation.sign"], "sign": ["quotation.access", "quotation.sign"], "cancel": ["quotation.access", "quotation.sign"],
+        "assign": ["quotation.access", "quotation.assign"], "hr_people": ["quotation.access", "quotation.assign"],
+        "signed_copy": ["quotation.access"], "document": ["quotation.access"],
     }
     denied_message = {
         "*": "You don't have access to quotations.",
         "start": MSG_HR_ONLY, "draft": MSG_HR_ONLY, "submit": MSG_HR_ONLY,
         "request_changes": MSG_HEAD_ONLY, "sign": MSG_HEAD_ONLY, "cancel": MSG_HEAD_ONLY,
+        "assign": "Only the HR head can hand a quotation to someone.",
     }
     pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -78,6 +85,15 @@ class QuotationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         # The service says what is wrong when the lead is not ready (not qualified, skipped, already has one).
         return self.out(services.request_quotation(request.user, lead, request.data.get("note")), status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["post"])
+    def assign(self, request, pk=None):
+        return self.out(services.assign(request.user, self.get_object(), request.data.get("assigned_to")))
+
+    @action(detail=False, methods=["get"], url_path="hr-people")
+    def hr_people(self, request):
+        """Who the HR head can hand a quotation to."""
+        return Response([{"id": u.pk, "full_name": u.full_name} for u in services.hr_users().order_by("full_name")])
+
     # ---- HR: prepare ----
     def _hr(self, request):
         if not access.is_hr(request.user):
@@ -111,7 +127,7 @@ class QuotationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     @action(detail=True, methods=["post"])
     def sign(self, request, pk=None):
         self._head(request)
-        return self.out(services.sign(request.user, self.get_object()))
+        return self.out(services.sign(request.user, self.get_object(), request.data.get("signature")))
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
@@ -125,6 +141,22 @@ class QuotationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         if not access.on_pipeline(request.user, q):
             raise PermissionDenied(MSG_NO_PIPELINE)
         return self.out(services.mark_sent(request.user, q))
+
+    @action(detail=True, methods=["get"])
+    def document(self, request, pk=None):
+        """The quotation as a branded PDF or Word file (?fmt=pdf|docx&lang=en|ar|both). An uploaded signed copy replaces the PDF."""
+        q = self.get_object()
+        fmt, lang = doc_serve.options(request)
+        override = doc_builders.signed_copy(q) if request.query_params.get("generated") != "1" else None
+        return doc_serve.respond(doc_builders.build_quotation(q), fmt, lang, override)
+
+    @action(detail=True, methods=["post"], url_path="signed-copy", parser_classes=[MultiPartParser, FormParser])
+    def signed_copy(self, request, pk=None):
+        """Staff upload the copy the client signed. It is the document of record and counts as the client's acceptance."""
+        q = self.get_object()
+        if not access.on_pipeline(request.user, q):
+            raise PermissionDenied(MSG_NO_PIPELINE)
+        return self.out(services.upload_signed_copy(request.user, q, request.FILES.get("file")))
 
     @action(detail=True, methods=["post"])
     def outcome(self, request, pk=None):

@@ -62,6 +62,8 @@ CAPABILITIES = {
     "quotation.view_assigned": ("See quotations on leads assigned to you", [_CM]),
     "quotation.prepare": ("Prepare quotations", [_HH, _HM]),
     "quotation.sign": ("Sign or return a quotation", [_CH]),
+    "quotation.assign": ("Hand a quotation to an HR person to prepare", [_HH]),
+    "company.manage": ("Change the company details, stamp and number prefixes", [_CEO]),
     # Contracts
     "contract.access": ("Open contracts", [_CEO, _CH, _CM, _HH, _HM, _OH, _OM]),
     "contract.view_all": ("See every contract", [_CEO, _CH, _HH, _HM]),

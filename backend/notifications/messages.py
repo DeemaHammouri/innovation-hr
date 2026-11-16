@@ -108,6 +108,14 @@ CATALOG = {
         "en": ("{ref} is ready for your review", "{name}"),
         "ar": ("{ref} جاهز لمراجعتك", "{name}"),
     },
+    "quotation_assigned": {
+        "en": ("{ref} was handed to you to prepare", "{name}"),
+        "ar": ("تم تكليفك بإعداد {ref}", "{name}"),
+    },
+    "quotation_sent_client": {
+        "en": ("A quotation is waiting for your signature: {ref}", "{name}"),
+        "ar": ("عرض سعر بانتظار توقيعك: {ref}", "{name}"),
+    },
     "quotation_confirmed": {
         "en": ("{actor} confirmed {ref}", "{name}"),
         "ar": ("قام {actor} بتأكيد {ref}", "{name}"),

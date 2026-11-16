@@ -52,11 +52,13 @@ def can_request(user, lead):
 
 def flags(user, q):
     return {
-        "can_start": is_hr(user) and q.status in ("requested", "changes_requested"),
+        "can_start": is_hr(user) and q.status in ("requested", "changes_requested") and (not q.assigned_to_id or q.assigned_to_id == user.pk or user.has_capability("quotation.assign")),
+        "can_assign": user.has_capability("quotation.assign") and q.status in ("requested", "changes_requested"),
         "can_edit": is_hr(user) and q.status == "in_preparation",
         "can_review": is_head(user) and q.status == "in_review",
         "can_send": on_pipeline(user, q) and q.status == "signed",
         "can_outcome": on_pipeline(user, q) and q.status in ("sent", "waiting"),
+        "can_upload_copy": on_pipeline(user, q) and q.status in ("sent", "waiting", "confirmed") and q.client_signed_via != "portal",
         "can_cancel": is_head(user) and q.status in OPEN,
         "can_print": bool(q.signed_by_id) and can_view(user, q),
     }

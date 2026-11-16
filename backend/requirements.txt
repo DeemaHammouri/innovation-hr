@@ -7,3 +7,10 @@ django-filter>=25.1
 argon2-cffi>=23.1
 phonenumbers>=8.13
 openpyxl>=3.1
+
+# Documents (objective 15): PDF and Word with correct Arabic shaping
+reportlab>=4.2
+python-docx>=1.1
+arabic-reshaper>=3.0
+python-bidi>=0.6
+pillow>=10.4

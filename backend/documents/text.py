@@ -1,0 +1,33 @@
+"""Arabic needs two steps before a PDF library can print it: letters take their joined shapes, then the line is put in visual order.
+
+`visual()` does both for one line. Mixed lines (Arabic with numbers and English names) come out in the right order too."""
+import re
+
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+ARABIC = re.compile("[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]")
+_reshaper = arabic_reshaper.ArabicReshaper(configuration={"delete_harakat": False, "support_ligatures": True})
+
+
+def has_arabic(text):
+    return bool(ARABIC.search(text or ""))
+
+
+def visual(text, rtl):
+    """The line as it must be drawn left to right on the page."""
+    if not text:
+        return ""
+    if not has_arabic(text) and not rtl:
+        return text
+    return get_display(_reshaper.reshape(text), base_dir="R" if rtl else "L")
+
+
+def pair_text(pair, lang):
+    """A (English, Arabic) label in the chosen language. "both" prints the two together."""
+    en, ar = pair
+    if lang == "ar":
+        return ar
+    if lang == "both":
+        return f"{en} / {ar}" if en != ar else en
+    return en

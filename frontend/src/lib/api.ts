@@ -214,8 +214,8 @@ async function authedFetch(path: string, init: RequestInit) {
 }
 
 /** Multipart upload (files). The browser sets the multipart boundary itself. */
-export async function upload<T = unknown>(path: string, form: FormData) {
-  const res = await authedFetch(path, { method: "POST", body: form });
+export async function upload<T = unknown>(path: string, form: FormData, method: "POST" | "PATCH" = "POST") {
+  const res = await authedFetch(path, { method, body: form });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, data);
   return data as T;
@@ -353,6 +353,8 @@ export type QuotationPermissions = {
   can_outcome: boolean;
   can_cancel: boolean;
   can_print: boolean;
+  can_assign: boolean;
+  can_upload_copy: boolean;
 };
 export type QuotationLine = {
   id?: number;
@@ -364,6 +366,8 @@ export type QuotationLine = {
   discount_percent: string;
   tax_percent: string;
   line_total?: string;
+  frequency?: string;
+  visits?: number | null;
 };
 export type QuotationVersion = {
   id: number;
@@ -371,6 +375,7 @@ export type QuotationVersion = {
   currency: string;
   valid_until: string | null;
   notes: string;
+  payment_terms: string;
   created_by_name: string;
   created_at: string;
   submitted_at: string | null;
@@ -411,7 +416,30 @@ export type Quotation = {
   follow_up_overdue: boolean;
   permissions: QuotationPermissions;
   versions?: QuotationVersion[];
+  number: string | null;
+  assigned_hr_id: number | null;
+  assigned_hr_name: string | null;
+  has_signature: boolean;
+  has_signed_copy: boolean;
+  client_signed_at: string | null;
+  client_signed_via: "" | "portal" | "upload";
 };
+export type PortalQuotation = {
+  id: number;
+  number: string | null;
+  status: QuotationStatus;
+  company: string;
+  sent_at: string | null;
+  client_signed_at: string | null;
+  client_signed_via: string;
+  can_sign: boolean;
+  version: {
+    number: number; currency: string; valid_until: string | null; payment_terms: string; notes: string;
+    subtotal: string; discount_total: string; tax_total: string; total: string;
+    lines: { description: string; quantity: string; unit_price: string; discount_percent: string; tax_percent: string; line_total: string; frequency: string; visits: number | null }[];
+  } | null;
+};
+export type CompanyProfile = { name_en: string; name_ar: string; quotation_prefix: string; contract_prefix: string; has_stamp: boolean; updated_at: string };
 export type ServiceItem = { id: number; name_en: string; name_ar: string; default_unit_price: string | null; currency: string; is_active: boolean };
 
 export type ContractStatus = "requested" | "drafting" | "with_commercial" | "meeting_logged" | "ceo_review" | "returned" | "signed" | "handed_over" | "cancelled";

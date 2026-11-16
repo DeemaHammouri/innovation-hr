@@ -5,6 +5,9 @@ from django.db import models
 from django.db.models import Q
 
 from core.models import TimeStamped
+from files.models import private_storage, stored_name
+
+FREQUENCIES = [("once", "Once"), ("monthly", "Monthly"), ("quarterly", "Every 3 months"), ("semiannual", "Every 6 months"), ("annual", "Yearly")]
 
 OPEN = ["requested", "in_preparation", "in_review", "changes_requested", "signed", "sent", "waiting"]
 
@@ -38,6 +41,18 @@ class Quotation(TimeStamped):
     rejection_note = models.TextField(blank=True)
     outcome_at = models.DateTimeField(null=True, blank=True)
     cancel_reason = models.TextField(blank=True)
+    # HR Head hands the preparation to one HR person (blank: any HR person may start it).
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="quotations_assigned", null=True, blank=True)
+    # Drawn signature and the company stamp as they were when the Commercial head signed (a later change of stamp never alters it).
+    signature = models.FileField(storage=private_storage, upload_to=stored_name, max_length=255, blank=True)
+    stamp = models.FileField(storage=private_storage, upload_to=stored_name, max_length=255, blank=True)
+    # Issued when it is sent: PREFIX/YYYY/M/NNNN, one counter per year.
+    number = models.CharField(max_length=40, unique=True, null=True, blank=True)
+    # The client's signature: on the portal (drawn) or a signed copy uploaded by staff (the document of record).
+    client_signed_at = models.DateTimeField(null=True, blank=True)
+    client_signed_via = models.CharField(max_length=10, blank=True)  # "", "portal", "upload"
+    client_signed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+", null=True, blank=True)
+    client_signature = models.FileField(storage=private_storage, upload_to=stored_name, max_length=255, blank=True)
 
     class Meta:
         ordering = ["-created_at", "-id"]
@@ -57,6 +72,7 @@ class QuotationVersion(TimeStamped):
     currency = models.CharField(max_length=3, default="JOD")
     valid_until = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    payment_terms = models.TextField(blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
     submitted_at = models.DateTimeField(null=True, blank=True)
     subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
@@ -83,6 +99,8 @@ class QuotationLine(models.Model):
     discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0"))
     tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0"))
     line_total = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    frequency = models.CharField(max_length=12, choices=FREQUENCIES, default="once")
+    visits = models.PositiveIntegerField(null=True, blank=True)  # visits per period
 
     class Meta:
         ordering = ["position", "id"]

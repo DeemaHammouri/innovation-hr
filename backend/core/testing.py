@@ -13,6 +13,35 @@ from .roles import ALL_ROLES
 
 PASSWORD = "role-pass-123"
 
+
+def png_signature(blank=False):
+    """What the signature pad sends: a PNG data URL. `blank=True` is an empty canvas."""
+    import base64
+    import io
+
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGBA", (300, 120), (255, 255, 255, 0))
+    if not blank:
+        ImageDraw.Draw(img).line([(10, 90), (80, 20), (150, 100), (260, 30)], fill=(10, 20, 90, 255), width=4)
+    out = io.BytesIO()
+    img.save(out, "PNG")
+    return "data:image/png;base64," + base64.b64encode(out.getvalue()).decode()
+
+
+def ensure_stamp():
+    """The company stamp every signature needs. Safe to call twice."""
+    import base64
+
+    from django.core.files.base import ContentFile
+
+    from core.models import CompanyProfile
+
+    p = CompanyProfile.get()
+    if not p.stamp:
+        p.stamp.save("stamp.png", ContentFile(base64.b64decode(png_signature().split(",", 1)[1])))
+    return p
+
 # role key -> (department, head or member)
 SEATS = {
     "ceo": ("Administration", "head"),
@@ -30,6 +59,7 @@ class RoleCase(APITestCase):
     def setUp(self):
         self.depts = {n: Department.objects.create(name=n) for n in DEPARTMENT_NAMES}
         self.users = {key: self.make_user(f"{key}@x.com", *seat) for key, seat in SEATS.items()}
+        ensure_stamp()
 
     def make_user(self, email, dept, role="member", **extra):
         return User.objects.create_user(
