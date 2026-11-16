@@ -215,7 +215,7 @@ function ListBody({ state, empty, page, onPage, moves, onOpen }: { state: Return
               <th scope="col" className="px-4 py-3 text-start font-semibold">{t("common.status")}</th>
               <th scope="col" className="px-4 py-3 text-start font-semibold">{t("lead.assignee")}</th>
               <th scope="col" className="px-4 py-3 text-start font-semibold">{t("common.phone")}</th>
-              <th scope="col" className="px-4 py-3 text-start font-semibold">{t("lead.added")}</th>
+              <th scope="col" className="hidden px-4 py-3 text-start font-semibold lg:table-cell">{t("lead.added")}</th>
               <th scope="col" className="px-4 py-3"><span className="sr-only">{t("common.actions")}</span></th>
             </tr>
           </thead>
@@ -239,7 +239,7 @@ function ListBody({ state, empty, page, onPage, moves, onOpen }: { state: Return
                 </td>
                 <td className="px-4 py-3 align-middle">{l.assigned_to_name ?? <span className="text-ink-2">{t("lead.unassigned")}</span>}</td>
                 <td className="tnum px-4 py-3 align-middle">{l.phone ? <Ltr>{l.phone}</Ltr> : dash}</td>
-                <td className="px-4 py-3 align-middle text-ink-2">{formatDate(l.created_at)}</td>
+                <td className="hidden px-4 py-3 align-middle text-ink-2 lg:table-cell">{formatDate(l.created_at)}</td>
                 <td className="px-2 py-2 align-middle">{kebab(l)}</td>
               </tr>
             ))}
