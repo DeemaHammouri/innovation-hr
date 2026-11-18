@@ -1,5 +1,7 @@
 # Objectives matrix
 
+> **The verified source is [`AUDIT_REPORT.md`](AUDIT_REPORT.md)** (every status reproduced by a command or request). This matrix is the earlier working record: where the two disagree, the audit report wins. The Phase 6 rows below were updated on 18 Nov 2026 to name what now exists; the audit's own verdict on them is in its Obj 23 and Obj 24 tables.
+
 Baseline audit, 16 Nov 2026, against commit `c1c68ef`. Source of truth for requirements: the "Company Workflow Platform: Student Project Objectives" brief (24 objectives).
 
 **Status values:** Done, Partly, Different (works, but not the way the brief requires), Missing.
@@ -33,8 +35,8 @@ Baseline audit, 16 Nov 2026, against commit `c1c68ef`. Source of truth for requi
 | 20 | Recurrence engine, holidays | 4 | 5 | 0 | 0 | 0 |
 | 21 | Task lifecycle, escalation, reports | 4 | 6 | 0 | 0 | 0 |
 | 22 | General tasks | 5 | 7 | 0 | 0 | 0 |
-| 23 | Test suites | 6 | 1 | 1 | 0 | 3 |
-| 24 | Documentation, OpenAPI, production checklist | 6 | 1 | 2 | 0 | 2 |
+| 23 | Test suites | 6 | 2 | 2 | 0 | 1 |
+| 24 | Documentation, OpenAPI, production checklist | 6 | 2 | 2 | 0 | 1 |
 
 Counts are approximate (tallied by hand from the rows below) and will be recomputed as each phase closes. The rows are the record.
 
@@ -315,16 +317,16 @@ Model `generaltasks.GeneralTask` (migration `0001`), app `generaltasks/`, capabi
 ### 23. Tests
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
-| Backend suite green from a clean database | Done | 397 tests OK on a temporary SQLite database | pytest is not used; Django's runner is. Decide whether to adopt pytest (see questions) |
-| Vitest + Testing Library | Missing | `package.json` has no test script | add |
-| Playwright journeys repeatable on one database | Partly | scratch scripts outside the repo, run in EN and AR at three widths | move into `frontend/e2e` |
+| Backend suite green from a clean database | Done | `manage.py test`: 852 tests, OK (1 skipped), on SQLite and on PostgreSQL 16 (18 Nov 2026). `backend/pytest.ini` with `pytest-django` runs the same tests | none |
+| Vitest + Testing Library | Done | `npm test`: 240 tests in 18 files (commit 9959db2); `npm run typecheck` and `npm run lint` clean | none |
+| Playwright journeys repeatable on one database | Partly | committed in `frontend/e2e` with `playwright.config.ts` (commit 4cfa27a): 7 specs run in EN then AR on a throwaway database, with axe, keyboard, responsive and console-hygiene checks | the audit's repeat runs failed in the Arabic project (P35, P37); not fixed yet |
 | Every permission rule has a denial test | Partly | `core/tests_hardening.py` sweep | per-capability denial tests |
 
 ### 24. Documentation
 | Row | Status | Evidence | Work needed |
 |-----|--------|----------|-------------|
 | README, ARCHITECTURE, PERMISSIONS, DEPLOYMENT, USER_GUIDE | Done (baseline) | files in `docs/` and `README.md` | rewrite after each phase |
-| OpenAPI with Swagger and ReDoc | Missing | no schema generator | `drf-spectacular` |
+| OpenAPI with Swagger and ReDoc | Done | `drf-spectacular`; schema, Swagger and ReDoc behind `settings.manage`, every endpoint documented, completeness tests (commit d520fb7, `core/tests_openapi.py`) | none |
 | Production checklist, `pip-audit`, `npm audit` | Partly | `docs/DEPLOYMENT.md`; audits not run | run and record |
 
 ---

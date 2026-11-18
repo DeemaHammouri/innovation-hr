@@ -103,4 +103,4 @@ Tokens live only in HttpOnly SameSite=Lax cookies (Secure in production); unsafe
 
 ## Documents
 
-`docs/ARCHITECTURE.md` (modules and state machines), `docs/PERMISSIONS.md` (role × endpoint matrix, generated and tested), `docs/DEPLOYMENT.md`, `docs/USER_GUIDE.md`, `docs/OBJECTIVES_MATRIX.md`, `docs/ACCEPTANCE_MATRIX.md` and `docs/ACCEPTANCE_REPORT.md` (this audit).
+`docs/ARCHITECTURE.md` (modules and state machines), `docs/PERMISSIONS.md` (role × endpoint matrix, generated and tested), `docs/DEPLOYMENT.md`, `docs/USER_GUIDE.md`, `docs/OBJECTIVES_MATRIX.md` (the working record against the 24 objectives) and `docs/AUDIT_REPORT.md` (the verified audit: every status reproduced by a command or request).
