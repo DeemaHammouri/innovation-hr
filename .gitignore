@@ -43,3 +43,7 @@ qa/browser/phase4-obj21/
 
 # Local database backups
 *.backup
+
+# Local audit evidence and security sweep output
+docs/evidence/acceptance/
+qa/blind_security/

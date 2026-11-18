@@ -17,6 +17,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from accounts.models import ADMINISTRATION, Department, User
+from core.models import CompanyProfile
 
 PASSWORD = "Demo-12345"
 PEOPLE = [
@@ -133,7 +134,11 @@ class Command(BaseCommand):
                 {"description": "Monthly bookkeeping", "quantity": "1", "unit_price": "250", "discount_percent": "0", "tax_percent": "16"},
                 {"description": "Payroll processing", "quantity": "1", "unit_price": "120", "discount_percent": "10", "tax_percent": "16"}]})
             q = services.submit(hr, q)
-            q = services.sign(head, q)
+            if not CompanyProfile.get().stamp:
+                continue  # signing needs the company stamp (the CEO uploads it first); the quotation stays submitted for review
+            from core.testing import png_signature
+
+            q = services.sign(head, q, png_signature())
             services.mark_sent(lead.assigned_to or head, q)
         self.stdout.write(f"Quotations: {len(qualified)} added.")
 

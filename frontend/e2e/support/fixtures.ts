@@ -210,10 +210,18 @@ export const test = base.extend<Fixtures>({
 /** Signs in through the login screen (the real form), returns once the app has left /login. */
 export async function signInUi(page: Page, email: string, password: string) {
   await page.goto("/login");
+  const wanted = await page.evaluate(() => document.cookie.match(/(?:^|; )lang=([^;]*)/)?.[1] ?? "");
   await page.locator("#field-email").fill(email);
   await page.locator("#field-password").fill(password);
   await page.locator("form button[type=submit]").click();
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 20_000 });
   await settle(page);
+  // The app applies the account's saved language after sign-in. On a database an earlier pass already used, that can differ from the
+  // language this run is testing, so put the account back to it and reload.
+  if ((wanted === "ar" || wanted === "en") && (await page.evaluate(() => document.documentElement.lang)) !== wanted) {
+    await api(page, "PATCH", "/auth/me/", { preferred_language: wanted });
+    await page.reload();
+    await settle(page);
+  }
 }
 

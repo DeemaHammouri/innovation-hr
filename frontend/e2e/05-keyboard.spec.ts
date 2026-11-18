@@ -38,7 +38,7 @@ async function focusOrder(page: Page, container: Locator, rtl: boolean, max = 30
   for (let i = 1; i < stops.length; i++) {
     const a = stops[i - 1];
     const b = stops[i];
-    const sameRow = Math.abs(b.y - a.y) < 14;
+    const sameRow = Math.abs(b.y - a.y) < 20; // a control drawn inside a field (the show-password eye) shares the field's row
     if (sameRow) expect(rtl ? b.x < a.x : b.x > a.x, `same row: "${a.label}" then "${b.label}" must go ${rtl ? "right to left" : "left to right"}`).toBe(true);
     else expect(b.y, `"${b.label}" must not be above "${a.label}"`).toBeGreaterThan(a.y);
   }
@@ -89,7 +89,9 @@ test("global search by keyboard: shortcut, type, arrow, Enter", async ({ as, T, 
   const before = await active();
   await page.keyboard.press("ArrowDown");
   const after = await active();
-  expect(after).not.toBe(before);
+  // With a single match there is nothing to move to; with several, the arrow key must move the highlight.
+  if ((await dialog.getByRole("option").count()) > 1) expect(after).not.toBe(before);
+  else expect(after).toBe(before);
   await shots(page, "keyboard-search-open");
   const chosen = await page.locator(`[id="${after}"]`).innerText();
   expect(chosen.trim().length).toBeGreaterThan(0);

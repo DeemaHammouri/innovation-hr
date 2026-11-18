@@ -1,0 +1,336 @@
+these are the objectives of the project :
+Student Project Objectives — Company Workflow Platform
+
+Nov 15, 2026
+
+The project in one paragraph
+
+You will build a bilingual (Arabic RTL / English LTR) internal workflow platform for a services company. Staff from five departments (Marketing, Commercial & Sales, HR, Operations, Administration) sign in, and each person sees and does only what their role allows. The system follows a customer from the first moment they are a lead, through becoming a client, receiving a quotation, signing a contract, and finally being served by the Operations team. Along the way it sends notifications, tracks deadlines, generates PDF/Word documents and gives management a live view of who is late.
+
+Stack: Django + Django REST Framework + PostgreSQL (backend), Next.js + React + TypeScript + Tailwind (frontend), Docker Compose (runtime), pytest / Vitest / Playwright (tests).
+
+How each objective is written: Build — what to make. Why — the engineering lesson behind it. Done when — the checks that prove it works. An objective is only finished when every Done when item is demonstrated, not when the code is written.
+
+---
+
+Phase 1 — Foundation
+
+Objective 1 — Project skeleton and environment
+
+Build: A repository with backend/ and frontend/ folders, Django settings split into base / development / production / test, a .env.example documenting every variable, and a docker-compose.yml that starts PostgreSQL, the Django backend (Gunicorn) and the Next.js frontend, each with a health check.
+
+Why: Real projects run in several environments. Separating settings and secrets from code is the first habit of professional work.
+
+Done when:
+
+- docker compose up --build brings all three services to healthy.
+- GET /api/v1/health/ returns OK.
+- No secret (password, secret key) is committed to Git.
+
+Objective 2 — Organisation: departments, roles and capabilities
+
+Build: Models for Department, Role and Capability. A role belongs to a department and is granted a list of capabilities (e.g. users.view, leads.create). Write a seed_organization management command that creates the five departments and nine roles and can be run any number of times safely.
+
+Why: Permissions should be data, not if role == "ceo" scattered through the code. Idempotent seeding is how you keep many databases in sync.
+
+Done when:
+
+- Running the seed command twice produces no duplicates and no errors.
+- A new capability can be granted to a role without changing view code.
+- One role (Super Admin) is marked full access and automatically receives every capability.
+
+Objective 3 — Authentication with secure cookies
+
+Build: A custom User model. Login accepts username or email (case-insensitive). On success, set JWT access and refresh tokens as HttpOnly, Secure, SameSite=Lax cookies — never in the response body or localStorage. Add refresh (with rotation and blacklisting of the old token), logout, and GET /auth/me/ returning the user and their capabilities. Protect unsafe requests with a CSRF double-submit cookie.
+
+Why: Authentication is where most real-world breaches start. Students learn why cookie flags, token rotation and CSRF exist.
+
+Done when:
+
+- Tokens cannot be read from JavaScript in the browser.
+- A used refresh token is rejected the second time.
+- A POST without the CSRF header is rejected.
+
+Objective 4 — Role-based access control (RBAC)
+
+Build: A HasCapability permission class. Each view declares the capabilities needed per action; if nothing is declared, access is denied (fail closed). The frontend reads capabilities from /auth/me/ only to decide what to show — the backend is always the real gate.
+
+Why: Hiding a button is not security. Students prove that the API itself refuses forbidden actions.
+
+Done when:
+
+- Calling a forbidden endpoint directly (Postman / curl) returns 403.
+- A view with no declared capability is unreachable.
+- Tests cover at least one allowed and one denied case per role.
+
+Objective 5 — User management and the first-login flow
+
+Build: Screens and endpoints to list, search, filter, create, edit, activate/deactivate users and reset passwords. Creating a user generates a random 16-character temporary password, shown once. The user must change it at first sign-in; until then only /auth/me/, the password-change endpoint and logout are reachable. Enforce a password policy (min 12 chars, not common, not similar to user info, not the current password).
+
+Business rules: the Super Admin is a protected account — the CEO can't see, edit or deactivate it, and can't assign that role. Nobody can change their own role, department or status.
+
+Why: Teaches business rules that cross the whole system, and the "show a secret once, store only its hash" pattern.
+
+Done when:
+
+- The temporary password never appears in logs, the audit log or the database (only the Argon2 hash).
+- A forged request trying to create a Super Admin as the CEO is rejected.
+- Role choices in the form depend on the selected department.
+
+Objective 6 — Instant revocation, lockout and audit
+
+Build:
+
+- Add a token_version to users and a matching claim in every JWT. Password change, reset, deactivation and role change increase the version, so old tokens stop working immediately.
+- Lock an account after 5 failed logins in 5 minutes, plus per-IP throttling.
+- An AuditLog that records logins, failures, password changes, user changes and language changes (actor, target, IP, user agent) and refuses to store secret-like fields.
+- One error format for the whole API: {"error": {"code", "message", "fields"?}}.
+
+Why: Shows the difference between "logged in" and "still allowed", and why consistent errors make a frontend easier to build.
+
+Done when:
+
+- Deactivating a user logs them out on their next request, without waiting for the token to expire.
+- The 6th wrong password is blocked even with the right password.
+- Every error response follows the same envelope; no stack traces are exposed.
+
+Objective 7 — Bilingual application shell
+
+Build: A Next.js app shell (sidebar, header, user menu) in Arabic and English using next-intl. The language comes from a cookie, <html lang dir> is set on the server, and the user's choice is saved to their profile. Use logical CSS properties so the layout mirrors correctly in RTL. Route all browser calls through a same-origin Next.js proxy (/api/[...path]) to Django.
+
+Why: Arabic RTL support done properly is a real market skill in MENA. The proxy teaches first-party cookies and simple deployment.
+
+Done when:
+
+- Switching to Arabic flips the whole layout, icons and spacing.
+- The chosen language persists after signing in on a fresh browser.
+- Every UI string exists in both en.json and ar.json.
+
+---
+
+Phase 2 — Leads
+
+Objective 8 — Leads pool with duplicate protection
+
+Build: A Lead (name, company, position, phone, email, location). Phone or email is required. Normalise phones to E.164 (local 07… → +9627…, 00… → +…, handle Arabic digits) and lower-case emails. Enforce uniqueness with database constraints, not only Python checks.
+
+Why: Data quality and race conditions — two people uploading at the same moment must not create duplicates.
+
+Done when:
+
+- 0797707154 and +962797707154 are treated as the same lead.
+- Two simultaneous inserts of the same phone produce one lead and one clean error.
+- The leads list supports search, filters, ordering and pagination.
+
+Objective 9 — Excel import
+
+Build: Download an .xlsx template (Arabic and English versions), upload a filled file (max 5,000 rows / 5 MB). Match columns by header in either language. Skip invalid rows and duplicates (against the database and earlier rows in the same file) and return a report listing every skipped row and why.
+
+Why: File parsing, validation at scale and giving users useful feedback instead of "import failed".
+
+Done when:
+
+- A file with mixed valid, invalid and duplicate rows imports only the valid ones.
+- The report shows row number and reason for each skipped row.
+- Wrong file type or oversize file is rejected with a clear message.
+
+Objective 10 — Lead statuses and history
+
+Build: Status Not contacted or Contacted with a sub-status: Waiting (requires a future follow-up date and creates a follow-up appointment), Rejected (requires a reason, cancels open follow-ups), Initial acceptance. Keep a full history of every change (who, from, to, when).
+
+Why: Introduces state-driven rules and side effects — one action that must update several records together (use transactions).
+
+Done when:
+
+- Each sub-status enforces its required field.
+- Changing Waiting → Rejected cancels the follow-up appointment.
+- The history shows every change in order.
+
+Objective 11 — Appointments and notifications
+
+Build: Appointments (meeting, call, visit, follow-up, other) optionally linked to a lead. Users see their own; managers see all and can assign to others. In-app notifications (new leads, appointment assigned/rescheduled/cancelled, reminders) shown in the reader's language, with a header bell that polls. A process_notifications management command, run by cron every few minutes, creates reminders — and must be idempotent (running it twice sends nothing twice).
+
+Why: Background work without a task queue, and why idempotency matters for anything scheduled.
+
+Done when:
+
+- A reminder is sent once, X minutes before the appointment, however many times the command runs.
+- Rescheduling a follow-up also updates the lead's follow-up date.
+- Users can mark one or all notifications as read.
+
+Objective 12 — Marketing tasks and leads dashboard
+
+Build: Managers assign a Marketing employee a target number of leads over a date range. Show progress %, remaining, days elapsed/left, expected-by-today (on track / behind), required daily rate and a per-day chart. Build a dashboard: totals, today / 7 days / month, contact rate, acceptance rate, follow-ups due and overdue, leads per day chart, breakdown by status and source, top contributors.
+
+Why: Aggregation queries, date/time-zone handling (use the company's local time zone for "today") and turning data into decisions.
+
+Done when:
+
+- Numbers on the dashboard match a manual count in the database.
+- Progress is correct at the boundaries (first and last day of the range).
+- Clicking "overdue" opens the pool filtered to those leads.
+
+---
+
+Phase 3 — Sales pipeline: clients, quotations, contracts
+
+Objective 13 — Lead → Client conversion and client portal
+
+Build: Initial acceptance converts the lead into a Client (copying contact data) and locks the lead for everyone (409 lead_converted). Automatically create a client portal account with a temporary password sent by email; the client must change it and lands on /portal. Handle missing email and an email already in use.
+
+Why: A second type of user (external) with its own restricted area — and locking records once they move to the next stage.
+
+Done when:
+
+- A converted lead cannot be edited, deleted or have its status changed.
+- The client can sign in to the portal and sees only their own data.
+- Client accounts never appear in internal user management.
+
+Objective 14 — Quotation workflow (state machine)
+
+Build: HR Head assigns preparation → HR prepares a draft (services, frequency, visits, cost, any currency, payment terms) → submits → Commercial Head signs (drawn signature + company stamp) or returns with notes → sends to client. Sending issues a yearly number like PREFIX/YYYY/M/NNNN. The client signs on the portal, or staff upload a signed copy (which becomes the document of record).
+
+Why: The heart of the course — modelling a business process as states and allowed transitions, each guarded by a capability.
+
+Done when:
+
+- Every illegal transition (e.g. sending an unsigned draft) is rejected by the API.
+- Numbers are sequential with no gaps or duplicates, even under concurrent sends.
+- Returned quotations go back to the preparer with the notes visible.
+
+Objective 15 — Document generation
+
+Build: Generate branded, bilingual (Arabic/English) PDF and Word documents for quotations, meeting reports and contracts from one shared rendering module. Drafts carry a DRAFT watermark. Uploaded signed copies override the generated document.
+
+Why: Arabic text shaping in PDFs is genuinely hard; one reusable module avoids three copies of the same logic.
+
+Done when:
+
+- Arabic renders correctly (connected letters, right-to-left) in both PDF and Word.
+- Draft vs final documents are visibly different.
+- Files are served only through permission-checked endpoints, never a public URL.
+
+Objective 16 — Post-quotation status, meeting reports, contracts
+
+Build:
+
+- After a completed follow-up meeting, set the client status: Confirm / Waiting (schedules a follow-up) / Rejection (reason).
+- Meeting reports: draft → Commercial signs → CEO signs/approves or returns. One report per appointment.
+- Contracts: Confirm creates a contract prefilled from the quotation → HR prepares → Commercial confirms/returns → send (own number sequence) → client signs → CEO signs + stamps or uploads the final copy. Templates differ by country.
+- A client Documents tab listing every document and its versions, filtered by permission.
+
+Why: Re-using the patterns from Objective 14 on new processes — the test of whether the first design was reusable.
+
+Done when:
+
+- A sent contract blocks the client status from leaving Confirm (409).
+- The contract draft contains the services and fees of the signed quotation.
+- Each signer can act only at their step.
+
+Objective 17 — Process tracking and SLA alerts
+
+Build: An Administration page showing today's status changes, late quotations, missed appointments, overdue follow-ups, the client pipeline, team activity and an activity feed (who changed what, from → to, when). The scheduled command raises urgent alerts when HR hasn't submitted a quotation 60 minutes after assignment, Commercial hasn't signed 60 minutes after submission, or an appointment is still open 60 minutes after its time. Thresholds come from settings.
+
+Why: Accountability features — management value comes from measuring delays, not just storing data.
+
+Done when:
+
+- Each alert fires once per case, at the right time, and can be reproduced in a test by moving the clock.
+- The activity feed can be filtered by employee and by action type.
+
+---
+
+Phase 4 — Operations (advanced)
+
+Objective 18 — Handover and confidentiality
+
+Build: When the CEO signs a contract, create a Handover that Commercial fills (deliverables, contacts, notes). The Operations Head accepts, returns or escalates; accepting creates a Project. Operations users must never receive prices, contract value or payment data — expose contracts to them only through a whitelisted serializer, and write a test helper that fails if any financial field appears in their payloads.
+
+Why: Data minimisation — the safest field is the one you never send.
+
+Done when:
+
+- A test checks every Operations endpoint, report and notification for financial fields.
+- The original contract file is unreachable from Operations endpoints.
+
+Objective 19 — KYC, legal documents, projects and assignment
+
+Build: A versioned KYC record (request info, mark supplied, verify) and a legal-document checklist per client (upload, review, verify/reject, expiry date). Each project has exactly one primary employee plus support staff; replacing the primary requires a reason; keep the assignment history.
+
+Done when:
+
+- Onboarding can be approved only once KYC is verified.
+- The database prevents two primary employees on one project.
+
+Objective 20 — Recurring work generator
+
+Build: Recurrence rules: daily, working days, weekly, monthly (fixed day, first/last working day, nth weekday), quarterly, yearly. A generator creates tasks a configurable number of days ahead, exactly one per (rule, version, period). Weekend (Friday–Saturday) and public-holiday dates move according to the rule's policy. Editing a rule affects future periods only.
+
+Why: Date logic and idempotency — the hardest pure logic objective; ideal for unit tests.
+
+Done when:
+
+- Running the generator repeatedly creates no duplicates.
+- Unit tests cover month ends, leap years, weekends and holidays.
+- Editing a rule leaves past tasks untouched.
+
+Objective 21 — Execution, review and monitoring
+
+Build: Task lifecycle: start, progress, notes, attachments, waiting for client, blocked, submit for review; manager approves, returns or escalates. Deliverables published to the client portal and acknowledged there. Escalations with configurable thresholds (unique per case and level). A monitoring view of workload, delays and causes, plus reports exported to Excel and PDF. Every action written to an append-only activity log.
+
+Done when:
+
+- An overdue task escalates to the manager, then to the CEO after the threshold, once each.
+- Reports in JSON, Excel and PDF show the same numbers.
+
+---
+
+Phase 5 — General tasks (all departments)
+
+Objective 22 — Work tasks with attachments
+
+Build: A task is free text + optional files + deadline. Department heads assign to their own department; the CEO to anyone. Only the assignee can tick Mark as done; ticking after the deadline is recorded as done late. Files are checked by content, not just extension, with size and count limits. Overdue tasks send one urgent alert; changing the deadline re-arms it.
+
+Why: File-upload security and a small, complete feature students can build end-to-end on their own.
+
+Done when:
+
+- A .exe renamed to .pdf is rejected.
+- A head cannot assign a task to another department.
+- Counters (not done / overdue / done / done late) are correct.
+
+---
+
+Phase 6 — Quality and delivery (applies to every phase)
+
+Objective 23 — Testing
+
+Build: Backend tests with pytest (models, permissions, workflows), frontend unit/component tests with Vitest + Testing Library, and Playwright end-to-end journeys: setup → admin creates CEO → CEO first login creates an employee → employee first login → Arabic switch persists → access denied in UI and API → deactivation revokes tokens.
+
+Done when:
+
+- All suites pass from a clean database, and E2E can run repeatedly on the same database.
+- Every permission rule has a test that proves the denial, not only the success.
+
+Objective 24 — Documentation and deployment
+
+Build: A README (layout, setup with and without Docker, environment variables, roles table, API overview), auto-generated OpenAPI docs (Swagger / ReDoc), and a production checklist: TLS at a reverse proxy, only the frontend exposed, strong secrets, backups, correct proxy count for throttling, dependency audits.
+
+Done when:
+
+- A classmate can run the project from the README alone, without asking questions.
+- The Swagger page lists every endpoint with its request/response shape.
+
+---
+
+Suggested order and grading weight
+
+Phase                 | Objectives | Level                      | Suggested weight
+1 — Foundation        | 1–7        | Core (everyone)            | 30%
+2 — Leads             | 8–12       | Core (everyone)            | 25%
+3 — Sales pipeline    | 13–17      | Intermediate               | 25%
+4 — Operations        | 18–21      | Advanced / bonus           | 10%
+5 — General tasks     | 22         | Core (good solo exercise)  | 5%
+6 — Quality           | 23–24      | Continuous, every phase    | 5% + required to pass
+
+Rule for students: finish and test each objective before starting the next one. Phase 1 must be complete before anything else, because every later feature depends on users, roles and permissions.
