@@ -16,7 +16,7 @@ Set the environment (names are in `backend/.env.example`; the app does not read 
 |---|---|
 | `DJANGO_SETTINGS_MODULE` | `config.settings.production` (refuses to start with a guessable secret, DEBUG on, `*` hosts or missing values) |
 | `DJANGO_SECRET_KEY` | 50+ random characters |
-| `DJANGO_ALLOWED_HOSTS` | the API host name(s), comma-separated |
+| `DJANGO_ALLOWED_HOSTS` | the API host name(s), comma-separated. The container healthcheck sends the first name as its Host header |
 | `CORS_ALLOWED_ORIGINS` | the `https://` address of the web app |
 | `PRIVATE_MEDIA_ROOT` | a folder outside the code, e.g. `D:\innovation\files` |
 | `SECURE_PROXY_SSL` | `1` when the proxy sets `X-Forwarded-Proto` |

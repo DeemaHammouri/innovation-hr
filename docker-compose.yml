@@ -34,7 +34,7 @@ services:
       db: {condition: service_healthy}
     expose: ["8000"]   # not published to the host
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=4).status==200 else 1)"]
+      test: ["CMD", "python", "-c", "import os,sys,urllib.request as u; r=u.Request('http://127.0.0.1:8000/api/v1/health/', headers={'Host': os.environ['DJANGO_ALLOWED_HOSTS'].split(',')[0].strip()}); sys.exit(0 if u.urlopen(r, timeout=4).status==200 else 1)"]
       interval: 15s
       timeout: 5s
       retries: 5

@@ -26,6 +26,14 @@ class EnvDocumentationTests(SimpleTestCase):
         self.assertIn("healthcheck", text)
 
 
+    def test_backend_healthchecks_send_an_allowed_host(self):
+        """Production refuses Host 127.0.0.1 (DisallowedHost, 400), so the container checks must send a host from DJANGO_ALLOWED_HOSTS."""
+        for name in ("docker-compose.yml", "backend/Dockerfile"):
+            text = (ROOT / name).read_text()
+            line = next(l for l in text.splitlines() if "/api/v1/health/" in l)
+            self.assertIn("DJANGO_ALLOWED_HOSTS", line, f"{name}: the healthcheck must send a Host from DJANGO_ALLOWED_HOSTS")
+            self.assertIn("'Host'", line, f"{name}: the healthcheck must set the Host header")
+
 class HealthTests(TestCase):
     def test_health_endpoint_under_v1(self):
         res = self.client.get("/api/v1/health/")
