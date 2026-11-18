@@ -3,7 +3,9 @@ djangorestframework>=3.16
 djangorestframework-simplejwt>=5.5
 django-cors-headers>=4.7
 django-filter>=25.1
-# For Postgres, also: psycopg[binary]>=3.2
+# Production: PostgreSQL driver and the WSGI server the Dockerfile runs. Pinned exactly; the rest stay at compatible ranges.
+psycopg[binary]==3.3.9
+gunicorn==27.0.1   # Linux/macOS server; on Windows use waitress (docs/DEPLOYMENT.md)
 argon2-cffi>=23.1
 phonenumbers>=8.13
 openpyxl>=3.1

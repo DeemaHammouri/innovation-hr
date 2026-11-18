@@ -33,7 +33,7 @@ set DJANGO_SUPERUSER_PASSWORD=<strong password>
 python manage.py createsuperuser --noinput --email admin@yourcompany.com --full_name "System Admin"
 ```
 
-`seed` creates the departments and the CEO account (`createsuperuser` makes the Super Admin, who has no department and is invisible to the CEO), and does nothing if the CEO already exists (lookups, leave types and the checklist template come with the migrations). Change the CEO password after first sign-in from Profile. Serve with any WSGI server: `pip install waitress` then `waitress-serve --port 8000 config.wsgi:application` (Windows), or `pip install gunicorn` then `gunicorn config.wsgi` (Linux). `GET /api/v1/health/` returns `{"status":"ok"}` (503 `{"status":"down"}` if the database is unreachable) for monitoring.
+`seed` creates the departments and the CEO account (`createsuperuser` makes the Super Admin, who has no department and is invisible to the CEO), and does nothing if the CEO already exists (lookups, leave types and the checklist template come with the migrations). Change the CEO password after first sign-in from Profile. Serve with any WSGI server: `pip install waitress` then `waitress-serve --port 8000 config.wsgi:application` (Windows), or `gunicorn config.wsgi` (Linux; gunicorn is in `requirements.txt`). `GET /api/v1/health/` returns `{"status":"ok"}` (503 `{"status":"down"}` if the database is unreachable) for monitoring.
 
 ## 2. Frontend
 
@@ -50,7 +50,7 @@ npm ci && npm run build && npm start -- -p 3000
 SQLite is fine for a small team. To switch:
 
 ```
-pip install "psycopg[binary]"
+# the PostgreSQL driver (psycopg[binary]) is already installed by requirements.txt
 DB_ENGINE=postgres  DB_NAME=innovation  DB_USER=...  DB_PASSWORD=...  DB_HOST=...  DB_PORT=5432
 python manage.py migrate
 ```

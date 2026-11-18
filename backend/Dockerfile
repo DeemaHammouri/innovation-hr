@@ -3,7 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends libpq5 fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn "psycopg[binary]>=3.2"
+RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 RUN useradd --create-home app && mkdir -p /data/private_media /app/cache && chown -R app /data /app/cache
 USER app
