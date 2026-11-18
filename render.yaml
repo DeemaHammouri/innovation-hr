@@ -1,0 +1,90 @@
+# Render Blueprint: PostgreSQL + private Django API + Next.js web app + scheduler worker. See docs/DEPLOYMENT.md, section 7.
+# Needs paid instances (a persistent disk and a background worker do not exist on the free plan).
+# Every service sits in one region, because Render's private network (the internal names below) only works inside a region.
+# Values marked `sync: false` are asked for in the dashboard when the Blueprint is first applied; nothing secret is written here.
+databases:
+  - name: innovation-hr-db
+    databaseName: innovation
+    user: innovation
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+    region: frankfurt
+    ipAllowList: []   # reachable only from services inside Render's private network
+
+services:
+  # Django API. A private service: no public address, only the web app below can call it (like the docker-compose backend).
+  - type: pserv
+    name: innovation-hr-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    region: frankfurt
+    disk:   # uploaded business files; back it up with the database (docs/DEPLOYMENT.md, section 5)
+      name: private-media
+      mountPath: /data/private_media
+      sizeGB: 5
+    envVars:
+      - {key: PORT, value: "8000"}   # the Dockerfile's gunicorn listens on 8000
+      - {key: PRIVATE_MEDIA_ROOT, value: /data/private_media}
+      - {key: DJANGO_SECRET_KEY, sync: false}   # 50+ random characters; Render's own generator is too short for production.py
+      - {key: DJANGO_ALLOWED_HOSTS, value: innovation-hr-api}   # the internal name the web app calls (the service name above)
+      - {key: CORS_ALLOWED_ORIGINS, sync: false}   # the web app's public https address, e.g. https://innovation-hr-web.onrender.com
+      - {key: SECURE_PROXY_SSL, value: "1"}
+      - {key: TRUSTED_PROXY_COUNT, value: "1"}
+      - {key: SECURE_SSL_REDIRECT, value: "0"}   # the web app calls this service over plain http on the private network; TLS ends at Render's edge
+      - {key: DJANGO_TIME_ZONE, value: Asia/Amman}
+      - {key: DB_ENGINE, value: postgres}
+      - {key: DB_HOST, fromDatabase: {name: innovation-hr-db, property: host}}
+      - {key: DB_PORT, fromDatabase: {name: innovation-hr-db, property: port}}
+      - {key: DB_NAME, fromDatabase: {name: innovation-hr-db, property: database}}
+      - {key: DB_USER, fromDatabase: {name: innovation-hr-db, property: user}}
+      - {key: DB_PASSWORD, fromDatabase: {name: innovation-hr-db, property: password}}
+      - {key: PORTAL_URL, sync: false}   # e.g. https://innovation-hr-web.onrender.com/portal
+      - {key: DJANGO_EMAIL_BACKEND, value: django.core.mail.backends.smtp.EmailBackend}
+      - {key: EMAIL_HOST, sync: false}
+      - {key: EMAIL_HOST_USER, sync: false}
+      - {key: EMAIL_HOST_PASSWORD, sync: false}
+      - {key: DEFAULT_FROM_EMAIL, sync: false}
+
+  # Next.js web app: the only public address. It forwards /api/* to the API by its internal name.
+  - type: web
+    name: innovation-hr-web
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /login
+    envVars:
+      - {key: BACKEND_URL, value: "http://innovation-hr-api:8000"}
+
+  # The scheduler (docker-compose's `scheduler` service): reminders and the 60-minute urgent alerts. Runs forever, so a worker, not a cron job.
+  # Needs no disk: none of the scheduled jobs reads or writes uploaded files.
+  - type: worker
+    name: innovation-hr-scheduler
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: python manage.py run_scheduler
+    plan: starter
+    region: frankfurt
+    envVars:
+      - {key: PRIVATE_MEDIA_ROOT, value: /data/private_media}
+      - {key: DJANGO_ALLOWED_HOSTS, value: innovation-hr-api}
+      - {key: DJANGO_TIME_ZONE, value: Asia/Amman}
+      - {key: DB_ENGINE, value: postgres}
+      - {key: DB_HOST, fromDatabase: {name: innovation-hr-db, property: host}}
+      - {key: DB_PORT, fromDatabase: {name: innovation-hr-db, property: port}}
+      - {key: DB_NAME, fromDatabase: {name: innovation-hr-db, property: database}}
+      - {key: DB_USER, fromDatabase: {name: innovation-hr-db, property: user}}
+      - {key: DB_PASSWORD, fromDatabase: {name: innovation-hr-db, property: password}}
+      # Copied from the API service, so each value is typed once in the dashboard:
+      - {key: DJANGO_SECRET_KEY, fromService: {type: pserv, name: innovation-hr-api, envVarKey: DJANGO_SECRET_KEY}}
+      - {key: CORS_ALLOWED_ORIGINS, fromService: {type: pserv, name: innovation-hr-api, envVarKey: CORS_ALLOWED_ORIGINS}}
+      - {key: PORTAL_URL, fromService: {type: pserv, name: innovation-hr-api, envVarKey: PORTAL_URL}}
+      - {key: DJANGO_EMAIL_BACKEND, fromService: {type: pserv, name: innovation-hr-api, envVarKey: DJANGO_EMAIL_BACKEND}}
+      - {key: EMAIL_HOST, fromService: {type: pserv, name: innovation-hr-api, envVarKey: EMAIL_HOST}}
+      - {key: EMAIL_HOST_USER, fromService: {type: pserv, name: innovation-hr-api, envVarKey: EMAIL_HOST_USER}}
+      - {key: EMAIL_HOST_PASSWORD, fromService: {type: pserv, name: innovation-hr-api, envVarKey: EMAIL_HOST_PASSWORD}}
+      - {key: DEFAULT_FROM_EMAIL, fromService: {type: pserv, name: innovation-hr-api, envVarKey: DEFAULT_FROM_EMAIL}}
