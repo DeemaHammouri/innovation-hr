@@ -1,6 +1,7 @@
 // Fails when a string is missing from a language file.
 //  1. en.json and ar.json must have exactly the same keys, and no value may be empty.
 //  2. Every literal t("key") / msg("key") in the source must exist in both files.
+// Test files (*.test.ts(x), *.spec.ts(x)) are not scanned: they may use a missing key on purpose.
 // Keys built at run time (t(`x.${y}`)) can't be seen here; the placeholders {name} must still match between languages.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -20,7 +21,7 @@ function* walk(dir) {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) yield* walk(p);
-    else if (/\.(ts|tsx)$/.test(name)) yield p;
+    else if (/\.(ts|tsx)$/.test(name) && !/\.(test|spec)\.(ts|tsx)$/.test(name)) yield p; // tests may use a missing key on purpose (i18n.test.tsx)
   }
 }
 const used = new Map();
