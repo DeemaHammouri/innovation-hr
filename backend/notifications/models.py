@@ -18,3 +18,7 @@ class Notification(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [models.Index(fields=["user", "read_at", "created_at"])]
+        constraints = [
+            # One notification per (person, key): the database settles two callers that both passed the exists() check.
+            models.UniqueConstraint(fields=["user", "dedupe_key"], condition=~models.Q(dedupe_key=""), name="notification_unique_dedupe_key"),
+        ]
