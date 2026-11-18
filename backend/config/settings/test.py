@@ -12,5 +12,6 @@ PRIVATE_MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="innovation-test-media-"))
 import os  # noqa: E402
 
 if DATABASES["default"]["ENGINE"].endswith("sqlite3"):  # noqa: F405
+    DATABASES["default"]["ENGINE"] = "config.sqlite_testdb"  # noqa: F405  # SQLite whose test flush may empty the append-only audit table
     DATABASES["default"]["TEST"] = {"NAME": str(Path(tempfile.gettempdir()) / f"innovation-test-{os.getpid()}.sqlite3")}  # noqa: F405
     DATABASES["default"].setdefault("OPTIONS", {}).update({"timeout": 20, "transaction_mode": "IMMEDIATE"})  # noqa: F405  # writers queue instead of failing with "database is locked"
