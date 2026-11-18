@@ -11,7 +11,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import BaseDocTemplate, Flowable, Frame, PageTemplate, Spacer, Table, TableStyle
 
 from . import model
-from .text import pair_text, visual
+from .text import is_rtl_text, pair_text, visual
 
 FONTS = Path(__file__).parent / "fonts"
 NAVY, BLUE, INK, MUTED, LINE, TINT = colors.HexColor("#0b1f44"), colors.HexColor("#007aff"), colors.HexColor("#14213d"), colors.HexColor("#5b6b88"), colors.HexColor("#d9e0ee"), colors.HexColor("#e8f1ff")
@@ -179,7 +179,7 @@ def build_pdf(doc, lang="en", draft=None):
         flow.append(_pairs(doc.meta, L, rtl, inner))
         flow.append(Spacer(1, 5 * mm))
     for block in doc.blocks:
-        flow.extend(_block(block, L, rtl, inner))
+        flow.extend(_block(block, L, rtl, inner, mixed=lang == "both"))
     pdf.build(flow)
     return out.getvalue()
 
@@ -195,11 +195,11 @@ def _pairs(rows, L, rtl, inner):
     return t
 
 
-def _block(b, L, rtl, inner):
+def _block(b, L, rtl, inner, mixed=False):
     if isinstance(b, model.Heading):
         return [Spacer(1, 3 * mm), Txt(L(b.pair), rtl, size=11.5, bold=True, color=NAVY), Spacer(1, 1.5 * mm)]
     if isinstance(b, model.Para):
-        return [Txt(b.text, rtl, size=b.size, bold=b.bold), Spacer(1, 2 * mm)]
+        return [Txt(b.text, rtl or (mixed and is_rtl_text(b.text)), size=b.size, bold=b.bold), Spacer(1, 2 * mm)]  # lang=both: each paragraph in its own direction
     if isinstance(b, model.KeyValues):
         return [_pairs(b.rows, L, rtl, inner), Spacer(1, 3 * mm)]
     if isinstance(b, model.Table):

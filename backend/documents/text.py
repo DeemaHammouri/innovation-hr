@@ -14,6 +14,16 @@ def has_arabic(text):
     return bool(ARABIC.search(text or ""))
 
 
+LATIN = re.compile("[A-Za-z]")
+
+
+def is_rtl_text(text):
+    """True when a paragraph is mostly Arabic: it is then laid out right to left, whatever the rest of the document does.
+
+    A label such as "Quotation / عرض سعر" (more Latin letters) stays left to right; an Arabic sentence with an English name in it is right to left."""
+    return len(ARABIC.findall(text or "")) > len(LATIN.findall(text or ""))
+
+
 def visual(text, rtl):
     """The line as it must be drawn left to right on the page."""
     if not text:

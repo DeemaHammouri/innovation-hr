@@ -11,7 +11,7 @@ from docx.oxml.ns import nsdecls, qn
 from docx.shared import Mm, Pt, RGBColor
 
 from . import model
-from .text import pair_text
+from .text import is_rtl_text, pair_text
 
 FONT = "Arial"
 NAVY, BLUE, MUTED = RGBColor(0x0B, 0x1F, 0x44), RGBColor(0x00, 0x7A, 0xFF), RGBColor(0x5B, 0x6B, 0x88)
@@ -188,7 +188,7 @@ def build_docx(doc, lang="en", draft=None):
         _pairs(d, doc.meta, L, rtl, inner_mm)
         _para(d, "", rtl, space_after=4)
     for b in doc.blocks:
-        _block(d, b, L, rtl, inner_mm)
+        _block(d, b, L, rtl, inner_mm, mixed=lang == "both")
     out = io.BytesIO()
     d.save(out)
     return out.getvalue()
@@ -206,12 +206,12 @@ def _pairs(d, rows, L, rtl, inner_mm):
         _cell_text(cells[1], str(value), rtl, 9.5)
 
 
-def _block(d, b, L, rtl, inner_mm):
+def _block(d, b, L, rtl, inner_mm, mixed=False):
     if isinstance(b, model.Heading):
         _para(d, "", rtl, space_after=2)
         _para(d, L(b.pair), rtl, 11.5, True, NAVY, space_after=3)
     elif isinstance(b, model.Para):
-        _para(d, b.text, rtl, b.size, b.bold, space_after=4)
+        _para(d, b.text, rtl or (mixed and is_rtl_text(b.text)), b.size, b.bold, space_after=4)  # lang=both: each paragraph in its own direction
     elif isinstance(b, model.KeyValues):
         _pairs(d, b.rows, L, rtl, inner_mm)
         _para(d, "", rtl, space_after=3)
