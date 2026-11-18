@@ -31,6 +31,10 @@ const headers = [
 ];
 
 const nextConfig: NextConfig = {
+  // The browser test suite builds into its own folder so it never fights a dev server over .next.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  // The browser suite build skips the type check: `npm run typecheck` is the gate, and test files (vitest) are not part of the app.
+  typescript: { ignoreBuildErrors: Boolean(process.env.NEXT_DIST_DIR) },
   // Plain client-rendered app behind a login: no cache components or partial prefetching needed.
   poweredByHeader: false,
   skipTrailingSlashRedirect: true, // /api/v1/x/ must reach Django with its slash
