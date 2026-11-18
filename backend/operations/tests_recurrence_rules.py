@@ -38,7 +38,7 @@ class OtherRulesTests(SimpleTestCase):
         self.assertEqual(r.nominal("custom", start, 45, 2), date(2027, 1, 31))
 
     def test_every_rule_type_is_known(self):
-        self.assertEqual(set(r.FREQUENCIES), {"daily", "weekly", "biweekly", "monthly", "quarterly", "semiannual", "yearly", "custom"})
+        self.assertEqual(set(r.FREQUENCIES), {"daily", "workdays", "weekly", "biweekly", "monthly", "quarterly", "semiannual", "yearly", "custom"})
 
 
 class WeekendAndHolidayTests(SimpleTestCase):
