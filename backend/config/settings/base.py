@@ -140,6 +140,8 @@ AUTHENTICATION_BACKENDS = ["accounts.authentication.IdentifierBackend"]
 LOGIN_MAX_FAILS_PER_EMAIL = 5
 LOGIN_MAX_FAILS_PER_IP = 20
 LOGIN_WINDOW_SECONDS = 5 * 60
+# Country assumed for phone numbers typed without a country code (ISO 3166 alpha-2): 07xxxxxxxx is Jordanian when this is JO.
+DEFAULT_PHONE_REGION = os.environ.get("DEFAULT_PHONE_REGION", "JO").strip().upper() or "JO"
 TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", "0") or 0)
 
 # Request bodies are small JSON or a single upload of at most 10 MB (files/views.py).
