@@ -11,6 +11,7 @@ from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
 
 from core.pagination import StandardPagination
+from core.redact import RedactFreeText
 
 from . import handover as svc
 from . import staffing
@@ -40,7 +41,8 @@ def flags(user, h):
     }
 
 
-class HandoverSerializer(serializers.ModelSerializer):
+class HandoverSerializer(RedactFreeText, serializers.ModelSerializer):
+    redacted_fields = ("services", "scope_notes", "contacts", "special_requirements", "decision_comment", "escalation_reason")
     client_name = serializers.CharField(source="client.company_name", read_only=True)
     contact_person = serializers.CharField(source="client.contact_person", read_only=True)
     phone = serializers.CharField(source="client.phone", read_only=True)

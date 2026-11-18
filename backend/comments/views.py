@@ -8,13 +8,15 @@ from rest_framework.views import APIView
 from accounts.models import User
 from audit.models import record
 from core import access
+from core.redact import RedactFreeText
 from core.pagination import StandardPagination
 from notifications.service import notify
 
 from .models import Comment
 
 
-class CommentSerializer(serializers.ModelSerializer):
+class CommentSerializer(RedactFreeText, serializers.ModelSerializer):
+    redacted_fields = ("body",)
     author_name = serializers.CharField(source="author.full_name", read_only=True)
     mentions = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 

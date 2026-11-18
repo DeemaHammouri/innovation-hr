@@ -1,9 +1,12 @@
 from rest_framework import serializers
 
+from core.redact import RedactFreeText
+
 from .models import Client
 
 
-class ClientSerializer(serializers.ModelSerializer):
+class ClientSerializer(RedactFreeText, serializers.ModelSerializer):
+    redacted_fields = ("notes", "decision_note")  # Operation never reads a price typed into a note
     created_by_name = serializers.CharField(source="created_by.full_name", read_only=True)
     lead_ref = serializers.CharField(source="lead.ref", default=None, read_only=True)
 

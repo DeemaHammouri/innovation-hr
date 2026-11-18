@@ -324,3 +324,7 @@ OpH / OpM = Operation head / member.
 | POST | `/api/v1/users/1/activate/` | 401 | 400 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | POST | `/api/v1/users/1/deactivate/` | 401 | 400 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
 | POST | `/api/v1/users/1/reset-password/` | 401 | 400 | 403 | 403 | 403 | 403 | 403 | 403 | 403 |
+
+## Free text and Operation
+
+Operation never sees a price, even one typed into a note. When someone in the Operation department reads a free-text field of a client (notes, decision note), a handover (services, scope notes, contacts, special requirements, decision comment, escalation reason) or a comment, every money-like amount in it is replaced by `[amount hidden]` (`[مبلغ مخفي]` in Arabic) as the answer is sent. The stored text is not changed and everyone else reads it as written. Money-like means: a number next to a currency word or symbol, a number written with thousands separators or two decimals, or a whole number of 4 to 7 digits that is not a year. Phone numbers, short counts, dates and references such as `QT/2026/11/0001` are left alone. The rule and its tests are in `core/redact.py` and `core/tests_redact.py`.
