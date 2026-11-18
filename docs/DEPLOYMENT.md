@@ -21,6 +21,7 @@ Set the environment (names are in `backend/.env.example`; the app does not read 
 | `PRIVATE_MEDIA_ROOT` | a folder outside the code, e.g. `D:\innovation\files` |
 | `SECURE_PROXY_SSL` | `1` when the proxy sets `X-Forwarded-Proto` |
 | `DEFAULT_PHONE_REGION` | country (ISO code) of phone numbers typed without a country code. Default `JO`. Stored numbers are not rewritten when it changes |
+| `RECURRING_DAYS_AHEAD` | create recurring tasks this many days before they are due (0 to 30). Default `0`: on the due date. A task created early keeps its real due date |
 | `TRUSTED_PROXY_COUNT` | how many of your proxies sit between the caller and Django and append the address they saw to `X-Forwarded-For` (see below). `0` ignores the header |
 
 First run:

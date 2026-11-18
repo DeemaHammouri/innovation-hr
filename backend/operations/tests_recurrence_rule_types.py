@@ -167,3 +167,63 @@ class ValidationAndStorage(OCase):
         self.assertEqual(changed.status_code, 200, changed.data)
         task = RecurringTask.objects.get(pk=res.data["id"])
         self.assertEqual((task.day_rule, task.version, task.next_due), ("last_workday", 2, date(2026, 11, 30)))
+
+
+class DaysAheadTests(OCase):
+    """The RECURRING_DAYS_AHEAD setting: tasks appear that many days before they are due, once, with their real due date."""
+
+    def rule(self, start, **over):
+        return RecurringTask.objects.create(
+            client=self.mkclient(), title="Ahead", frequency="monthly", start_date=start, next_due=start, assignee=self.omem, created_by=self.ohead, **over,
+        )
+
+    def test_the_default_is_zero_and_nothing_is_created_early(self):
+        self.rule(date(2026, 12, 10))
+        self.assertEqual(services.days_ahead(), 0)
+        self.assertEqual(services.generate_due(date(2026, 12, 9)), 0)
+
+    def test_a_task_appears_the_set_number_of_days_early_with_its_real_due_date(self):
+        from django.test import override_settings
+
+        task = self.rule(date(2026, 12, 10))
+        with override_settings(RECURRING_DAYS_AHEAD=3):
+            self.assertEqual(services.generate_due(date(2026, 12, 6)), 0)  # 4 days ahead: not yet
+            self.assertEqual(services.generate_due(date(2026, 12, 7)), 1)  # exactly 3 days ahead
+            self.assertEqual(services.generate_due(date(2026, 12, 7)), 0)
+        inst = TaskInstance.objects.get(recurring=task)
+        self.assertEqual(inst.due_date, date(2026, 12, 10))  # the due date is not moved earlier
+        self.assertEqual(services.generate_due(date(2026, 12, 10)), 0)  # and arriving at it creates nothing more
+
+    def test_a_task_created_early_is_not_overdue_until_its_due_date_passes(self):
+        from django.test import override_settings
+
+        self.rule(date(2026, 12, 10))
+        with override_settings(RECURRING_DAYS_AHEAD=5):
+            services.generate_due(date(2026, 12, 5))
+        inst = TaskInstance.objects.get()
+        self.assertEqual(inst.status, "open")
+        self.assertGreater(inst.due_date, date(2026, 12, 5))
+
+    def test_the_weekend_policy_still_applies_to_the_early_task(self):
+        from django.test import override_settings
+
+        task = self.rule(date(2026, 11, 20))  # a Friday: due Sunday the 22nd
+        with override_settings(RECURRING_DAYS_AHEAD=2):
+            self.assertEqual(services.generate_due(date(2026, 11, 19)), 0)
+            self.assertEqual(services.generate_due(date(2026, 11, 20)), 1)
+        self.assertEqual(TaskInstance.objects.get(recurring=task).due_date, date(2026, 11, 22))
+
+    def test_every_rule_type_works_with_days_ahead(self):
+        from django.test import override_settings
+
+        task = self.rule(date(2026, 10, 1), day_rule="last_workday")
+        with override_settings(RECURRING_DAYS_AHEAD=2):
+            services.generate_due(date(2026, 10, 27))  # the last working day of October is the 29th
+        self.assertEqual(list(TaskInstance.objects.filter(recurring=task).values_list("due_date", flat=True)), [date(2026, 10, 29)])
+
+    def test_the_setting_is_clamped_and_a_bad_value_means_zero(self):
+        from django.test import override_settings
+
+        for value, expected in ((-4, 0), (0, 0), (7, 7), (500, 30), ("4", 4), ("x", 0), (None, 0)):
+            with override_settings(RECURRING_DAYS_AHEAD=value):
+                self.assertEqual(services.days_ahead(), expected, value)

@@ -6,6 +6,7 @@ verified (or marked not applicable with a reason). If a required item stops bein
 """
 from datetime import date, timedelta
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -365,10 +366,19 @@ def update_recurring(actor, task, data):
     return task
 
 
+def days_ahead():
+    """How many days before its due date a recurring task is created (the RECURRING_DAYS_AHEAD setting, 0 to 30; 0 = on the due date)."""
+    try:
+        return max(0, min(30, int(getattr(settings, "RECURRING_DAYS_AHEAD", 0))))
+    except (TypeError, ValueError):
+        return 0
+
+
 def generate_due(today=None, limit=12):
-    """Create the tasks that are due. Safe to run any number of times and from several workers: one task per (rule, version, period),
-    enforced by the database. Holidays are read now, so a calendar edit moves only tasks that have not been created yet."""
-    today = today or timezone.localdate()
+    """Create the tasks that are due, or due within the "days ahead" setting. Safe to run any number of times and from several workers:
+    one task per (rule, version, period), enforced by the database. Holidays are read now, so a calendar edit moves only tasks that have
+    not been created yet. A task created early keeps its real due date; only its appearance on the list moves forward."""
+    today = (today or timezone.localdate()) + timedelta(days=days_ahead())
     days = holidays()
     made = 0
     for task in RecurringTask.objects.filter(active=True, next_due__lte=today).select_related("client", "assignee"):
