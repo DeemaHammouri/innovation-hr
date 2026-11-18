@@ -51,8 +51,8 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 
-# JSON only in production: no browsable API.
-REST_FRAMEWORK = {**REST_FRAMEWORK, "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"]}  # noqa: F405
+# No browsable API in production: base.py already renders JSON only, through the envelope renderer. Do not swap in DRF's JSONRenderer here,
+# it would turn every 400/401/403/404/405/429 back into {"detail": ...} (core/tests_production_errors.py guards this).
 
 # Sign-in lockout counters shared by all workers on this machine. Use Redis (django.core.cache.backends.redis.RedisCache) for several machines.
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.filebased.FileBasedCache", "LOCATION": os.environ.get("DJANGO_CACHE_DIR", str(BASE_DIR / "cache"))}}

@@ -158,7 +158,7 @@ class ProductionSettingsTests(SimpleTestCase):
         self.assertFalse(s.DEBUG)
         self.assertTrue(s.SESSION_COOKIE_SECURE and s.CSRF_COOKIE_SECURE and s.SECURE_SSL_REDIRECT)
         self.assertEqual(s.ALLOWED_HOSTS, ["app.example.com"])
-        self.assertEqual(s.REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"], ["rest_framework.renderers.JSONRenderer"])
+        self.assertEqual(s.REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"], ["core.errors.EnvelopeJSONRenderer"])
 
     def test_refuses_weak_or_missing_values(self):
         for bad in (
