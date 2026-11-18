@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from unittest import mock
 
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -269,7 +270,8 @@ class RecurringTests(OCase):
         self.assertEqual(self.recurring(c, frequency="custom", interval_days=45).status_code, 201)
         self.assertEqual(RecurringTask.objects.filter(client=c).count(), 1)
 
-    def test_a_task_starting_today_appears_immediately_and_only_once(self):
+    @mock.patch("django.utils.timezone.localdate", return_value=date(2026, 6, 1))  # a fixed Monday: the dates below never land on a closed day
+    def test_a_task_starting_today_appears_immediately_and_only_once(self, _today):
         c = self.mkclient()
         res = self.recurring(c)
         self.assertEqual(res.status_code, 201, res.data)
@@ -281,7 +283,8 @@ class RecurringTests(OCase):
         self.assertTrue(Notification.objects.filter(user=self.omem, kind="task_due").exists())
         self.assertEqual(RecurringTask.objects.get().next_due, add_month(timezone.localdate()))
 
-    def test_future_start_creates_nothing_until_due(self):
+    @mock.patch("django.utils.timezone.localdate", return_value=date(2026, 6, 1))  # a fixed Monday: the dates below never land on a closed day
+    def test_future_start_creates_nothing_until_due(self, _today):
         c = self.mkclient()
         later = timezone.localdate() + timedelta(days=10)
         self.recurring(c, start_date=later.isoformat(), frequency="weekly")
