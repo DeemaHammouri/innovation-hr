@@ -37,7 +37,7 @@ class RecurringSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RecurringTask
-        fields = ["id", "client", "client_name", "title", "description", "frequency", "interval_days", "start_date", "next_due", "assignee", "assignee_name", "active"]
+        fields = ["id", "client", "client_name", "title", "description", "frequency", "interval_days", "day_rule", "nth", "weekday", "weekend_policy", "start_date", "next_due", "assignee", "assignee_name", "active"]
         read_only_fields = fields
 
 

@@ -475,6 +475,9 @@ def _operations():
         required=dict(parameters=[pp()], request=obj("ChecklistRequired", required=B()), responses={200: item}),
         archive=dict(parameters=[pp()], request=None, responses={200: item}))
     recurring_in = obj("RecurringInput", client=I(help_text="Required on create."), title=T(required=False), description=T(required=False), frequency=T(required=False), interval_days=I(required=False, allow_null=True),
+                       day_rule=T(required=False, help_text="date, first_workday, last_workday or nth_weekday (monthly, quarterly, semiannual and yearly rules only)."),
+                       nth=I(required=False, allow_null=True, help_text="nth_weekday only: 1, 2, 3, 4 or -1 for the last."), weekday=I(required=False, allow_null=True, help_text="nth_weekday only: 0 Monday to 6 Sunday."),
+                       weekend_policy=T(required=False, help_text="next, previous, keep or skip: what happens when the date is a weekend day or a public holiday."),
                        start_date=D(required=False), assignee=I(required=False, allow_null=True), active=B(required=False))
     doc(ov.RecurringViewSet, create=dict(request=recurring_in), partial_update=dict(request=recurring_in))
     t = os_.TaskSerializer

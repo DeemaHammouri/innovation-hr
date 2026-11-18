@@ -29,6 +29,11 @@ MSG_NOTE_LONG = "Keep this under 1000 characters."
 MSG_TITLE = "Enter a title for the task."
 MSG_FREQUENCY = "Choose how often it repeats."
 MSG_INTERVAL = "Enter a number of days from 1 to 365."
+MSG_DAY_RULE = "Choose which day of the month it falls on."
+MSG_DAY_RULE_FREQUENCY = "A first or last working day, or a weekday of the month, only works for monthly, quarterly, every 6 months and yearly tasks."
+MSG_NTH = "Choose the 1st, 2nd, 3rd, 4th or last."
+MSG_WEEKDAY = "Choose the day of the week."
+MSG_POLICY = "Choose what happens when the date is a weekend day or a holiday."
 MSG_START = "Choose the first due date."
 MSG_START_OLD = "Choose today or a later date."
 MSG_ASSIGNEE = "Choose someone from Operation."
@@ -239,9 +244,10 @@ def add_item(actor, client, name_en, name_ar, required=True):
 
 
 # ---------- recurring tasks ----------
-def due_date(task, k):
-    """The k-th nominal date of the rule (before weekends and holidays move it), always counted from the start date."""
-    return recurrence.nominal(task.frequency, task.start_date, task.interval_days, k)
+def due_date(task, k, days=frozenset()):
+    """The k-th nominal date of the rule (before weekends and holidays move it), always counted from the start date.
+    `days` (the holidays) only matters for the first and last working day rules."""
+    return recurrence.nominal(task.frequency, task.start_date, task.interval_days, k, task.day_rule, task.nth, task.weekday, days)
 
 
 def holidays():
@@ -249,13 +255,14 @@ def holidays():
 
 
 def due_on(task, k, days=None):
-    """The date the k-th task is actually due: the nominal date, moved to the next working day (Friday and Saturday are the weekend)."""
-    return recurrence.next_working_day(due_date(task, k), holidays() if days is None else days)
+    """The date the k-th task is actually due: the nominal date, moved by the rule's weekend policy (Friday and Saturday are the weekend)."""
+    days = holidays() if days is None else days
+    return recurrence.due(task.frequency, task.start_date, task.interval_days, k, days, task.day_rule, task.nth, task.weekday, task.weekend_policy)
 
 
 def _skipped(task, k, days):
-    """A daily rule makes no task for a day nobody works; every other rule moves the task to the next working day instead."""
-    return task.frequency == "daily" and not recurrence.is_working_day(due_date(task, k), days)
+    """No task for an occurrence on a closed day when the rule skips (every working day, a daily rule, or the policy "skip")."""
+    return recurrence.skipped(task.frequency, task.weekend_policy, due_date(task, k, days), days)
 
 
 def _clean_task(data, creating):
@@ -278,6 +285,30 @@ def _clean_task(data, creating):
         if not 1 <= interval <= 365:
             raise ValidationError({"interval_days": [MSG_INTERVAL]})
     out["interval_days"] = interval
+    day_rule = data.get("day_rule") or "date"
+    if day_rule not in recurrence.DAY_RULES:
+        raise ValidationError({"day_rule": [MSG_DAY_RULE]})
+    if day_rule != "date" and freq not in recurrence.MONTHS:
+        raise ValidationError({"day_rule": [MSG_DAY_RULE_FREQUENCY]})
+    nth = weekday = None
+    if day_rule == "nth_weekday":
+        try:
+            nth = int(data.get("nth"))
+        except (TypeError, ValueError):
+            raise ValidationError({"nth": [MSG_NTH]})
+        if nth not in recurrence.NTH:
+            raise ValidationError({"nth": [MSG_NTH]})
+        try:
+            weekday = int(data.get("weekday"))
+        except (TypeError, ValueError):
+            raise ValidationError({"weekday": [MSG_WEEKDAY]})
+        if not 0 <= weekday <= 6:
+            raise ValidationError({"weekday": [MSG_WEEKDAY]})
+    out["day_rule"], out["nth"], out["weekday"] = day_rule, nth, weekday
+    policy = data.get("weekend_policy") or "next"
+    if policy not in recurrence.POLICIES:
+        raise ValidationError({"weekend_policy": [MSG_POLICY]})
+    out["weekend_policy"] = policy
     start = data.get("start_date")
     try:
         start = date.fromisoformat(str(start))
@@ -311,9 +342,9 @@ def create_recurring(actor, client, data):
 def update_recurring(actor, task, data):
     with transaction.atomic():
         task = RecurringTask.objects.select_for_update(of=("self",)).select_related("client").get(pk=task.pk)
-        merged = {k: data.get(k, getattr(task, k)) for k in ("title", "description", "frequency", "interval_days", "start_date")}
+        merged = {k: data.get(k, getattr(task, k)) for k in ("title", "description", "frequency", "interval_days", "start_date", "day_rule", "nth", "weekday", "weekend_policy")}
         merged["start_date"] = str(merged["start_date"])
-        schedule_changed = any(str(merged[k]) != str(getattr(task, k)) for k in ("frequency", "interval_days", "start_date"))
+        schedule_changed = any(str(merged[k]) != str(getattr(task, k)) for k in ("frequency", "interval_days", "start_date", "day_rule", "nth", "weekday", "weekend_policy"))
         fields = _clean_task(merged, creating=False)
         for k, v in fields.items():
             setattr(task, k, v)
@@ -324,8 +355,8 @@ def update_recurring(actor, task, data):
         if schedule_changed:
             # A new schedule is a new version and counts from today: tasks already made keep their version and dates.
             task.version += 1
-            k = 0
-            while due_date(task, k) < timezone.localdate():
+            k, days = 0, holidays()
+            while due_date(task, k, days) < timezone.localdate():
                 k += 1
             task.occurrences = k
         task.next_due = due_on(task, task.occurrences)
@@ -347,7 +378,7 @@ def generate_due(today=None, limit=12):
             while due_on(task, k, days) <= today:
                 if created_here < limit and not _skipped(task, k, days):
                     assignee = task.assignee if task.assignee_id and task.assignee.is_active else None
-                    nominal_date = due_date(task, k)
+                    nominal_date = due_date(task, k, days)
                     inst, created = TaskInstance.objects.get_or_create(
                         recurring=task, rule_version=task.version, period=recurrence.period(task.frequency, nominal_date),
                         defaults={"client": task.client, "title": task.title, "assignee": assignee, "due_date": due_on(task, k, days)},

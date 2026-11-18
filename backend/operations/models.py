@@ -46,6 +46,19 @@ class RecurringTask(TimeStamped):
         SEMIANNUAL = "semiannual", "Every 6 months"
         YEARLY = "yearly", "Yearly"
         CUSTOM = "custom", "Every N days"
+        WORKDAYS = "workdays", "Every working day"
+
+    class DayRule(models.TextChoices):  # monthly, quarterly, semi-annual and yearly rules only
+        DATE = "date", "Same day of the month as the start date"
+        FIRST_WORKDAY = "first_workday", "First working day of the month"
+        LAST_WORKDAY = "last_workday", "Last working day of the month"
+        NTH_WEEKDAY = "nth_weekday", "A weekday of the month (2nd Tuesday, last Thursday)"
+
+    class WeekendPolicy(models.TextChoices):  # what to do when the date is a weekend day or a public holiday
+        NEXT = "next", "Move to the next working day"
+        PREVIOUS = "previous", "Move to the previous working day"
+        KEEP = "keep", "Keep the date"
+        SKIP = "skip", "Skip that time"
 
     client = models.ForeignKey("clients.Client", on_delete=models.PROTECT, related_name="recurring_tasks")
     title = models.CharField(max_length=150)
@@ -53,6 +66,10 @@ class RecurringTask(TimeStamped):
     frequency = models.CharField(max_length=10, choices=Frequency.choices)
     version = models.PositiveIntegerField(default=1)  # a new schedule starts a new version; tasks already made keep theirs
     interval_days = models.PositiveSmallIntegerField(null=True, blank=True)
+    day_rule = models.CharField(max_length=14, choices=DayRule.choices, default=DayRule.DATE)
+    nth = models.SmallIntegerField(null=True, blank=True)  # nth_weekday only: 1 to 4, or -1 for the last
+    weekday = models.SmallIntegerField(null=True, blank=True)  # nth_weekday only: 0 Monday to 6 Sunday
+    weekend_policy = models.CharField(max_length=8, choices=WeekendPolicy.choices, default=WeekendPolicy.NEXT)
     start_date = models.DateField()
     occurrences = models.PositiveIntegerField(default=0)  # how many due dates have been passed so far (created or skipped over)
     next_due = models.DateField(db_index=True)
@@ -65,6 +82,13 @@ class RecurringTask(TimeStamped):
         constraints = [
             models.CheckConstraint(
                 condition=~Q(frequency="custom") | (Q(interval_days__gte=1) & Q(interval_days__lte=365)), name="recurring_custom_interval_range",
+            ),
+            # A day rule other than "date" only makes sense for the frequencies that step by months.
+            models.CheckConstraint(
+                condition=Q(day_rule="date") | Q(frequency__in=["monthly", "quarterly", "semiannual", "yearly"]), name="recurring_day_rule_needs_months",
+            ),
+            models.CheckConstraint(
+                condition=~Q(day_rule="nth_weekday") | (Q(nth__isnull=False, nth__in=[1, 2, 3, 4, -1]) & Q(weekday__isnull=False, weekday__gte=0, weekday__lte=6)), name="recurring_nth_weekday_complete",  # isnull=False: NULL would pass a CHECK
             ),
         ]
 
