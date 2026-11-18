@@ -10,7 +10,7 @@ import { RecordTabs } from "@/components/records/RecordTabs";
 import { ApiError, api, errorMessage, type OpAssignee, type OpClient, type Page, type QAMeeting, type RecordFile, type RecurringTask, type TaskInstance } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useFetch } from "@/lib/useFetch";
-import { FREQUENCIES } from "./opUi";
+import { DAY_RULES, FREQUENCIES, MONTH_FREQUENCIES, NTH_VALUES, POLICIES, WEEKDAYS } from "./opUi";
 
 const todayIso = () => {
   const d = new Date();
@@ -271,11 +271,17 @@ export function RecurringSheet({ client, task, onClose, onDone }: { client: OpCl
   const [description, setDescription] = useState(task?.description ?? "");
   const [frequency, setFrequency] = useState<string>(task?.frequency ?? "monthly");
   const [days, setDays] = useState(task?.interval_days ? String(task.interval_days) : "");
+  const [dayRule, setDayRule] = useState<string>(task?.day_rule ?? "date");
+  const [nth, setNth] = useState(task?.nth ? String(task.nth) : "2");
+  const [weekday, setWeekday] = useState(task?.weekday != null ? String(task.weekday) : "0");
+  const [policy, setPolicy] = useState<string>(task?.weekend_policy ?? "next");
   const [start, setStart] = useState(task?.start_date ?? todayIso());
   const [assignee, setAssignee] = useState(task?.assignee ? String(task.assignee) : "");
   const [local, setLocal] = useState<Record<string, string>>({});
-  const action = useAction(["title", "frequency", "interval_days", "start_date", "assignee", "description"]);
+  const action = useAction(["title", "frequency", "interval_days", "day_rule", "nth", "weekday", "weekend_policy", "start_date", "assignee", "description"]);
   const errors = { ...action.errors, ...local };
+  const monthly = (MONTH_FREQUENCIES as string[]).includes(frequency);
+  const nthWeekday = monthly && dayRule === "nth_weekday";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -289,7 +295,11 @@ export function RecurringSheet({ client, task, onClose, onDone }: { client: OpCl
       document.getElementById(`field-${first}`)?.focus();
       return;
     }
-    const body = { client: client.id, title: title.trim(), description: description.trim(), frequency, interval_days: frequency === "custom" ? Number(days) : null, start_date: start, assignee: assignee ? Number(assignee) : null };
+    const body = {
+      client: client.id, title: title.trim(), description: description.trim(), frequency, interval_days: frequency === "custom" ? Number(days) : null,
+      day_rule: monthly ? dayRule : "date", nth: nthWeekday ? Number(nth) : null, weekday: nthWeekday ? Number(weekday) : null, weekend_policy: policy,
+      start_date: start, assignee: assignee ? Number(assignee) : null,
+    };
     const saved = await action.run(() => (task ? api(`/operations/recurring/${task.id}/`, { method: "PATCH", body }) : api("/operations/recurring/", { method: "POST", body })));
     if (saved) {
       toast.success(t(task ? "op.rec.updated" : "op.rec.created"));
@@ -314,6 +324,14 @@ export function RecurringSheet({ client, task, onClose, onDone }: { client: OpCl
         <Textarea name="description" label={t("op.rec.description")} rows={2} value={description} onChange={(e) => setDescription(e.target.value)} error={errors.description} />
         <Select name="frequency" label={t("op.rec.frequency")} required value={frequency} onChange={(e) => { setFrequency(e.target.value); setLocal({}); }} error={errors.frequency} options={FREQUENCIES.map((f) => ({ value: f, label: f === "custom" ? t("op.freq.custom") : t(`op.freq.${f}`) }))} />
         {frequency === "custom" ? <Input name="interval_days" label={t("op.rec.everyDays")} required inputMode="numeric" ltr value={days} onChange={(e) => { setDays(e.target.value); setLocal({}); }} error={errors.interval_days} /> : null}
+        {monthly ? <Select name="day_rule" label={t("op.rec.dayRule")} value={dayRule} onChange={(e) => { setDayRule(e.target.value); setLocal({}); }} error={errors.day_rule} options={DAY_RULES.map((r) => ({ value: r, label: t(`op.dayrule.${r}`) }))} /> : null}
+        {nthWeekday ? (
+          <div className="grid grid-cols-2 gap-3">
+            <Select name="nth" label={t("op.rec.nth")} value={nth} onChange={(e) => setNth(e.target.value)} error={errors.nth} options={NTH_VALUES.map((n) => ({ value: String(n), label: t(`op.nth.${n === -1 ? "last" : n}`) }))} />
+            <Select name="weekday" label={t("op.rec.weekday")} value={weekday} onChange={(e) => setWeekday(e.target.value)} error={errors.weekday} options={WEEKDAYS.map((d) => ({ value: String(d), label: t(`op.weekday.${d}`) }))} />
+          </div>
+        ) : null}
+        {frequency !== "workdays" ? <Select name="weekend_policy" label={t("op.rec.policy")} value={policy} onChange={(e) => setPolicy(e.target.value)} error={errors.weekend_policy} options={POLICIES.map((p) => ({ value: p, label: t(`op.policy.${p}`) }))} /> : null}
         <Input name="start_date" label={t(task ? "op.rec.startDate" : "op.rec.firstDue")} type="date" required min={task ? undefined : todayIso()} value={start} onChange={(e) => { setStart(e.target.value); setLocal({}); }} error={errors.start_date} />
         <Select name="assignee" label={t("op.rec.assignee")} placeholder={t("op.rec.unassigned")} value={assignee} onChange={(e) => setAssignee(e.target.value)} error={errors.assignee} options={(people ?? []).map((p) => ({ value: String(p.id), label: p.full_name }))} />
       </form>

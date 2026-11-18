@@ -539,7 +539,9 @@ export type ChecklistItem = {
   expires_on: string | null;
   versions: ChecklistVersion[];
 };
-export type Frequency = "daily" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semiannual" | "yearly" | "custom";
+export type Frequency = "daily" | "workdays" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semiannual" | "yearly" | "custom";
+export type DayRule = "date" | "first_workday" | "last_workday" | "nth_weekday";
+export type WeekendPolicy = "next" | "previous" | "keep" | "skip";
 export type RecurringTask = {
   id: number;
   client: number;
@@ -548,6 +550,10 @@ export type RecurringTask = {
   description: string;
   frequency: Frequency;
   interval_days: number | null;
+  day_rule: DayRule;
+  nth: number | null;
+  weekday: number | null;
+  weekend_policy: WeekendPolicy;
   start_date: string;
   next_due: string;
   assignee: number | null;
