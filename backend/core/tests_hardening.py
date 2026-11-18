@@ -6,10 +6,11 @@ from unittest import mock
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from django.db import IntegrityError, transaction
-from django.test import SimpleTestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, override_settings
 from rest_framework.test import APITestCase
 
 from accounts.models import Department, User
+from audit.events import client_ip
 from core import permission_audit
 from core.logscrub import ScrubFilter, scrub
 from core.roles import ALL_ROLES
@@ -178,3 +179,40 @@ class ProductionSettingsTests(SimpleTestCase):
             import config.settings.production as prod
 
             importlib.reload(prod)
+
+
+class ClientAddressTests(RoleCase):
+    """P3: the throttle and the audit trail must use the real caller, and a caller must not be able to choose its own address."""
+
+    def ip(self, forwarded=None, remote="10.0.0.5", **settings_):
+        meta = {"REMOTE_ADDR": remote}
+        if forwarded is not None:
+            meta["HTTP_X_FORWARDED_FOR"] = forwarded
+        with override_settings(**settings_):
+            return client_ip(RequestFactory().get("/", **meta))
+
+    def test_the_header_is_ignored_by_default(self):
+        self.assertEqual(self.ip("1.2.3.4"), "10.0.0.5")
+        self.assertEqual(self.ip("1.2.3.4", TRUSTED_PROXY_COUNT=0), "10.0.0.5")
+
+    def test_one_trusted_proxy_the_caller_is_the_last_entry_and_invented_entries_are_ignored(self):
+        self.assertEqual(self.ip("203.0.113.9", TRUSTED_PROXY_COUNT=1), "203.0.113.9")
+        self.assertEqual(self.ip("6.6.6.6, 5.5.5.5, 203.0.113.9", TRUSTED_PROXY_COUNT=1), "203.0.113.9")  # the caller prepended its own guesses
+
+    def test_two_trusted_proxies(self):
+        self.assertEqual(self.ip("6.6.6.6, 203.0.113.9, 172.16.0.2", TRUSTED_PROXY_COUNT=2), "203.0.113.9")
+
+    def test_a_missing_or_too_short_header_falls_back_to_the_connection_address(self):
+        self.assertEqual(self.ip(None, TRUSTED_PROXY_COUNT=1), "10.0.0.5")
+        self.assertEqual(self.ip("", TRUSTED_PROXY_COUNT=1), "10.0.0.5")
+        self.assertEqual(self.ip("203.0.113.9", TRUSTED_PROXY_COUNT=2), "10.0.0.5")
+
+    def test_throttle_behind_a_proxy_blocks_one_caller_not_everyone_and_rotating_the_header_does_not_help(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        post = lambda email, password, via: self.client.post(LOGIN, {"email": email, "password": password}, format="json", REMOTE_ADDR="10.0.0.5", HTTP_X_FORWARDED_FOR=via)  # noqa: E731
+        with override_settings(TRUSTED_PROXY_COUNT=1, LOGIN_MAX_FAILS_PER_IP=3, LOGIN_MAX_FAILS_PER_EMAIL=100):
+            for i in range(3):  # one attacker, a new made-up leftmost address every time
+                post(f"nobody{i}@x.com", "x", f"9.9.9.{i}, 203.0.113.66")
+            self.assertEqual(post("ceo@x.com", PASSWORD, "8.8.8.8, 203.0.113.66").status_code, 429)
+            self.assertEqual(post("ceo@x.com", PASSWORD, "203.0.113.7").status_code, 200)  # someone else, behind the same proxy, is not locked out

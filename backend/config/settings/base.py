@@ -136,11 +136,11 @@ AUTH_REFRESH_COOKIE_PATH = "/api/v1/auth/"
 AUTHENTICATION_BACKENDS = ["accounts.authentication.IdentifierBackend"]
 
 # Sign-in lockout (see accounts/ratelimit.py): 5 wrong passwords in 5 minutes lock the account, 20 from one address lock the address.
-# Honour X-Forwarded-For only behind a proxy you control that sets it.
+# TRUSTED_PROXY_COUNT: how many proxies of yours sit between the caller and this app (0 = none, X-Forwarded-For is ignored). See audit/events.py.
 LOGIN_MAX_FAILS_PER_EMAIL = 5
 LOGIN_MAX_FAILS_PER_IP = 20
 LOGIN_WINDOW_SECONDS = 5 * 60
-TRUST_X_FORWARDED_FOR = os.environ.get("TRUST_X_FORWARDED_FOR", "0") == "1"
+TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", "0") or 0)
 
 # Request bodies are small JSON or a single upload of at most 10 MB (files/views.py).
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024

@@ -26,12 +26,24 @@ def _check(value, path="detail"):
 
 
 def client_ip(request):
+    """The caller's address, for the audit trail and the sign-in throttle.
+
+    `X-Forwarded-For` is a list every proxy appends to, and a caller can start it with anything. So it is read from the right:
+    TRUSTED_PROXY_COUNT is how many hops between the caller and this app are yours (each one adds the address it saw), and the
+    caller is the entry just before them in the chain `X-Forwarded-For + REMOTE_ADDR`. Anything further left is ignored, so
+    rotating the header gains an attacker nothing. With 0 (the default) the header is not used at all.
+    """
     from django.conf import settings
 
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded and getattr(settings, "TRUST_X_FORWARDED_FOR", False):
-        return forwarded.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
+    remote = request.META.get("REMOTE_ADDR")
+    trusted = getattr(settings, "TRUSTED_PROXY_COUNT", 0)
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if trusted <= 0 or not forwarded:
+        return remote
+    chain = [part.strip() for part in forwarded.split(",") if part.strip()] + [remote]
+    if len(chain) <= trusted:  # fewer hops than promised: the header is not what the deployment says it is
+        return remote
+    return chain[-(trusted + 1)]
 
 
 def record_event(request, event, actor=None, target=None, identifier="", **detail):

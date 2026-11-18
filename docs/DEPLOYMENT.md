@@ -20,7 +20,7 @@ Set the environment (names are in `backend/.env.example`; the app does not read 
 | `CORS_ALLOWED_ORIGINS` | the `https://` address of the web app |
 | `PRIVATE_MEDIA_ROOT` | a folder outside the code, e.g. `D:\innovation\files` |
 | `SECURE_PROXY_SSL` | `1` when the proxy sets `X-Forwarded-Proto` |
-| `TRUST_X_FORWARDED_FOR` | `1` only when the proxy sets the client address (login lockout uses it) |
+| `TRUSTED_PROXY_COUNT` | how many of your proxies sit between the caller and Django and append the address they saw to `X-Forwarded-For` (see below). `0` ignores the header |
 
 First run:
 
@@ -79,6 +79,7 @@ Back up two things **together**, because records point at files: the database (S
 
 ## 6. Notes
 
+- **Client address and the sign-in throttle.** Django sees the address of the web app container, not the caller's. The web app passes `X-Forwarded-For` through unchanged, so the caller's address is whatever your TLS reverse proxy puts in it. Set `TRUSTED_PROXY_COUNT=1` when one reverse proxy sits in front of the web app and appends the address it saw (nginx `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, Caddy does this by default). Django reads the header from the right, so entries a caller invents on the left are ignored. Add one for every further hop that appends (a CDN in front of the proxy: 2). Never set a count higher than your real chain: with `0` (the default) the header is ignored and **every caller shares the web app's address**, so the per-address limit (20 wrong passwords in 5 minutes) then locks everyone out at once. That is also what you get when port 3000 is published without a proxy. Run behind the proxy and set the count.
 - Login lockout and the cache use files under `DJANGO_CACHE_DIR`, which is correct for one server. For several servers, point `CACHES` at a shared Redis.
 - Static files (`STATIC_ROOT`) are only the Django admin/API assets; serve them from the proxy or leave them to the app.
 - Logs go to the console with passwords, tokens and authorization headers scrubbed.
