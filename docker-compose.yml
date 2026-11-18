@@ -16,7 +16,7 @@ services:
 
   backend:
     build: ./backend
-    environment:
+    environment: &backend-env
       DB_ENGINE: postgres
       DB_HOST: db
       DB_NAME: ${DB_NAME:-innovation}
@@ -39,6 +39,18 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # Runs the scheduled jobs (docs/DEPLOYMENT.md, section 4): process_notifications every 5 minutes, the four daily jobs once a day.
+  # Without it no appointment reminder and no 60-minute urgent alert is ever sent.
+  scheduler:
+    build: ./backend
+    command: ["python", "manage.py", "run_scheduler"]
+    environment: *backend-env
+    volumes: [media:/data/private_media]
+    depends_on:
+      backend: {condition: service_healthy}   # the backend container runs the migrations
+    restart: unless-stopped
+    healthcheck: {disable: true}   # the image's HEALTHCHECK probes the web server, which this container does not run
 
   frontend:
     build:

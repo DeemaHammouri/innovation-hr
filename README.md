@@ -68,7 +68,7 @@ Development only: `python manage.py seed_demo_data` creates one demo user per ro
 | General-task overdue alerts | `python manage.py general_task_alerts` | daily |
 | Lead follow-up reminders | `python manage.py lead_reminders` | daily |
 
-All are idempotent. If one is missed, the daily ones also run on the first request of the day. Details in `docs/DEPLOYMENT.md`.
+With `docker compose up` the `scheduler` service runs all five (`python manage.py run_scheduler`); on a bare server you schedule them yourself. All are idempotent. If one is missed, the daily ones also run on the first request of the day. Details in `docs/DEPLOYMENT.md`.
 
 ## Tests and checks
 

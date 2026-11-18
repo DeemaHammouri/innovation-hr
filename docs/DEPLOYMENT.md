@@ -59,7 +59,7 @@ To move existing data: `python manage.py dumpdata --natural-foreign --natural-pr
 
 ## 4. Scheduled jobs
 
-Schedule all five. All are safe to run any number of times. If a daily job is missed, the same work runs on the first request of the day; `process_notifications` is the only one that must run every few minutes, because the 60-minute urgent alerts depend on it.
+**With `docker compose` nothing to do: the `scheduler` service runs all five** (`python manage.py run_scheduler`: `process_notifications` every 5 minutes, the other four once a day, a failed job is retried on the next round). On a bare server, schedule all five yourself. All are safe to run any number of times. If a daily job is missed, the same work runs on the first request of the day; `process_notifications` is the only one that must run every few minutes, because the 60-minute urgent alerts depend on it.
 
 | Job | Command |
 |---|---|
