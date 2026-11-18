@@ -40,7 +40,7 @@ MSG_NO_ACCOUNT = "This client has no portal account yet."
 
 
 def _lock(task):
-    return TaskInstance.objects.select_for_update().select_related("client", "assignee").get(pk=task.pk)
+    return TaskInstance.objects.select_for_update(of=("self",)).select_related("client", "assignee").get(pk=task.pk)
 
 
 def _worker(actor, task):
@@ -234,7 +234,7 @@ def publish(actor, task, attachment_id, title):
 def acknowledge(user, deliverable):
     """The client confirms they received it. Once; the time and the person are kept."""
     with transaction.atomic():
-        d = Deliverable.objects.select_for_update().select_related("client", "task").get(pk=deliverable.pk)
+        d = Deliverable.objects.select_for_update(of=("self",)).select_related("client", "task").get(pk=deliverable.pk)
         if d.acknowledged_at:
             raise ValidationError({"detail": "You already confirmed receiving this."})
         d.acknowledged_by, d.acknowledged_at = user, timezone.now()

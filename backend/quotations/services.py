@@ -89,7 +89,7 @@ def link(q):
 
 
 def _locked(q):
-    return Quotation.objects.select_for_update().select_related("lead", "lead__assigned_to").get(pk=q.pk)
+    return Quotation.objects.select_for_update(of=("self",)).select_related("lead", "lead__assigned_to").get(pk=q.pk)
 
 
 def _require(q, *states):

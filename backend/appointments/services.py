@@ -132,7 +132,7 @@ def _others(actor, appt):
 
 def reschedule(actor, appt, starts_at, ends_at=None):
     with transaction.atomic():
-        appt = Appointment.objects.select_for_update().select_related("lead", "owner", "created_by").get(pk=appt.pk)
+        appt = Appointment.objects.select_for_update(of=("self",)).select_related("lead", "owner", "created_by").get(pk=appt.pk)
         _require_open(actor, appt)
         starts_at = _when(starts_at)
         if starts_at <= timezone.now():
@@ -156,7 +156,7 @@ def reschedule(actor, appt, starts_at, ends_at=None):
 
 def cancel(actor, appt, reason=""):
     with transaction.atomic():
-        appt = Appointment.objects.select_for_update().select_related("lead", "owner", "created_by").get(pk=appt.pk)
+        appt = Appointment.objects.select_for_update(of=("self",)).select_related("lead", "owner", "created_by").get(pk=appt.pk)
         _require_open(actor, appt)
         if appt.type == A.Type.FOLLOW_UP and appt.lead_id and appt.lead.status == "waiting":
             raise ValidationError({"detail": MSG_LEAD_FOLLOW_UP})

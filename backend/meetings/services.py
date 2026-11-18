@@ -35,7 +35,7 @@ def ref(r):
 
 
 def _locked(r):
-    return MeetingReport.objects.select_for_update().select_related("lead", "appointment", "author", "signed_by").get(pk=r.pk)
+    return MeetingReport.objects.select_for_update(of=("self",)).select_related("lead", "appointment", "author", "signed_by").get(pk=r.pk)
 
 
 def _require(r, *states):

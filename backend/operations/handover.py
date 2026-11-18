@@ -35,7 +35,7 @@ def link(h):
 
 
 def _locked(h):
-    return Handover.objects.select_for_update().select_related("contract", "client", "prepared_by", "contract__lead").get(pk=h.pk)
+    return Handover.objects.select_for_update(of=("self",)).select_related("contract", "client", "prepared_by", "contract__lead").get(pk=h.pk)
 
 
 def _require(h, *states):

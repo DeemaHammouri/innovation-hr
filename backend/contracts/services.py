@@ -44,7 +44,7 @@ def link(c):
 
 
 def _locked(c):
-    return Contract.objects.select_for_update().select_related("lead", "lead__assigned_to").get(pk=c.pk)
+    return Contract.objects.select_for_update(of=("self",)).select_related("lead", "lead__assigned_to").get(pk=c.pk)
 
 
 def _require(c, *states):

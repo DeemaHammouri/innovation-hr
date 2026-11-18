@@ -121,7 +121,7 @@ def request_leave(actor, data, today=None):
 
 
 def _locked(req_id):
-    return LeaveRequest.objects.select_for_update().select_related("user__department", "leave_type").get(pk=req_id)
+    return LeaveRequest.objects.select_for_update(of=("self",)).select_related("user__department", "leave_type").get(pk=req_id)
 
 
 def approve(actor, req):

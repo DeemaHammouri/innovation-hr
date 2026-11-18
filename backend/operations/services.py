@@ -119,7 +119,7 @@ def file_attached(user, item, attachment):
     A pending, verified or expired item goes (back) to Uploaded, because the newest document has not been checked. A client that was
     active only because of the old document therefore returns to onboarding until Operation verifies the new one."""
     with transaction.atomic():
-        item = ChecklistItem.objects.select_for_update().select_related("client").get(pk=item.pk)
+        item = ChecklistItem.objects.select_for_update(of=("self",)).select_related("client").get(pk=item.pk)
         number = (item.versions.order_by("-number").values_list("number", flat=True).first() or 0) + 1
         item.versions.exclude(state=ChecklistItemVersion.State.SUPERSEDED).update(state=ChecklistItemVersion.State.SUPERSEDED)
         ChecklistItemVersion.objects.create(item=item, number=number, attachment=attachment, filename=attachment.original_name[:255], uploaded_by=user)
@@ -135,7 +135,7 @@ def file_attached(user, item, attachment):
 
 
 def _locked_item(item):
-    return ChecklistItem.objects.select_for_update().select_related("client").get(pk=item.pk)
+    return ChecklistItem.objects.select_for_update(of=("self",)).select_related("client").get(pk=item.pk)
 
 
 def _expiry(raw, required):
@@ -310,7 +310,7 @@ def create_recurring(actor, client, data):
 
 def update_recurring(actor, task, data):
     with transaction.atomic():
-        task = RecurringTask.objects.select_for_update().select_related("client").get(pk=task.pk)
+        task = RecurringTask.objects.select_for_update(of=("self",)).select_related("client").get(pk=task.pk)
         merged = {k: data.get(k, getattr(task, k)) for k in ("title", "description", "frequency", "interval_days", "start_date")}
         merged["start_date"] = str(merged["start_date"])
         schedule_changed = any(str(merged[k]) != str(getattr(task, k)) for k in ("frequency", "interval_days", "start_date"))
@@ -342,7 +342,7 @@ def generate_due(today=None, limit=12):
     made = 0
     for task in RecurringTask.objects.filter(active=True, next_due__lte=today).select_related("client", "assignee"):
         with transaction.atomic():
-            task = RecurringTask.objects.select_for_update().select_related("client", "assignee").get(pk=task.pk)
+            task = RecurringTask.objects.select_for_update(of=("self",)).select_related("client", "assignee").get(pk=task.pk)
             k, created_here = task.occurrences, 0
             while due_on(task, k, days) <= today:
                 if created_here < limit and not _skipped(task, k, days):
@@ -365,7 +365,7 @@ def generate_due(today=None, limit=12):
 
 
 def _locked_task(task):
-    return TaskInstance.objects.select_for_update().select_related("client").get(pk=task.pk)
+    return TaskInstance.objects.select_for_update(of=("self",)).select_related("client").get(pk=task.pk)
 
 
 def complete_task(actor, task, note=""):

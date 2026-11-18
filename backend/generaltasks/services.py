@@ -72,7 +72,7 @@ def create(actor, data):
 def update(actor, task, data):
     """Title, details, assignee and deadline of an open task. Changing the deadline starts a new overdue-alert round."""
     with transaction.atomic():
-        task = GeneralTask.objects.select_for_update().select_related("assignee", "assigned_by").get(pk=task.pk)
+        task = GeneralTask.objects.select_for_update(of=("self",)).select_related("assignee", "assigned_by").get(pk=task.pk)
         if not scope.can_manage(actor, task):
             raise PermissionDenied(MSG_NOT_YOURS)
         if task.status == S.DONE:
@@ -118,7 +118,7 @@ def update(actor, task, data):
 def mark_done(actor, task):
     """Only the person it was given to, never the CEO or the head. Late means finished after the deadline day, fixed here, once."""
     with transaction.atomic():
-        task = GeneralTask.objects.select_for_update().select_related("assignee", "assigned_by").get(pk=task.pk)
+        task = GeneralTask.objects.select_for_update(of=("self",)).select_related("assignee", "assigned_by").get(pk=task.pk)
         if task.assignee_id != actor.pk:
             raise PermissionDenied(MSG_ONLY_ASSIGNEE)
         if task.status == S.DONE:
