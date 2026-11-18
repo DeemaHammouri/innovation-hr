@@ -23,9 +23,8 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    # Same as the Dockerfile's CMD, plus creating the first accounts (seed does nothing if the CEO already exists;
-    # createsuperuser is allowed to fail when the admin already exists).
-    dockerCommand: sh -c "python manage.py migrate --noinput && python manage.py seed && (python manage.py createsuperuser --noinput --email \"$ADMIN_EMAIL\" --full_name \"$ADMIN_NAME\" || true) && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --access-logfile -"
+    # Migrates, creates the first accounts (no Shell on the free plan), then starts gunicorn. See backend/render-start.sh.
+    dockerCommand: sh /app/render-start.sh
     plan: free
     region: frankfurt
     envVars:
