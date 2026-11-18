@@ -115,7 +115,8 @@ class UserWriteSerializer(serializers.ModelSerializer):
         return user
 
     def update(self, instance, validated_data):
-        moved = validated_data.get("role_ref") != instance.role_ref or validated_data.get("department") != instance.department
+        # Only a seat that is in the payload AND different counts: a PATCH of the name alone must not sign the person out.
+        moved = ("role_ref" in validated_data and validated_data["role_ref"] != instance.role_ref) or ("department" in validated_data and validated_data["department"] != instance.department)
         instance = super().update(instance, validated_data)
         if moved:
             instance.bump_token_version()  # a new seat means new rights: old tokens must not carry the old ones
