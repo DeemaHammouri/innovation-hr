@@ -1,7 +1,7 @@
 """Create (or complete) the departments, roles and capabilities. Safe to run any number of times.
 
 Existing rows are never reset: a capability an administrator granted or removed stays as it is. Only capabilities that did not exist
-yet are attached to their default roles, and Super Admin always gets all of them.
+yet are attached to their default roles. Super Admin has `full_access`, so it holds every capability without being granted any.
 """
 from django.db import transaction
 
@@ -15,8 +15,11 @@ def ensure_organization():
     roles = {}
     for key, (dept, is_head, name_en, name_ar) in ROLES.items():
         role, _ = Role.objects.get_or_create(
-            key=key, defaults={"department": depts.get(dept), "is_head": is_head, "name_en": name_en, "name_ar": name_ar},
+            key=key, defaults={"department": depts.get(dept), "is_head": is_head, "name_en": name_en, "name_ar": name_ar, "full_access": key == SUPER_ADMIN},
         )
+        if key == SUPER_ADMIN and not role.full_access:
+            Role.objects.filter(pk=role.pk).update(full_access=True)
+            role.full_access = True
         roles[key] = role
     new = []
     for code, (description, defaults) in CAPABILITIES.items():

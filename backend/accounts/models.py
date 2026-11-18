@@ -40,6 +40,8 @@ class Role(models.Model):
     name_en = models.CharField(max_length=80)
     name_ar = models.CharField(max_length=80)
     capabilities = models.ManyToManyField(Capability, related_name="roles", blank=True)
+    # Full access: holds every capability that exists, including ones added later, with nothing to grant (Super Admin).
+    full_access = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["id"]
@@ -145,7 +147,9 @@ class User(AbstractBaseUser, PermissionsMixin):
             return frozenset()
         cached = self.__dict__.get("_caps")
         if cached is None:
-            cached = self.__dict__["_caps"] = frozenset(Capability.objects.filter(roles=self.role_ref_id).values_list("code", flat=True))  # one query
+            # One query: the role's own capabilities, or all of them when the role has full access.
+            granted = models.Q(roles=self.role_ref_id) | models.Q(models.Exists(Role.objects.filter(pk=self.role_ref_id, full_access=True)))
+            cached = self.__dict__["_caps"] = frozenset(Capability.objects.filter(granted).values_list("code", flat=True))
         return cached
 
     def bump_token_version(self):
