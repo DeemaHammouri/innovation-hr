@@ -207,3 +207,17 @@ class ActionLog(models.Model):
 
     def __str__(self):
         return f"{self.user_id} {self.action} {self.timestamp:%Y-%m-%d %H:%M}"
+
+
+class LoginFailure(models.Model):
+    """Failed sign-in counter for one account name or one address, inside a fixed window (accounts/ratelimit.py).
+
+    A database row, not a cache entry, so the count is atomic (`UPDATE ... SET count = count + 1`) and shared by every worker and container.
+    """
+
+    key = models.CharField(max_length=300, unique=True)
+    count = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)
+
+    def __str__(self):
+        return f"{self.key}: {self.count}"
