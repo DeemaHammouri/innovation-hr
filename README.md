@@ -47,7 +47,7 @@ npm install
 npm run dev                     # production check: npm run build && npm start
 ```
 
-If the API is elsewhere, copy `frontend/.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL` (read at build time).
+The web app proxies `/api/*` to Django, so the browser only ever talks to the web app. If the API is not at `http://localhost:8000`, copy `frontend/.env.example` to `.env.local` and set `BACKEND_URL` (read by the server each time it starts, not at build time).
 
 ### 3. First walk-through
 

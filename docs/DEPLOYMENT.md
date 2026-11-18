@@ -39,11 +39,11 @@ python manage.py createsuperuser --noinput --email admin@yourcompany.com --full_
 
 ```
 cd frontend
-set NEXT_PUBLIC_API_URL=https://api.yourcompany.com/api
+set BACKEND_URL=http://backend-host:8000
 npm ci && npm run build && npm start -- -p 3000
 ```
 
-`NEXT_PUBLIC_API_URL` is read at build time. Production adds HSTS and a Content-Security-Policy that allows only that API address.
+`BACKEND_URL` is the address the web app's server uses to reach Django (the browser never calls it; it only calls the web app, which forwards `/api/*`). It is read when the server starts, so changing it needs a restart, not a rebuild. Production adds HSTS and a Content-Security-Policy whose `connect-src` is the web app itself.
 
 ## 3. Database: PostgreSQL
 
