@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from core.pagination import StandardPagination
 
+from .messages import render
 from .models import Notification
 
 
@@ -16,6 +17,14 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = ["id", "kind", "title", "body", "link", "created_at", "read"]
         read_only_fields = fields
+
+    def to_representation(self, n):
+        data = super().to_representation(n)
+        if n.params is not None:  # written in whichever language the reader uses now, not the one they had when it was created
+            user = getattr(self.context.get("request"), "user", None)
+            data["title"], body = render(n.kind, getattr(user, "preferred_language", None) or n.user.preferred_language, **n.params)
+            data["body"] = body[:400]
+        return data
 
     def get_read(self, n):
         return n.read_at is not None

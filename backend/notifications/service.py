@@ -1,7 +1,14 @@
+import json
+
 from django.db import IntegrityError, transaction
 
 from .messages import render
 from .models import Notification
+
+
+def json_safe(params):
+    """The placeholder values as plain JSON (dates and the like become text), so they can be stored and rendered again later."""
+    return json.loads(json.dumps(params, default=str))
 
 
 def notify(user, kind, link="", dedupe_key="", **params):
@@ -17,7 +24,7 @@ def notify(user, kind, link="", dedupe_key="", **params):
     title, body = render(kind, user.preferred_language, **params)
     try:
         with transaction.atomic():  # a savepoint: losing the race must not poison the caller's transaction
-            return Notification.objects.create(user=user, kind=kind, title=title, body=body[:400], link=link, dedupe_key=dedupe_key)
+            return Notification.objects.create(user=user, kind=kind, title=title, body=body[:400], link=link, dedupe_key=dedupe_key, params=json_safe(params))
     except IntegrityError:
         if dedupe_key:
             return None  # another caller created it between our check and our insert

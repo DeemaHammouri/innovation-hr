@@ -4,7 +4,8 @@ from django.utils import timezone
 
 
 class Notification(models.Model):
-    """In-app only. The text is written in the recipient's language when it is created."""
+    """In-app only. `kind` + `params` are what the notification says; the text is written in the reader's language when it is read.
+    `title` and `body` hold the text as first written (in the recipient's language then) and are what old rows without `params` show."""
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
     kind = models.CharField(max_length=60)
@@ -14,6 +15,7 @@ class Notification(models.Model):
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     read_at = models.DateTimeField(null=True, blank=True)
     dedupe_key = models.CharField(max_length=120, blank=True, db_index=True)  # lets reminders (overdue) fire once
+    params = models.JSONField(null=True, blank=True)  # the values of the message placeholders; null on rows made before this existed
 
     class Meta:
         ordering = ["-created_at", "-id"]

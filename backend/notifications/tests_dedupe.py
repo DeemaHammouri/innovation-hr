@@ -65,6 +65,11 @@ class MigrationKeepsDuplicatesTests(TransactionTestCase):
         from django.db import connection
         from django.db.migrations.executor import MigrationExecutor
 
+        def back_to_latest():  # leave the test database exactly as the other tests expect it
+            latest = MigrationExecutor(connection)
+            latest.migrate([key for key in latest.loader.graph.leaf_nodes() if key[0] == "notifications"])
+
+        self.addCleanup(back_to_latest)
         executor = MigrationExecutor(connection)
         executor.migrate([("notifications", "0001_initial")])
         old = executor.loader.project_state([("notifications", "0001_initial")]).apps
